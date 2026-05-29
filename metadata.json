@@ -1,0 +1,6 @@
+{
+  "name": "TradeVault & TradeLog PRO",
+  "description": "Portail d'Accès TradeVault et Journal de Trading TradeLog PRO ultra-complet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
