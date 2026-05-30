@@ -67,3 +67,16 @@ export interface AppNotification {
   read: boolean;
 }
 
+export interface PaymentRequest {
+  id: string;
+  userId: string;
+  username: string;
+  email: string;
+  amount: number;
+  network: 'TRC20' | 'BEP20';
+  proofScreenshot: string; // Base64 representation
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+

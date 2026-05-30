@@ -24,13 +24,15 @@ import {
   EyeOff,
   Trash2
 } from 'lucide-react';
-import { User, Trade, Challenge, Account } from './types';
+import { User, Trade, Challenge, Account, PaymentRequest } from './types';
 import { 
   DEFAULT_USERS, 
   DEFAULT_TRADES, 
   DEFAULT_CHALLENGES, 
   DEFAULT_ACCOUNTS 
 } from './utils/mockData';
+
+import { customAlert, customConfirm } from './utils/customDialog';
 
 // Subcomponents
 import Portal from './components/Portal';
@@ -47,21 +49,109 @@ import Logo, { DefaultLogoAvatar } from './components/Logo';
 export default function App() {
   // Load initial persistent lists or fallback to seeded mock data
   const [users, setUsers] = useState<User[]>(() => {
+    // One-time hard reset to give the user a completely brand-new slate with only the admin account
+    if (!localStorage.getItem('tv_reset_to_zero_v3')) {
+      localStorage.setItem('tv_users', JSON.stringify(DEFAULT_USERS));
+      localStorage.setItem('tv_trades', JSON.stringify(DEFAULT_TRADES));
+      localStorage.setItem('tv_challenges', JSON.stringify(DEFAULT_CHALLENGES));
+      localStorage.setItem('tv_accounts', JSON.stringify(DEFAULT_ACCOUNTS));
+      localStorage.setItem('tv_payment_requests', JSON.stringify([]));
+      localStorage.setItem('tv_selected_account_id', 'personal');
+      sessionStorage.removeItem('tv_current_user');
+      localStorage.setItem('tv_reset_to_zero_v3', 'true');
+      return DEFAULT_USERS;
+    }
     const saved = localStorage.getItem('tv_users');
     return saved ? JSON.parse(saved) : DEFAULT_USERS;
   });
 
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isConfirm: boolean;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    isConfirm: false
+  });
+
+  // Current session navigation states
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = sessionStorage.getItem('tv_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Expose global showCustomAlert and showCustomConfirm for window-level actions
+  useEffect(() => {
+    (window as any).showCustomAlert = (title: string, message: string) => {
+      setDialogState({
+        isOpen: true,
+        title,
+        message,
+        isConfirm: false
+      });
+    };
+
+    (window as any).showCustomConfirm = (title: string, message: string, onConfirm: () => void, onCancel?: () => void) => {
+      setDialogState({
+        isOpen: true,
+        title,
+        message,
+        isConfirm: true,
+        onConfirm: () => {
+          setDialogState(prev => ({ ...prev, isOpen: false }));
+          onConfirm();
+        },
+        onCancel: () => {
+          setDialogState(prev => ({ ...prev, isOpen: false }));
+          if (onCancel) onCancel();
+        }
+      });
+    };
+
+    return () => {
+      delete (window as any).showCustomAlert;
+      delete (window as any).showCustomConfirm;
+    };
+  }, []);
+
   const [trades, setTrades] = useState<Trade[]>(() => {
+    const savedUser = sessionStorage.getItem('tv_current_user');
+    if (savedUser) {
+      const u = JSON.parse(savedUser) as User;
+      const saved = localStorage.getItem(`tv_trades_${u.id}`);
+      if (saved) return JSON.parse(saved);
+    }
     const saved = localStorage.getItem('tv_trades');
     return saved ? JSON.parse(saved) : DEFAULT_TRADES;
   });
 
   const [challenges, setChallenges] = useState<Challenge[]>(() => {
+    const savedUser = sessionStorage.getItem('tv_current_user');
+    if (savedUser) {
+      const u = JSON.parse(savedUser) as User;
+      const saved = localStorage.getItem(`tv_challenges_${u.id}`);
+      if (saved) return JSON.parse(saved);
+    }
     const saved = localStorage.getItem('tv_challenges');
     return saved ? JSON.parse(saved) : DEFAULT_CHALLENGES;
   });
 
   const [accounts, setAccounts] = useState<Account[]>(() => {
+    const savedUser = sessionStorage.getItem('tv_current_user');
+    if (savedUser) {
+      const u = JSON.parse(savedUser) as User;
+      const saved = localStorage.getItem(`tv_accounts_${u.id}`);
+      if (saved) return JSON.parse(saved);
+      // Fallback to single empty personal account for registration
+      const freshAccounts = [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
+      localStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
+      return freshAccounts;
+    }
     const saved = localStorage.getItem('tv_accounts');
     return saved ? JSON.parse(saved) : DEFAULT_ACCOUNTS;
   });
@@ -88,10 +178,9 @@ export default function App() {
     return saved ? parseInt(saved, 10) : 3;
   });
 
-  // Current session navigation states
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = sessionStorage.getItem('tv_current_user');
-    return saved ? JSON.parse(saved) : null;
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>(() => {
+    const saved = localStorage.getItem('tv_payment_requests');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [currentScreen, setCurrentScreen] = useState<'login_portal' | 'checkout' | 'app'>(() => {
@@ -104,6 +193,12 @@ export default function App() {
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
+    const savedUser = sessionStorage.getItem('tv_current_user');
+    if (savedUser) {
+      const u = JSON.parse(savedUser) as User;
+      const saved = localStorage.getItem(`tv_selected_account_id_${u.id}`);
+      if (saved) return saved;
+    }
     const saved = localStorage.getItem('tv_selected_account_id');
     return saved || 'personal';
   });
@@ -153,11 +248,11 @@ export default function App() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (!file.type.startsWith('image/')) {
-        alert('Fichier image uniquement (.png, .jpg)');
+        customAlert('Format incorrect', 'Fichier image uniquement (.png, .jpg)');
         return;
       }
       if (file.size > 3 * 1024 * 1024) {
-        alert('Fichier trop lourd (max 3Mo)');
+        customAlert('Fichier trop lourd', 'Fichier trop lourd (max 3Mo)');
         return;
       }
       const reader = new FileReader();
@@ -184,20 +279,33 @@ export default function App() {
   }, [users]);
 
   useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(trades));
+    }
     localStorage.setItem('tv_trades', JSON.stringify(trades));
-  }, [trades]);
+  }, [trades, currentUser?.id]);
 
   useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(`tv_challenges_${currentUser.id}`, JSON.stringify(challenges));
+    }
     localStorage.setItem('tv_challenges', JSON.stringify(challenges));
-  }, [challenges]);
+  }, [challenges, currentUser?.id]);
 
   useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(`tv_accounts_${currentUser.id}`, JSON.stringify(accounts));
+    }
     localStorage.setItem('tv_accounts', JSON.stringify(accounts));
-  }, [accounts]);
+  }, [accounts, currentUser?.id]);
 
   useEffect(() => {
     localStorage.setItem('tv_admin_emails', adminEmails);
   }, [adminEmails]);
+
+  useEffect(() => {
+    localStorage.setItem('tv_payment_requests', JSON.stringify(paymentRequests));
+  }, [paymentRequests]);
 
   useEffect(() => {
     if (currentUser) {
@@ -208,8 +316,36 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(`tv_selected_account_id_${currentUser.id}`, selectedAccountId);
+    }
     localStorage.setItem('tv_selected_account_id', selectedAccountId);
-  }, [selectedAccountId]);
+  }, [selectedAccountId, currentUser?.id]);
+
+  // Sync workspace dynamically when user logs in
+  useEffect(() => {
+    if (currentUser) {
+      const uId = currentUser.id;
+      
+      const savedTrades = localStorage.getItem(`tv_trades_${uId}`);
+      setTrades(savedTrades ? JSON.parse(savedTrades) : []);
+
+      const savedChallenges = localStorage.getItem(`tv_challenges_${uId}`);
+      setChallenges(savedChallenges ? JSON.parse(savedChallenges) : []);
+
+      const savedAccs = localStorage.getItem(`tv_accounts_${uId}`);
+      if (savedAccs) {
+        setAccounts(JSON.parse(savedAccs));
+      } else {
+        const freshAccounts = [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
+        setAccounts(freshAccounts);
+        localStorage.setItem(`tv_accounts_${uId}`, JSON.stringify(freshAccounts));
+      }
+
+      const savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
+      setSelectedAccountId(savedSelAcc || 'personal');
+    }
+  }, [currentUser?.id]);
 
   // Session handler actions
   const handleLoginSuccess = (user: User) => {
@@ -238,29 +374,54 @@ export default function App() {
   const handleCheckoutSuccess = (proofBase64: string, network: 'TRC20' | 'BEP20') => {
     if (!currentUser) return;
     
-    const now = new Date();
-    const expiry = new Date();
-    expiry.setDate(now.getDate() + 90); // 3 Month renewal cycle
-
-    const updatedUser: User = {
-      ...currentUser,
-      paid: true,
-      paidUntil: expiry.toISOString(),
-      status: 'approved'
+    console.log(`%c[SYS_PAYMENT_PROOF_SENT] : Preuve de paiement de ${currentUser.username} envoyée à l'admin pour renouvellement anticipé.`, "color: #ff9f1c; font-weight: bold;");
+    
+    const paymentId = 'pay_' + Date.now();
+    const newRequest: PaymentRequest = {
+      id: paymentId,
+      userId: currentUser.id,
+      username: currentUser.username,
+      email: currentUser.email,
+      amount: subscriptionPrice,
+      network: network,
+      proofScreenshot: proofBase64,
+      status: 'pending',
+      createdAt: new Date().toISOString()
     };
 
-    // Update inside stored list
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setCurrentUser(updatedUser);
+    setPaymentRequests(prev => [...prev, newRequest]);
+    
+    // Asynchronously dispatch the email notification to admin via backend API
+    fetch('/api/notify/renewal-request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: currentUser.username,
+        email: currentUser.email,
+        adminEmail: adminEmails,
+        amount: subscriptionPrice,
+        network: network,
+        paymentId: paymentId
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Early renewal admin notification email dispatched:', data);
+    })
+    .catch(err => {
+      console.error('Failed to dispatch early renewal admin notification:', err);
+    });
+
     setCurrentScreen('app');
     setActiveTab('dashboard');
-    setShowWelcomeModal(true);
+    customAlert("Paiement Transmis", `Preuve de versement USDT transmise avec succès !\n\nL'administrateur a été instantanément notifié de votre demande de renouvellement par e-mail. Vos accès Premium seront mis à jour (prolongation de 30 jours) dès validation manuelle.`);
 
-    // Trigger checkout success push notification
     import('./utils/notificationService').then(({ sendPushNotification }) => {
       sendPushNotification(
-        `Abonnement Validé ! 💎`,
-        `Félicitations ! Votre abonnement de $30 USDT est validé. Votre accès trimestriel (3 mois) est désormais actif.`,
+        `Renouvellement en attente ⏳`,
+        `Preuve transmise avec succès pour validation. L'administrateur valide votre compte sous peu.`,
         'payment'
       );
     });
@@ -293,15 +454,6 @@ export default function App() {
     setTrades(prev => prev.filter(t => t.id !== id));
   };
 
-  // Persist accounts and challenges to localStorage
-  useEffect(() => {
-    localStorage.setItem('tv_accounts', JSON.stringify(accounts));
-  }, [accounts]);
-
-  useEffect(() => {
-    localStorage.setItem('tv_challenges', JSON.stringify(challenges));
-  }, [challenges]);
-
   // Prop firm challenge CRUD
   const handleAddChallenge = (newCh: Challenge) => {
     setChallenges(prev => [...prev, newCh]);
@@ -310,28 +462,19 @@ export default function App() {
   const handleDeleteAccount = (id: string) => {
     console.log("Deleting account with ID:", id);
     if (id === 'personal' || id === 'ftmo-100k') {
-      alert("La suppression du compte personnel et du compte FTMO par défaut n'est pas autorisée.");
+      customAlert("Action Non Autorisée", "La suppression du compte personnel et du compte FTMO par défaut n'est pas autorisée.");
       return;
     }
-
-    // Filter accounts
-    const updatedAccounts = accounts.filter(a => a.id !== id);
-    if (updatedAccounts.length === 0) return;
-
-    setAccounts(updatedAccounts);
+    setAccounts(prev => prev.filter(a => a.id !== id));
     setChallenges(prev => prev.filter(c => c.accountId !== id));
-
-    // Re-select another account if deleting active
     if (selectedAccountId === id) {
-      const nextId = updatedAccounts[0].id;
-      setSelectedAccountId(nextId);
-      localStorage.setItem('tv_selected_account_id', nextId);
+      setSelectedAccountId('personal');
     }
   };
 
   const handleDeleteChallenge = (id: string) => {
     if (id === 'ftmo-100k-challenge') {
-      alert("La suppression du challenge FTMO par défaut n'est pas autorisée.");
+      customAlert("Action Non Autorisée", "La suppression du challenge FTMO par défaut n'est pas autorisée.");
       return;
     }
     setChallenges(prev => prev.filter(c => c.id !== id));
@@ -353,6 +496,26 @@ export default function App() {
     };
     setUsers(prev => prev.map(u => u.id === userId ? approved : u));
 
+    // Send triggered Welcome Email via Resend Client-Server flow
+    fetch('/api/notify/approve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: target.email,
+        username: target.username,
+        subscriptionPeriod: subscriptionPeriod
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Approve welcome notification dispatched:', data);
+    })
+    .catch(err => {
+      console.error('Failed to dispatch welcome notification email:', err);
+    });
+
     // Trigger success notification via background service
     import('./utils/notificationService').then(({ sendPushNotification }) => {
       sendPushNotification(
@@ -365,6 +528,84 @@ export default function App() {
 
   const handleRejectUser = (userId: string) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'rejected' } : u));
+  };
+
+  const handleApproveRenewal = (payId: string) => {
+    const req = paymentRequests.find(r => r.id === payId);
+    if (!req) return;
+
+    // Get the target user to renew
+    const targetUser = users.find(u => u.id === req.userId);
+    if (!targetUser) return;
+
+    let baseDate = new Date();
+    if (targetUser.paid && targetUser.paidUntil) {
+      const currExpiry = new Date(targetUser.paidUntil);
+      if (currExpiry > baseDate) {
+        baseDate = currExpiry;
+      }
+    }
+
+    const newExpiry = new Date(baseDate);
+    // User stated that their account has been renewed for 30 days
+    newExpiry.setDate(baseDate.getDate() + 30);
+
+    const renewedUser: User = {
+      ...targetUser,
+      paid: true,
+      paidUntil: newExpiry.toISOString()
+    };
+
+    // Update state lists
+    setUsers(prev => prev.map(u => u.id === targetUser.id ? renewedUser : u));
+    if (currentUser && currentUser.id === targetUser.id) {
+      setCurrentUser(renewedUser);
+    }
+
+    setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' } : r));
+
+    // Send confirmation email via Resend
+    fetch('/api/notify/renewal-approve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: targetUser.email,
+        username: targetUser.username
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Renewal approval email dispatched:', data);
+    })
+    .catch(err => {
+      console.error('Failed to dispatch renewal welcome email:', err);
+    });
+  };
+
+  const handleRejectRenewal = (payId: string) => {
+    setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'rejected' } : r));
+  };
+
+  const handleCheckCronRenewals = () => {
+    fetch('/api/cron/check-renewals', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        usersList: users,
+        adminEmail: adminEmails
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Daily checker (Cron) trigger success:', data);
+    })
+    .catch(err => {
+      console.error('Failed to execute simulated cron check:', err);
+    });
   };
 
   // Add account helper
@@ -424,6 +665,7 @@ export default function App() {
           adminWalletBEP20={adminWalletBEP20}
           subscriptionPrice={subscriptionPrice}
           subscriptionPeriod={subscriptionPeriod}
+          adminEmails={adminEmails}
         />
       )}
 
@@ -475,7 +717,7 @@ export default function App() {
                     {accounts.length > 1 && selectedAccountId !== 'personal' && selectedAccountId !== 'ftmo-100k' && (
                       <button
                         type="button"
-                        onClick={() => { if (confirm('Supprimer ce portefeuille et toutes ses données associées ?')) handleDeleteAccount(selectedAccountId); }}
+                        onClick={() => { customConfirm('Supprimer Portefeuille', 'Supprimer ce portefeuille et toutes ses données associées ?', () => handleDeleteAccount(selectedAccountId)); }}
                         className="w-7 h-7 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 flex items-center justify-center rounded-lg shadow shrink-0 text-xs font-bold"
                         title="Supprimer le portefeuille actif"
                       >
@@ -487,23 +729,47 @@ export default function App() {
               )}
 
               {/* SUBSCRIPTION COUNTDOWN (90 DAYS) */}
-              {!isAdmin && currentUser?.paidUntil && (
-                <div className="bg-indigo-900/20 border border-indigo-500/20 p-3 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider block mb-0.5">Accès PRO</span>
-                    <span className="text-[10px] text-slate-300 font-medium font-sans">
-                      Jours restants : <strong className="text-white font-mono text-xs ml-1">
-                        {Math.max(0, Math.ceil((new Date(currentUser.paidUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24)))}
-                      </strong> / 90
-                    </span>
+              {!isAdmin && currentUser?.paidUntil && (() => {
+                const daysLeft = Math.max(0, Math.ceil((new Date(currentUser.paidUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24)));
+                const isNearingExpiry = daysLeft <= 7;
+                return (
+                  <div className={`${isNearingExpiry ? 'bg-rose-900/20 border-rose-500/40 text-rose-300' : 'bg-indigo-900/20 border-indigo-500/20 text-indigo-300'} border p-3 rounded-xl flex flex-col gap-2`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isNearingExpiry ? 'text-rose-400' : 'text-indigo-400'}`}>
+                          Accès PRO {isNearingExpiry && '⚠️'}
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-medium font-sans">
+                          Jours restants : <strong className={`font-mono text-xs ml-1 ${isNearingExpiry ? 'text-rose-400' : 'text-white'}`}>
+                            {daysLeft}
+                          </strong> / 90
+                        </span>
+                      </div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border shadow-inner overflow-hidden shrink-0 ${isNearingExpiry ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'}`}>
+                         <span className="text-[10px] font-black font-mono">
+                          {daysLeft}
+                         </span>
+                      </div>
+                    </div>
+                    {isNearingExpiry && (
+                      <p className="text-[9px] text-rose-300/80 leading-tight">
+                        Votre abonnement expire bientôt ! Renouvelez vite pour éviter toute coupure.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setCurrentScreen('checkout')}
+                      className={`w-full py-1.5 mt-1 border rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors ${
+                        isNearingExpiry 
+                          ? 'bg-rose-600/30 hover:bg-rose-600/50 border-rose-500/30 text-rose-300'
+                          : 'bg-indigo-600/30 hover:bg-indigo-600/50 border-indigo-500/30 text-indigo-300'
+                      }`}
+                    >
+                      Renouvellement Anticipé
+                    </button>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/40 shadow-inner overflow-hidden shrink-0">
-                     <span className="text-[10px] font-black text-indigo-300 font-mono">
-                      {Math.max(0, Math.ceil((new Date(currentUser.paidUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24)))}
-                     </span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Main sidebar menus */}
               <nav className="space-y-1 font-mono text-xs">
@@ -716,6 +982,10 @@ export default function App() {
                   setSubscriptionPeriod(period);
                   localStorage.setItem('tv_subscription_period', period.toString());
                 }}
+                paymentRequests={paymentRequests}
+                onApproveRenewal={handleApproveRenewal}
+                onRejectRenewal={handleRejectRenewal}
+                onCheckCronRenewals={handleCheckCronRenewals}
               />
             )}
 
@@ -1013,6 +1283,62 @@ export default function App() {
             >
               🚀 Let's Go
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM DIALOG MODAL (REPLACING native window.alert/window.confirm) */}
+      {dialogState.isOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#0b1026] border border-indigo-500/20 rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col space-y-4 shadow-2xl">
+            
+            <div className="flex items-center gap-3 border-b border-indigo-950/40 pb-3">
+              <span className="text-xl">
+                {dialogState.isConfirm ? '❓' : '🚨'}
+              </span>
+              <h3 className="text-sm font-black font-sans text-white uppercase tracking-wider">
+                {dialogState.title}
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-300 font-mono leading-relaxed whitespace-pre-line py-2">
+              {dialogState.message}
+            </p>
+
+            <div className="flex gap-2.5 pt-2">
+              {dialogState.isConfirm ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dialogState.onCancel) dialogState.onCancel();
+                      setDialogState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-all hover:text-white"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dialogState.onConfirm) dialogState.onConfirm();
+                      setDialogState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-indigo-500/10 active:scale-[0.98]"
+                  >
+                    Confirmer
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDialogState(prev => ({ ...prev, isOpen: false }))}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white rounded-xl text-xs font-bold transition-all text-center shadow-md hover:shadow-indigo-500/10 active:scale-[0.98]"
+                >
+                  OK
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

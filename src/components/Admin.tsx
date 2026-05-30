@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Settings, Users, Check, X, ShieldAlert, Award, Image as ImageIcon, Copy, ArrowRight, Mail } from 'lucide-react';
-import { User } from '../types';
+import { User, PaymentRequest } from '../types';
 import { DefaultLogoAvatar } from './Logo';
+import { customAlert, customConfirm } from '../utils/customDialog';
 
 interface AdminProps {
   users: User[];
@@ -14,6 +15,10 @@ interface AdminProps {
   subscriptionPrice: number;
   subscriptionPeriod: number;
   onUpdateAdminParams: (trc: string, bep: string, price: number, period: number) => void;
+  paymentRequests?: PaymentRequest[];
+  onApproveRenewal?: (payId: string) => void;
+  onRejectRenewal?: (payId: string) => void;
+  onCheckCronRenewals?: () => void;
 }
 
 export default function Admin({ 
@@ -26,7 +31,11 @@ export default function Admin({
   adminWalletBEP20,
   subscriptionPrice,
   subscriptionPeriod,
-  onUpdateAdminParams 
+  onUpdateAdminParams,
+  paymentRequests = [],
+  onApproveRenewal = () => {},
+  onRejectRenewal = () => {},
+  onCheckCronRenewals = () => {}
 }: AdminProps) {
   const [emailsInput, setEmailsInput] = useState(adminEmails);
   const [trcInput, setTrcInput] = useState(adminWalletTRC20);
@@ -40,7 +49,7 @@ export default function Admin({
   const handleSaveEmails = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateAdminEmails(emailsInput);
-    alert('Liste des e-mails admin enregistrée avec succès !');
+    customAlert('Configuration Admin', 'Liste des e-mails admin enregistrée avec succès !');
   };
 
   const handleSaveCoordinates = (e: React.FormEvent) => {
@@ -48,7 +57,7 @@ export default function Admin({
     const parsedPrice = parseFloat(priceInput) || 30;
     const parsedPeriod = parseInt(periodInput, 10) || 3;
     onUpdateAdminParams(trcInput, bepInput, parsedPrice, parsedPeriod);
-    alert('Coordonnées de réception (adresses de wallets et tarification) mises à jour avec succès !');
+    customAlert('Configuration Admin', 'Coordonnées de réception (adresses de wallets et tarification) mises à jour avec succès !');
   };
 
   return (
@@ -165,18 +174,127 @@ export default function Admin({
       </div>
 
       {/* NOTIFICATION LOG SIMULATOR */}
-      <div className="bg-slate-950/40 p-4 border border-indigo-950/20 rounded-2xl space-y-2">
-        <div className="flex items-center gap-2 text-indigo-400">
-          <Mail size={14} className="text-indigo-400 shrink-0" />
-          <span className="text-[11px] font-bold font-mono uppercase tracking-wider block">Simulateur d'Alerte Mail Admin (Actif)</span>
+      <div className="bg-slate-950/40 p-5 border border-indigo-950/20 rounded-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-indigo-400">
+            <Mail size={16} className="text-indigo-400 shrink-0" />
+            <span className="text-[11px] font-black font-mono uppercase tracking-wider block">Daemon de Notification Email & Cron</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onCheckCronRenewals();
+              customAlert("Cron Daemon", "Vérification planifiée (Cron) déclenchée ! Le serveur système interroge tous les traders expirant dans exactement 7 jours et expédie les rappels d'abonnement via Resend.");
+            }}
+            className="px-3 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 rounded-xl text-yellow-400 font-mono font-bold text-[10px] uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            ⏰ Tester le Cron Job (Rappel 7 jours)
+          </button>
         </div>
-        <div className="bg-slate-950 px-3 py-2.5 rounded-xl border border-slate-900 space-y-1.5">
+        <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-900 space-y-2">
           <span className="text-[10px] text-indigo-300 block font-mono">
-            [SYS_ALERT_MAIL_DAEMON] : Emails cibles configurés : {adminEmails || 'aucun'}
+            [SYS_ALERT_MAIL_DAEMON] : Emails administrateurs cibles : <span className="text-white font-bold">{adminEmails || 'aucun'}</span>
           </span>
-          <p className="text-[10.5px] text-slate-400 leading-relaxed">
-            Grâce à notre architecture SPA réactive entièrement locale, dès qu'un trader s'enregistre, un daemon de notification s'affiche dans votre log de console et dans votre espace admin persistant d'édition !
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Des alertes transactionnelles automatisées sont transmises en temps réel via l'API Resend à chaque étape (Inscription de trader, approbation, demande d'early renewal, validation ou planification quotidienne de renouvellement).
           </p>
+        </div>
+      </div>
+
+      {/* EARLY RENEWALS PURE TABLE */}
+      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 space-y-4">
+        <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
+          <span>⚡</span> Demandes de Renouvellement Anticipé (+30 jours) ({paymentRequests.filter(r => r.status === 'pending').length} en attente)
+        </h3>
+        <p className="text-[10.5px] text-slate-400 font-sans">
+          Les traders approuvés ci-dessous ont demandé un renouvellement d'abonnement immédiat sans attendre l'expiration de leur période d'accès en cours.
+        </p>
+
+        <div className="overflow-x-auto border border-indigo-950/60 rounded-xl bg-slate-950/30 font-mono text-[11px]">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-950 border-b border-indigo-950/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                <th className="p-3">Identifiant Trader</th>
+                <th className="p-3">Réseau & Montant</th>
+                <th className="p-3">Date Soumis</th>
+                <th className="p-3">Preuve de paiement</th>
+                <th className="p-3 text-center">Statut / Décision</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-indigo-950/20">
+              {paymentRequests.length > 0 ? (
+                paymentRequests.map((req) => (
+                  <tr key={req.id} className="hover:bg-slate-900/30 text-slate-300">
+                    <td className="p-3">
+                      <div className="font-bold text-white">{req.username}</div>
+                      <div className="text-[10px] text-slate-500">{req.email}</div>
+                    </td>
+                    <td className="p-3">
+                      <div className="text-teal-400">USDT {req.network}</div>
+                      <div className="text-[10px] text-slate-400">${req.amount} USD</div>
+                    </td>
+                    <td className="p-3 text-slate-500">
+                      {new Date(req.createdAt).toLocaleDateString()} {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </td>
+                    <td className="p-3 whitespace-nowrap">
+                      {req.proofScreenshot ? (
+                        <button
+                          type="button"
+                          onClick={() => setActiveImage(req.proofScreenshot)}
+                          className="px-2.5 py-1 text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          <ImageIcon size={12} /> Voir capture d'écran
+                        </button>
+                      ) : (
+                        <span className="text-slate-500 italic font-sans">sans image</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center whitespace-nowrap">
+                      {req.status === 'pending' ? (
+                        <div className="inline-flex justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onApproveRenewal(req.id);
+                              customAlert('Paiement Validé', "Renouvellement validé ! +30 jours d'Accès Premium crédités au trader.");
+                            }}
+                            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded text-[10px] font-bold transition-all"
+                          >
+                            Valider
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              customConfirm('Rejeter Renouvellement', 'Rejeter cette demande de renouvellement ?', () => {
+                                onRejectRenewal(req.id);
+                              });
+                            }}
+                            className="bg-red-500/10 hover:bg-red-500/20 text-rose-450 border border-red-500/20 px-2.5 py-1 rounded text-[10px] font-bold transition-all"
+                          >
+                            Rejeter
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider ${
+                          req.status === 'approved' 
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {req.status === 'approved' ? 'Renouvelé' : 'Rejeté'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-500 font-sans text-xs">
+                    Aucune demande de renouvellement anticipé d'abonnement en attente d'audit.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -226,14 +344,21 @@ export default function Admin({
                       <div className="inline-flex justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => { onApproveUser(pending.id); alert('Trader approuvé ! Accès Premium débloqué.'); }}
+                          onClick={() => {
+                            onApproveUser(pending.id);
+                            customAlert('Trader Approuvé', 'Trader approuvé ! Accès Premium débloqué.');
+                          }}
                           className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded text-[10px] font-bold"
                         >
                           Approuver
                         </button>
                         <button
                           type="button"
-                          onClick={() => { if (confirm('Rejeter ce trader ?')) onRejectUser(pending.id); }}
+                          onClick={() => {
+                            customConfirm('Rejeter Trader', 'Rejeter ce trader ?', () => {
+                              onRejectUser(pending.id);
+                            });
+                          }}
                           className="bg-red-500/10 hover:bg-red-500/20 text-rose-400 border border-red-500/20 px-2 py-1 rounded text-[10px] font-bold"
                         >
                           Rejeter

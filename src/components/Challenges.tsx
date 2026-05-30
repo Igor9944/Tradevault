@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Target, Plus, Trash2, Award, AlertTriangle, CheckCircle, ShieldAlert, Sparkles, X, Info } from 'lucide-react';
 import { Challenge, Trade, Account } from '../types';
+import { customAlert, customConfirm } from '../utils/customDialog';
 
 interface ChallengesProps {
   challenges: Challenge[];
@@ -32,7 +33,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !capital) {
-      alert('Veuillez spécifier le nom du challenge et son capital');
+      customAlert('Données Requises', 'Veuillez spécifier le nom du challenge et son capital');
       return;
     }
 
@@ -124,7 +125,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                   {ch.id !== 'ftmo-100k-challenge' && (
                     <button
                       type="button"
-                      onClick={() => { if (confirm('Supprimer ce challenge ?')) onDeleteChallenge(ch.id); }}
+                      onClick={() => { customConfirm('Supprimer Challenge', 'Supprimer ce challenge ?', () => onDeleteChallenge(ch.id)); }}
                       className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-slate-900 transition-all"
                     >
                       <Trash2 size={13} />

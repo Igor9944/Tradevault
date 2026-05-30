@@ -337,6 +337,7 @@ interface PortalProps {
   adminWalletBEP20?: string;
   subscriptionPrice?: number;
   subscriptionPeriod?: number;
+  adminEmails?: string;
 }
 
 export default function Portal({ 
@@ -346,7 +347,8 @@ export default function Portal({
   adminWalletTRC20 = 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
   adminWalletBEP20 = '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
   subscriptionPrice = 30,
-  subscriptionPeriod = 3
+  subscriptionPeriod = 3,
+  adminEmails = 'igorrose2003@gmail.com'
 }: PortalProps) {
   const [activeTab, setActiveTab ] = useState<'login' | 'register'>('login');
   
@@ -506,6 +508,29 @@ export default function Portal({
     };
 
     onRegisterPending(newUser);
+    
+    // Send email alert to admin asynchronously
+    fetch('/api/notify/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: regUsername.trim(),
+        email: regEmail.trim(),
+        adminEmail: adminEmails,
+        amount: subscriptionPrice,
+        network: selectedNetwork
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Admin registration alert dispatched:', data);
+    })
+    .catch(err => {
+      console.error('Failed to dispatch registration email:', err);
+    });
+
     displayToast('Compte créé ! Votre inscription est en cours de validation par l\'Admin.', 'success');
     
     // Switch to login tab after success

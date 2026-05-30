@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Trade, Account } from '../types';
 import { ShieldCheck, ArrowDownToLine, ArrowUpToLine, RotateCcw, SortAsc, SortDesc, Info, HelpCircle } from 'lucide-react';
+import { customAlert, customConfirm } from '../utils/customDialog';
 
 interface StatsProps {
   trades: Trade[];
@@ -105,16 +106,16 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
               const valid = parsed.every(t => t.pair && t.lots !== undefined && t.pnl !== undefined);
               if (valid) {
                 onImportTrades(parsed);
-                alert('Données importées avec succès !');
+                customAlert('Importation', 'Données importées avec succès !');
               } else {
-                alert('Fichier JSON invalide. Structure non reconnue.');
+                customAlert('Importation', 'Fichier JSON invalide. Structure non reconnue.');
               }
             } else {
-              alert('Fichier JSON invalide. Doit être un tableau de trades.');
+              customAlert('Importation', 'Fichier JSON invalide. Doit être un tableau de trades.');
             }
           }
         } catch {
-          alert('Impossible de décoder le fichier JSON.');
+          customAlert('Importation', 'Impossible de décoder le fichier JSON.');
         }
       };
       reader.readAsText(file);
@@ -326,7 +327,11 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
 
             <button
               type="button"
-              onClick={() => { if (confirm('⚠️ ÊTES-VOUS ABSOLUMENT SÛR DE VOULOIR SUPPRIMER TOUS LES TRADES DE CE COMPTE ?')) onResetTrades(); }}
+              onClick={() => {
+                customConfirm('Réinitialisation', '⚠️ ÊTES-VOUS ABSOLUMENT SÛR DE VOULOIR SUPPRIMER TOUS LES TRADES DE CE COMPTE ?', () => {
+                  onResetTrades();
+                });
+              }}
               className="py-1.5 px-3 rounded-xl border border-red-900/30 text-red-400 hover:bg-red-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
             >
               <RotateCcw size={13} /> Réinitialiser

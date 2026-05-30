@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Search, Filter, Plus, Edit2, Trash2, Calendar, FileText, Settings, X, ChevronRight, Upload, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Trade, Account } from '../types';
+import { customAlert, customConfirm } from '../utils/customDialog';
 
 interface JournalProps {
   trades: Trade[];
@@ -93,7 +95,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pair.trim() || !pnl) {
-      alert('Veuillez remplir les informations obligatoires (Paire et profit)');
+      customAlert('Données Requises', 'Veuillez remplir les informations obligatoires (Paire et profit)');
       return;
     }
 
@@ -212,105 +214,118 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
       {/* Trades Grid Container */}
       {sortedFiltered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {sortedFiltered.map((t) => (
-            <div key={t.id} className="glass-panel rounded-2xl border border-indigo-950/40 overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-indigo-950/50 hover:border-indigo-500/40 transition-all duration-300 p-4 space-y-4">
-              
-              {/* Card top */}
-              <div className="flex justify-between items-start border-b border-indigo-900/10 pb-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-extrabold text-white font-mono">{t.pair}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold font-mono ${
-                      t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                    }`}>
-                      {t.side}
+        <motion.div 
+          layout
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+        >
+          <AnimatePresence mode="popLayout">
+            {sortedFiltered.map((t) => (
+              <motion.div 
+                key={t.id}
+                layout
+                initial={{ opacity: 0, y: 35, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -25, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 350, damping: 26 }}
+                className="glass-panel rounded-2xl border border-indigo-950/40 overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-indigo-950/50 hover:border-indigo-500/40 transition-all duration-300 p-4 space-y-4"
+              >
+                
+                {/* Card top */}
+                <div className="flex justify-between items-start border-b border-indigo-900/10 pb-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-extrabold text-white font-mono">{t.pair}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold font-mono ${
+                        t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                      }`}>
+                        {t.side}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                      <Calendar size={11} /> {t.date}
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                    <Calendar size={11} /> {t.date}
-                  </span>
-                </div>
-                
-                {/* Result Tag Badge */}
-                <div className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${
-                  t.pnl >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
-                }`}>
-                  {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
-                </div>
-              </div>
-
-              {/* Screenshot thumbnail if available */}
-              {t.screenshot && (
-                <div 
-                  onClick={() => setActiveLightboxImage(t.screenshot!)}
-                  className="h-32 bg-slate-950 border border-slate-900 rounded-xl overflow-hidden cursor-zoom-in group relative"
-                >
-                  <img src={t.screenshot} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
-                  <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
-                    <ImageIcon size={16} className="mr-1.5" /> Agrandir
+                  
+                  {/* Result Tag Badge */}
+                  <div className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${
+                    t.pnl >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
+                  }`}>
+                    {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
                   </div>
                 </div>
-              )}
 
-              {/* Data grid */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-slate-950/30 p-2.5 rounded-xl border border-indigo-950/20">
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Entrée :</span>
-                  <span className="text-slate-200 font-bold">{t.entry || '—'}</span>
+                {/* Screenshot thumbnail if available */}
+                {t.screenshot && (
+                  <div 
+                    onClick={() => setActiveLightboxImage(t.screenshot!)}
+                    className="h-32 bg-slate-950 border border-slate-900 rounded-xl overflow-hidden cursor-zoom-in group relative"
+                  >
+                    <img src={t.screenshot} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
+                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
+                      <ImageIcon size={16} className="mr-1.5" /> Agrandir
+                    </div>
+                  </div>
+                )}
+
+                {/* Data grid */}
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-slate-950/30 p-2.5 rounded-xl border border-indigo-950/20">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Entrée :</span>
+                    <span className="text-slate-200 font-bold">{t.entry || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Sortie :</span>
+                    <span className="text-slate-200 font-bold">{t.exit || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Lots :</span>
+                    <span className="text-slate-200 font-bold">{t.lots} lot</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Frais :</span>
+                    <span className="text-slate-400">${t.fees.toFixed(2)}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Sortie :</span>
-                  <span className="text-slate-200 font-bold">{t.exit || '—'}</span>
+
+                {/* Setup and mindset tags */}
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/10">
+                    🏷️ {t.setup}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-300 border border-amber-500/10">
+                    🧠 {t.mindset}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Lots :</span>
-                  <span className="text-slate-200 font-bold">{t.lots} lot</span>
+
+                {/* Observations notes */}
+                {t.notes && (
+                  <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-indigo-500">
+                    "{t.notes}"
+                  </p>
+                )}
+
+                {/* Action strips */}
+                <div className="flex justify-end gap-1.5 pt-3 border-t border-indigo-900/10">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(t)}
+                    className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { customConfirm('Supprimer Trade', 'Supprimer ce trade ?', () => onDeleteTrade(t.id)); }}
+                    className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Frais :</span>
-                  <span className="text-slate-400">${t.fees.toFixed(2)}</span>
-                </div>
-              </div>
 
-              {/* Setup and mindset tags */}
-              <div className="flex flex-wrap gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/10">
-                  🏷️ {t.setup}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-300 border border-amber-500/10">
-                  🧠 {t.mindset}
-                </span>
-              </div>
-
-              {/* Observations notes */}
-              {t.notes && (
-                <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-indigo-500">
-                  "{t.notes}"
-                </p>
-              )}
-
-              {/* Action strips */}
-              <div className="flex justify-end gap-1.5 pt-3 border-t border-indigo-900/10">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(t)}
-                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
-                >
-                  <Edit2 size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { if (confirm('Supprimer ce trade ?')) onDeleteTrade(t.id); }}
-                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-
-            </div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       ) : (
         <div className="text-center py-20 bg-slate-900/10 border border-dashed border-slate-900 rounded-3xl space-y-2">
           <FileText size={44} className="mx-auto text-slate-600 animate-bounce" />

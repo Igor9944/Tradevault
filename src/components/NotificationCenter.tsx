@@ -18,6 +18,7 @@ import {
   Flame,
   UserCheck
 } from 'lucide-react';
+import { customAlert, customConfirm } from '../utils/customDialog';
 import { AppNotification, NotificationPreference } from '../types';
 import { 
   getPreferences, 
@@ -62,7 +63,7 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
         } else {
           updated.browserPush = false;
           setPermissionState('denied');
-          alert('Autorisation refusée par le navigateur. Veuillez autoriser les notifications dans les paramètres du site.');
+          customAlert('Permission Requise', 'Autorisation refusée par le navigateur. Veuillez autoriser les notifications dans les paramètres du site.');
         }
         setPreferences(updated);
         savePreferences(updated);
@@ -86,10 +87,10 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
   };
 
   const handleClearAll = () => {
-    if (confirm('Voulez-vous vider tout l\'historique des alertes ?')) {
+    customConfirm('Vider l\'historique', 'Voulez-vous vider tout l\'historique des alertes ?', () => {
       setNotifications([]);
       saveNotifications([]);
-    }
+    });
   };
 
   // Immediate test notification dispatcher with audio feedback & OS-level trigger
