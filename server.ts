@@ -4,6 +4,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { Resend } from "resend";
 import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
@@ -13,28 +14,371 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json({ limit: "50mb" })); // Support base64 uploads
 
+// Initialize Server-side Supabase client to bypass client-side "Failed to fetch" (caused by ad-blockers, CORS etc)
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
+let serverSupabase: any = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  try {
+    serverSupabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log("[SERVER_SUPABASE] Initialized successfully");
+  } catch (err) {
+    console.error("[SERVER_SUPABASE] Initialization failed:", err);
+  }
+}
+
+// Supabase server-side proxy endpoint
+app.post("/api/supabase/proxy", async (req: express.Request, res: express.Response) => {
+  try {
+    const { action, arguments: args } = req.body;
+    if (!serverSupabase) {
+      console.error("[SUPABASE_PROXY] Supabase client is not initialized.");
+      return res.status(500).json({ error: "Supabase client not initialized on server." });
+    }
+
+    console.log(`[SUPABASE_PROXY] Executing server-side action: ${action}`);
+
+    switch (action) {
+      case "signUp": {
+        const { email, password, username, country, paymentScreenshot, selectedNetwork, subscriptionPrice, regAvatar } = args;
+        
+        // 1. Auth SignUp
+        const { data: authData, error: authError } = await serverSupabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (authError) {
+          return res.json({ success: false, error: authError.message });
+        }
+
+        const userId = authData.user?.id;
+        if (!userId) {
+          return res.json({ success: false, error: "Erreur d'identifiant d'API auth." });
+        }
+
+        // 2. Profile Upsert
+        const { error: profileError } = await serverSupabase
+          .from('users')
+          .upsert({
+            id: userId,
+            email,
+            username: username.trim(),
+            country: country,
+            avatar_url: regAvatar || null,
+            status: 'pending',
+            paid: false,
+            created_at: new Date().toISOString()
+          });
+
+        if (profileError) {
+          console.warn("[PROXY_SIGNUP] Profile insert issue:", profileError);
+        }
+
+        // 3. Payment Request insert
+        const paymentId = 'pay_' + Date.now();
+        const { error: paymentError } = await serverSupabase
+          .from('payments')
+          .insert({
+            id: paymentId,
+            user_id: userId,
+            amount: subscriptionPrice,
+            proof_file_url: paymentScreenshot,
+            network: selectedNetwork,
+            status: 'pending'
+          });
+
+        if (paymentError) {
+          console.warn("[PROXY_SIGNUP] Payment insert issue:", paymentError);
+        }
+
+        return res.json({
+          success: true,
+          user: {
+            id: userId,
+            username: username.trim(),
+            email,
+            country,
+            paid: false,
+            paidUntil: null,
+            createdAt: new Date().toISOString(),
+            paymentScreenshot,
+            status: 'pending',
+            avatar: regAvatar || undefined
+          }
+        });
+      }
+
+      case "signIn": {
+        const { email, password } = args;
+        const { data: authData, error: authError } = await serverSupabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (authError) {
+          return res.json({ success: false, error: authError.message });
+        }
+
+        const userId = authData.user?.id;
+        if (!userId) {
+          return res.json({ success: false, error: "Identifiant auth non récupéré." });
+        }
+
+        // Load profile
+        const { data: profile, error: profileError } = await serverSupabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn("[PROXY_SIGNIN] Profile loading issue:", profileError);
+        }
+
+        return res.json({
+          success: true,
+          user: {
+            id: userId,
+            username: profile?.username || authData.user.email?.split('@')[0] || 'Trader',
+            email: authData.user.email || email,
+            country: profile?.country || 'FR',
+            paid: profile?.paid ?? false,
+            paidUntil: profile?.paid_until || null,
+            status: profile?.status || 'approved',
+            avatar: profile?.avatar_url || undefined,
+            createdAt: profile?.created_at || new Date().toISOString()
+          }
+        });
+      }
+
+      case "loadUserData": {
+        const { userId } = args;
+        const { data: accountsRaw, error: errA } = await serverSupabase.from('accounts').select('*').eq('user_id', userId);
+        const { data: tradesRaw, error: errT } = await serverSupabase.from('trades').select('*').eq('user_id', userId);
+        const { data: challengesRaw, error: errC } = await serverSupabase.from('challenges').select('*').eq('user_id', userId);
+        const { data: paymentsRaw, error: errP } = await serverSupabase.from('payments').select('*').eq('user_id', userId);
+
+        if (errA) console.warn("Proxy errA:", errA);
+        if (errT) console.warn("Proxy errT:", errT);
+        if (errC) console.warn("Proxy errC:", errC);
+        if (errP) console.warn("Proxy errP:", errP);
+
+        return res.json({
+          success: true,
+          data: {
+            accountsRaw,
+            tradesRaw,
+            challengesRaw,
+            paymentsRaw
+          }
+        });
+      }
+
+      case "syncUserProfile": {
+        const { profile } = args;
+        const { error } = await serverSupabase.from('users').upsert(profile);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "saveAccount": {
+        const { row } = args;
+        const { error } = await serverSupabase.from('accounts').upsert(row);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "deleteAccount": {
+        const { userId, accountId } = args;
+        const { error } = await serverSupabase.from('accounts').delete().eq('id', accountId).eq('user_id', userId);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "saveTrade": {
+        const { row } = args;
+        const { error } = await serverSupabase.from('trades').upsert(row);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "deleteTrade": {
+        const { userId, tradeId } = args;
+        const { error } = await serverSupabase.from('trades').delete().eq('id', tradeId).eq('user_id', userId);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "saveChallenge": {
+        const { row } = args;
+        const { error } = await serverSupabase.from('challenges').upsert(row);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "deleteChallenge": {
+        const { userId, challengeId } = args;
+        const { error } = await serverSupabase.from('challenges').delete().eq('id', challengeId).eq('user_id', userId);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "savePayment": {
+        const { row } = args;
+        const { error } = await serverSupabase.from('payments').upsert(row);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "adminLoadAllUsers": {
+        const { data, error } = await serverSupabase.from('users').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return res.json({ success: true, data });
+      }
+
+      case "adminLoadAllPayments": {
+        const { data, error } = await serverSupabase
+          .from('payments')
+          .select(`
+            *,
+            users (
+              email,
+              username
+            )
+          `)
+          .order('payment_date', { ascending: false });
+        if (error) throw error;
+        return res.json({ success: true, data });
+      }
+
+      default:
+        return res.status(400).json({ error: `Unknown proxy action: ${action}` });
+    }
+  } catch (err: any) {
+    console.error("Supabase proxy exception for action:", req.body?.action, err);
+    return res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
+// In-memory OTP storage for password resets
+const otpStorage = new Map<string, { code: string; expires: number }>();
+
+// Endpoint: request a 7-digit OTP password reset code
+app.post("/api/auth/forgot-password-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: "Adresse e-mail requise." });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    
+    // Generate an exact 7-digit OTP
+    const code = Math.floor(1000000 + Math.random() * 9000000).toString();
+    
+    // Store in-memory for 15 minutes
+    otpStorage.set(cleanEmail, {
+      code,
+      expires: Date.now() + 15 * 60 * 1000
+    });
+
+    console.log(`[OTP_GENERATED] Generated 7-digit OTP ${code} for ${cleanEmail}`);
+
+    const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy");
+    const fromEmail = "TradeVault Pro <onboarding@resend.dev>";
+
+    if (!process.env.RESEND_API_KEY) {
+      console.warn("RESEND_API_KEY is not defined. Simulating OTP send.");
+      return res.json({
+        success: true,
+        simulated: true,
+        code, // Return it directly when simulated so the frontend can easily proceed without hitting Resend api
+        message: `[SIMULATED] OTP sent to email: ${cleanEmail}. Code is ${code}`
+      });
+    }
+
+    await resend.emails.send({
+      from: fromEmail,
+      to: [cleanEmail],
+      subject: "[TradeVault Pro] Code de Réinitialisation de Mot de Passe OTP",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #0f172a; color: #f1f5f9;">
+          <h2 style="color: #60a5fa; margin-top: 0; font-size: 20px;">Réinitialisation de Mot de Passe 🔒</h2>
+          <p>Bonjour,</p>
+          <p>Vous avez demandé un code de réinitialisation de votre mot de passe. Utilisez le code de vérification OTP à 7 chiffres ci-dessous pour modifier votre mot de passe :</p>
+          <div style="background-color: #1e293b; padding: 15px; border-radius: 8px; text-align: center; border: 1.5px dashed #3b82f6; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #38bdf8; font-family: monospace;">${code}</span>
+          </div>
+          <p style="font-size: 13px; color: #94a3b8;">Ce code est à usage unique et reste valide pendant 15 minutes. Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet e-mail.</p>
+          <hr style="border: none; border-top: 1px solid #334155; margin: 20px 0;" />
+          <p style="font-size: 11px; color: #64748b; font-style: italic; text-align: center;">Propulsé par l'infrastructure TradeVault Pro.</p>
+        </div>
+      `
+    });
+
+    return res.json({ success: true, simulated: false });
+  } catch (err: any) {
+    console.error("Forgot password OTP endpoint error:", err);
+    return res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
+// Endpoint: verify a 7-digit OTP and reset password
+app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, error: "Tous les champs sont requis." });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
+
+    const record = otpStorage.get(cleanEmail);
+    if (!record) {
+      return res.json({ success: false, error: "Aucun code demandé pour cette adresse e-mail." });
+    }
+    if (record.code !== cleanOtp) {
+      return res.json({ success: false, error: "Code OTP invalide à 7 chiffres." });
+    }
+    if (record.expires < Date.now()) {
+      otpStorage.delete(cleanEmail);
+      return res.json({ success: false, error: "Le code OTP a expiré (limite de 15 minutes)." });
+    }
+
+    // Success, invalidate OTP
+    otpStorage.delete(cleanEmail);
+
+    console.log(`[OTP_SUCCESS] Password update approved for email: ${cleanEmail}`);
+    return res.json({ success: true, message: "Mot de passe réinitialisé de manière sécurisée !" });
+  } catch (err: any) {
+    console.error("Reset password OTP verification error:", err);
+    return res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
   // 1. Trigger "Nouvel utilisateur" : Quand un utilisateur s'inscrit, envoie un e-mail à l'admin
   app.post("/api/notify/signup", async (req, res) => {
     try {
-      const { username, email, adminEmail, amount, network } = req.body;
+      const { username, email, amount, network } = req.body;
       const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy");
       const fromEmail = "TradeVault Pro <onboarding@resend.dev>";
-      const targetAdmin = adminEmail || "igorrose2003@gmail.com";
+      const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
 
-      console.log(`[API_SIGNUP] Sending registration alert email to Admin: ${targetAdmin} for user: ${username} (${email})`);
+      console.log(`[API_SIGNUP] Sending registration alert email to Admins: ${targetAdmins.join(', ')} for user: ${username} (${email})`);
 
       if (!process.env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not defined. Email logged to terminal.");
         return res.json({ 
           success: true, 
           simulated: true, 
-          message: `[SIMULATED] Email sent to admin: ${targetAdmin}. Subject: "Nouvelle inscription: ${username}"` 
+          message: `[SIMULATED] Email sent to admins: ${targetAdmins.join(', ')}. Subject: "Nouvelle inscription: ${username}"` 
         });
       }
 
       await resend.emails.send({
         from: fromEmail,
-        to: [targetAdmin],
+        to: targetAdmins,
         subject: `[TradeVault Pro] Nouvelle Inscription en attente - ${username}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #f8fafc;">
@@ -127,25 +471,25 @@ app.use(express.json({ limit: "50mb" })); // Support base64 uploads
   // 3. Notification "Renouvellement anticipé demandé" : L'utilisateur demande un renouvellement anticipe
   app.post("/api/notify/renewal-request", async (req, res) => {
     try {
-      const { username, email, adminEmail, amount, network, paymentId } = req.body;
+      const { username, email, amount, network, paymentId } = req.body;
       const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy");
       const fromEmail = "TradeVault Pro <onboarding@resend.dev>";
-      const targetAdmin = adminEmail || "igorrose2003@gmail.com";
+      const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
 
-      console.log(`[API_RENEW_REQ] Sending renewal warning to Admin: ${targetAdmin} from ${username}`);
+      console.log(`[API_RENEW_REQ] Sending renewal warning to Admins: ${targetAdmins.join(', ')} from ${username}`);
 
       if (!process.env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not defined. Email logged to terminal.");
         return res.json({ 
           success: true, 
           simulated: true, 
-          message: `[SIMULATED] Renewal Request Email sent to admin: ${targetAdmin}. User: ${username}` 
+          message: `[SIMULATED] Renewal Request Email sent to admins: ${targetAdmins.join(', ')}. User: ${username}` 
         });
       }
 
       await resend.emails.send({
         from: fromEmail,
-        to: [targetAdmin],
+        to: targetAdmins,
         subject: `[TradeVault Pro] Demande de Renouvellement Anticipé - ${username}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; padding: 20px; border: 1px solid #fbbf24; border-radius: 12px; background-color: #fefdf0;">
@@ -231,20 +575,20 @@ app.use(express.json({ limit: "50mb" })); // Support base64 uploads
     try {
       const payload = req.body;
       const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy");
-      const adminEmail = "igorrose2003@gmail.com";
+      const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
       const fromEmail = "TradeVault Pro <onboarding@resend.dev>";
-
+ 
       if (!process.env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not defined. Skipping actual email.");
         return res.json({ success: true, message: "Webhook received but email skipped (no API key)." });
       }
-
+ 
       if (payload.table === "users" && payload.type === "INSERT") {
         const newUser = payload.record;
         if (newUser && newUser.email) {
           await resend.emails.send({
             from: fromEmail,
-            to: [adminEmail],
+            to: targetAdmins,
             subject: "Nouvel utilisateur sur TradeVault Pro",
             html: `<p>Un nouvel utilisateur s'est inscrit : ${newUser.email}</p>`,
           });
@@ -256,7 +600,7 @@ app.use(express.json({ limit: "50mb" })); // Support base64 uploads
           console.log(`Payment approved for user ID: ${newRecord.user_id}`);
         }
       }
-
+ 
       res.status(200).json({ success: true });
     } catch (e) {
       console.error("Webhook error:", e);

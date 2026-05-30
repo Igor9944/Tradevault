@@ -191,34 +191,6 @@ export default function Checkout({
             <span className="text-xs text-slate-300 block font-bold">2. EFFECTUEZ LE PAIEMENT</span>
             
             <div className="flex flex-col items-center p-6 bg-slate-950/90 rounded-2xl border border-slate-900 text-center gap-4">
-              {/* Pseudo QR code generated with crisp high contrast cubes via pure React CSS Grid */}
-              <div className="bg-white p-3 rounded-xl custom-qr shadow-lg flex items-center justify-center relative">
-                <div className="grid grid-cols-12 gap-[2px] w-36 h-36">
-                  {Array.from({ length: 144 }).map((_, i) => {
-                    // Make some mock cubes to look like a clean QR code
-                    const isCorner = 
-                      (Math.floor(i / 12) < 4 && i % 12 < 4) || // Top left
-                      (Math.floor(i / 12) < 4 && i % 12 >= 8) || // Top right
-                      (Math.floor(i / 12) >= 8 && i % 12 < 4); // Bottom left
-                    const isCenterMark = 
-                      (Math.floor(i / 12) >= 5 && Math.floor(i / 12) <= 6 && i % 12 >= 5 && i % 12 <= 6);
-                    const isRandomBlock = (Math.sin(i * (network === 'TRC20' ? 1.5 : 2.5) + 3) > 0.1);
-                    const isLogo = Math.floor(i / 12) >= 5 && Math.floor(i / 12) <= 6 && i % 12 >= 5 && i % 12 <= 6;
-                    
-                    let bg = 'bg-white';
-                    if (isCorner || isCenterMark || (isRandomBlock && !isLogo)) {
-                      bg = network === 'TRC20' ? 'bg-red-950' : 'bg-amber-950';
-                    }
-
-                    return <div key={i} className={`w-full h-full rounded-[1px] ${bg}`}></div>;
-                  })}
-                </div>
-                {/* Network label badge in center of pseudo QR */}
-                <div className="absolute inset-0 m-auto w-8 h-8 rounded-full border-2 border-white bg-slate-950 font-bold text-[9px] text-white flex items-center justify-center font-sans">
-                  {network}
-                </div>
-              </div>
-
               {/* Copy Wallet */}
               <div className="w-full space-y-1 text-left">
                 <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Adresse USDT active ({network})</span>

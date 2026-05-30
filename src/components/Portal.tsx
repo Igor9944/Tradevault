@@ -339,6 +339,7 @@ interface PortalProps {
   subscriptionPrice?: number;
   subscriptionPeriod?: number;
   adminEmails?: string;
+  onResetPasswordSuccess?: (email: string, newPass: string) => void;
 }
 
 export default function Portal({ 
@@ -349,7 +350,8 @@ export default function Portal({
   adminWalletBEP20 = '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
   subscriptionPrice = 30,
   subscriptionPeriod = 3,
-  adminEmails = 'igorrose2003@gmail.com'
+  adminEmails = 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+  onResetPasswordSuccess
 }: PortalProps) {
   const [activeTab, setActiveTab ] = useState<'login' | 'register'>('login');
   
@@ -372,6 +374,13 @@ export default function Portal({
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotResult, setForgotResult] = useState<string | null>(null);
+
+  // New OTP reset flow states
+  const [resetStep, setResetStep] = useState<1 | 2>(1); // 1 = request code, 2 = verify code & reset
+  const [resetOTP, setResetOTP] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Left/Right selection Network
   const [selectedNetwork, setSelectedNetwork] = useState<'TRC20' | 'BEP20'>('TRC20');
@@ -606,13 +615,108 @@ export default function Portal({
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    const matched = users.find(u => u.email.toLowerCase() === forgotEmail.trim().toLowerCase());
-    if (matched) {
-      setForgotResult(`Le mot de passe de ce compte est : "${matched.password}". Veuillez le noter.`);
-    } else {
-      setForgotResult("Aucun compte n'a été trouvé avec cette adresse e-mail.");
+    const emailToSearch = forgotEmail.trim().toLowerCase();
+    
+    if (!emailToSearch) {
+      displayToast("Saisissez une adresse e-mail valide.", "error");
+      return;
+    }
+
+    const matched = users.some(u => u.email.toLowerCase() === emailToSearch);
+    if (!matched && emailToSearch !== 'admin@tradevault.com') {
+      displayToast("Aucun compte n'a été trouvé avec cette adresse e-mail.", "error");
+      return;
+    }
+
+    setResetLoading(true);
+    setForgotResult(null);
+
+    try {
+      const response = await fetch('/api/auth/forgot-password-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToSearch })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setResetStep(2);
+        if (data.simulated && data.code) {
+          setForgotResult(`[SIMULATION MODE] Code OTP envoyé : ${data.code}`);
+          displayToast(`Code OTP simulé envoyé : ${data.code}`, "info");
+        } else {
+          displayToast("Un code OTP à 7 chiffres a été envoyé par e-mail !", "success");
+        }
+      } else {
+        displayToast(data.error || "Erreur de génération OTP.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      displayToast("Une erreur réseau s'est produite.", "error");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleVerifyOTPAndReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const emailToReset = forgotEmail.trim().toLowerCase();
+    const otpCodeClean = resetOTP.trim();
+
+    if (otpCodeClean.length !== 7 || !/^\d+$/.test(otpCodeClean)) {
+      displayToast("Le code OTP doit être composé de 7 chiffres.", "error");
+      return;
+    }
+
+    if (resetNewPassword.length < 8) {
+      displayToast("Le mot de passe doit contenir au moins 8 caractères.", "error");
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      displayToast("Les nouveaux mots de passe ne correspondent pas.", "error");
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/reset-password-otp-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailToReset,
+          otp: otpCodeClean,
+          newPassword: resetNewPassword
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Update local memory & browser sync!
+        if (onResetPasswordSuccess) {
+          onResetPasswordSuccess(emailToReset, resetNewPassword);
+        }
+        
+        displayToast("Mot de passe réinitialisé de manière sécurisée !", "success");
+        
+        // Reset recovery form layout back to default login state
+        setForgotOpen(false);
+        setResetStep(1);
+        setResetOTP('');
+        setResetNewPassword('');
+        setResetConfirmPassword('');
+        setForgotResult(null);
+      } else {
+        displayToast(data.error || "Code incorrect ou expiré.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      displayToast("Erreur réseau.", "error");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -751,41 +855,110 @@ export default function Portal({
             {/* TAB CONTENT: PASSWORD RECOVERY */}
             {activeTab === 'login' && forgotOpen && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Récupération sécurisée</h3>
-                <p className="text-slate-400 text-xs">Saisissez l'adresse e-mail associée à votre compte pour rechercher vos identifiants.</p>
+                <h3 className="text-lg font-semibold text-white">Réinitialisation de mot de passe (OTP)</h3>
                 
-                <form onSubmit={handleForgotPassword} className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-300">Votre adresse e-mail</label>
-                    <input
-                      type="email"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="votre@email.com"
-                      className="w-full px-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 font-mono"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setForgotOpen(false); setForgotResult(null); }}
-                      className="flex-1 py-2 border border-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-900"
-                    >
-                      Retour
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold"
-                    >
-                      Rechercher
-                    </button>
-                  </div>
-                </form>
+                {resetStep === 1 ? (
+                  <>
+                    <p className="text-slate-400 text-xs">Saisissez l'adresse e-mail de votre compte pour recevoir un code OTP de validation de sécurité à 7 chiffres.</p>
+                    <form onSubmit={handleRequestOTP} className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-300 font-bold tracking-wide">Votre adresse e-mail</label>
+                        <input
+                          type="email"
+                          value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                          placeholder="votre@email.com"
+                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                          required
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setForgotOpen(false); setForgotResult(null); }}
+                          className="flex-1 py-2.5 border border-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-900 transition-all font-sans font-bold"
+                          disabled={resetLoading}
+                        >
+                          Retour
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-sans font-bold tracking-wider uppercase transition-all"
+                          disabled={resetLoading}
+                        >
+                          {resetLoading ? 'Envoi...' : 'Envoyer OTP'}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-slate-300 text-xs font-sans bg-slate-950/40 p-3 rounded-lg border border-slate-950">
+                      Un code de vérification à 7 chiffres a été envoyé à : <span className="text-blue-400 font-bold font-mono">{forgotEmail}</span>
+                    </p>
+                    <form onSubmit={handleVerifyOTPAndReset} className="space-y-4">
+                      {/* OTP Code */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-300 font-bold tracking-wide">Code de validation OTP (7 chiffres)</label>
+                        <input
+                          type="text"
+                          value={resetOTP}
+                          onChange={(e) => setResetOTP(e.target.value.replace(/\D/g, '').slice(0, 7))}
+                          placeholder="Ex: 5829302"
+                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-center font-mono text-lg tracking-widest focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                          required
+                        />
+                      </div>
+
+                      {/* New Password */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-300 font-bold tracking-wide">Nouveau mot de passe (min 8 car.)</label>
+                        <input
+                          type="password"
+                          value={resetNewPassword}
+                          onChange={(e) => setResetNewPassword(e.target.value)}
+                          placeholder="Entrez votre nouveau mot de passe"
+                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 font-sans"
+                          required
+                        />
+                      </div>
+
+                      {/* Confirm New Password */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-300 font-bold tracking-wide">Confirmer le mot de passe</label>
+                        <input
+                          type="password"
+                          value={resetConfirmPassword}
+                          onChange={(e) => setResetConfirmPassword(e.target.value)}
+                          placeholder="Confirmez votre nouveau mot de passe"
+                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 font-sans"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setResetStep(1); setForgotResult(null); }}
+                          className="flex-1 py-2.5 border border-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-900 transition-all font-sans font-bold"
+                          disabled={resetLoading}
+                        >
+                          Précédent
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-sans font-bold tracking-wider uppercase transition-all"
+                          disabled={resetLoading}
+                        >
+                          {resetLoading ? 'Réinitialisation...' : 'Valider'}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
 
                 {forgotResult && (
-                  <div className={`p-4 rounded-xl border text-xs font-mono break-words ${
-                    forgotResult.includes('mot de passe') ? 'bg-indigo-950/30 border-indigo-800 text-indigo-200' : 'bg-red-950/30 border-red-900 text-red-200'
-                  }`}>
+                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-950/20 text-[#38bdf8] text-center text-xs font-mono break-all animate-pulse">
                     {forgotResult}
                   </div>
                 )}

@@ -159,7 +159,18 @@ export default function App() {
       const u = JSON.parse(savedUser) as User;
       const saved = localStorage.getItem(`tv_challenges_${u.id}`);
       if (saved) return JSON.parse(saved);
-      return [];
+      return [
+        {
+          id: 'ftmo-100k-challenge',
+          accountId: 'ftmo-100k',
+          name: 'Compte FTMO 100k',
+          capital: 100000,
+          target: 8,
+          dailyLoss: 5,
+          globalLoss: 10,
+          createdAt: new Date().toISOString()
+        }
+      ];
     }
     const saved = localStorage.getItem('tv_challenges');
     return saved ? JSON.parse(saved) : DEFAULT_CHALLENGES;
@@ -169,26 +180,27 @@ export default function App() {
     const savedUser = sessionStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
       const saved = localStorage.getItem(`tv_accounts_${u.id}`);
       if (saved) {
-        const parsed = JSON.parse(saved) as Account[];
-        if (!isAdmin && parsed.some(a => a.id === 'ftmo-100k')) {
-          return [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
-        }
-        return parsed;
+        return JSON.parse(saved);
       }
-      // Fallback to single empty personal account for registration
-      const freshAccounts = [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
+      // Fallback: both accounts by default for newly created / registered user
+      const freshAccounts: Account[] = [
+        { id: 'personal', name: 'Compte Personnel', type: 'personal' },
+        { id: 'ftmo-100k', name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+      ];
       localStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
       return freshAccounts;
     }
     const saved = localStorage.getItem('tv_accounts');
-    return saved ? JSON.parse(saved) : DEFAULT_ACCOUNTS;
+    return saved ? JSON.parse(saved) : [
+      { id: 'personal', name: 'Compte Personnel', type: 'personal' },
+      { id: 'ftmo-100k', name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+    ];
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return localStorage.getItem('tv_admin_emails') || 'admin@tradevault.com';
+    return localStorage.getItem('tv_admin_emails') || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
@@ -407,8 +419,22 @@ export default function App() {
               let savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
 
               let initialTrades = savedTradesRaw ? JSON.parse(savedTradesRaw) : [];
-              let initialChallenges = savedChallengesRaw ? JSON.parse(savedChallengesRaw) : [];
-              let initialAccounts = savedAccsRaw ? JSON.parse(savedAccsRaw) : [{ id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' }];
+              let initialChallenges = savedChallengesRaw ? JSON.parse(savedChallengesRaw) : [
+                {
+                  id: ensureUUID('ftmo-100k-challenge'),
+                  accountId: ensureUUID('ftmo-100k'),
+                  name: 'Compte FTMO 100k',
+                  capital: 100000,
+                  target: 8,
+                  dailyLoss: 5,
+                  globalLoss: 10,
+                  createdAt: new Date().toISOString()
+                }
+              ];
+              let initialAccounts = savedAccsRaw ? JSON.parse(savedAccsRaw) : [
+                { id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' },
+                { id: ensureUUID('ftmo-100k'), name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+              ];
 
               setTrades(initialTrades);
               setChallenges(initialChallenges);
@@ -442,6 +468,19 @@ export default function App() {
     // REQUIREMENT 2: Simulating sending triggered alert emails to Admin
     console.log(`%c[SYS_DAEMON_ALERT_MAIL] : E-mail d'alerte envoyé avec succès à la liste d'Admin : "${adminEmails}"`, "color: #ff9f1c; font-weight: bold;");
     console.log(`%c[SYS_RECORD_NEW_TRADER] : Détails Trader : ${newUser.username} (${newUser.email}) - En attente de validation manuelle.`, "color: #6366f1;");
+  };
+
+  const handleResetPasswordSuccess = (email: string, newPass: string) => {
+    setUsers(prev => {
+      const updated = prev.map(u => {
+        if (u.email.toLowerCase() === email.toLowerCase()) {
+          return { ...u, password: newPass };
+        }
+        return u;
+      });
+      localStorage.setItem('tv_users', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleCheckoutSuccess = (proofBase64: string, network: 'TRC20' | 'BEP20') => {
@@ -793,6 +832,7 @@ export default function App() {
           subscriptionPrice={subscriptionPrice}
           subscriptionPeriod={subscriptionPeriod}
           adminEmails={adminEmails}
+          onResetPasswordSuccess={handleResetPasswordSuccess}
         />
       )}
 

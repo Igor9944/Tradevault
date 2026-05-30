@@ -27,6 +27,35 @@ export function generateUUID(): string {
   });
 }
 
+// Client-side helper to hit the safe server-side Supabase proxy
+async function invokeProxy(action: string, args: any): Promise<any> {
+  const response = await fetch('/api/supabase/proxy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ action, arguments: args })
+  });
+  if (!response.ok) {
+    throw new Error(`Server proxy error: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+// Helper to resolve currently logged-in user ID
+function getCurrentUserId(): string {
+  const savedUser = sessionStorage.getItem('tv_current_user');
+  if (savedUser) {
+    try {
+      const u = JSON.parse(savedUser);
+      return u.id;
+    } catch (e) {
+      // ignore
+    }
+  }
+  return '00000000-0000-4000-8000-000000000000';
+}
+
 /**
  * Register a user via Supabase Auth and write profile details to `public.users` table
  */
@@ -40,10 +69,10 @@ export async function signUpWithSupabase(
   subscriptionPrice: number,
   regAvatar: string | null
 ): Promise<{ success: boolean; user?: User; error?: string }> {
+  const email = regEmail.trim().toLowerCase();
+
   try {
-    const email = regEmail.trim().toLowerCase();
-    
-    // 1. Register with local auth instance of Supabase
+    // 1. Try direct client database call
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password: regPassword,
@@ -58,7 +87,7 @@ export async function signUpWithSupabase(
       throw new Error("Erreur lors de la récupération de l'identifiant utilisateur.");
     }
 
-    // 2. Insert or update standard profile data into `public.users` table
+    // 2. Insert profile
     const { error: profileError } = await supabase
       .from('users')
       .upsert({
@@ -76,7 +105,7 @@ export async function signUpWithSupabase(
       console.warn("Profil update warning in signup:", profileError);
     }
 
-    // 3. Store payment information in `public.payments`
+    // 3. Store payment
     const { error: paymentError } = await supabase
       .from('payments')
       .insert({
@@ -106,9 +135,28 @@ export async function signUpWithSupabase(
     };
 
     return { success: true, user: newUser };
-  } catch (err: any) {
-    console.error("SignUpWithSupabase error:", err);
-    return { success: false, error: err.message || String(err) };
+  } catch (clientErr: any) {
+    const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] signUpWithSupabase failed. Routing through Server Proxy...");
+      try {
+        const res = await invokeProxy("signUp", {
+          email,
+          password: regPassword,
+          username: regUsername,
+          country: regCountry,
+          paymentScreenshot,
+          selectedNetwork,
+          subscriptionPrice,
+          regAvatar
+        });
+        return res;
+      } catch (proxyErr: any) {
+        return { success: false, error: proxyErr.message || String(proxyErr) };
+      }
+    }
+    console.error("SignUpWithSupabase error:", clientErr);
+    return { success: false, error: clientErr.message || String(clientErr) };
   }
 }
 
@@ -119,9 +167,9 @@ export async function signInWithSupabase(
   emailInput: string,
   passwordInput: string
 ): Promise<{ success: boolean; user?: User; error?: string }> {
-  try {
-    const email = emailInput.trim().toLowerCase();
+  const email = emailInput.trim().toLowerCase();
 
+  try {
     // 1. Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -161,9 +209,19 @@ export async function signInWithSupabase(
     };
 
     return { success: true, user };
-  } catch (err: any) {
-    console.error("SignInWithSupabase exception:", err);
-    return { success: false, error: err.message || String(err) };
+  } catch (clientErr: any) {
+    const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] signInWithSupabase failed. Routing through Server Proxy...");
+      try {
+        const res = await invokeProxy("signIn", { email, password: passwordInput });
+        return res;
+      } catch (proxyErr: any) {
+        return { success: false, error: proxyErr.message || String(proxyErr) };
+      }
+    }
+    console.error("SignInWithSupabase exception:", clientErr);
+    return { success: false, error: clientErr.message || String(clientErr) };
   }
 }
 
@@ -171,19 +229,31 @@ export async function signInWithSupabase(
  * Sync user profile to DB (e.g. state changes)
  */
 export async function syncUserProfile(user: User): Promise<void> {
+  const profile = {
+    id: ensureUUID(user.id),
+    email: user.email,
+    username: user.username,
+    country: user.country,
+    status: user.status,
+    paid: user.paid,
+    paid_until: user.paidUntil,
+    avatar_url: user.avatar || null
+  };
+
   try {
-    await supabase.from('users').upsert({
-      id: ensureUUID(user.id),
-      email: user.email,
-      username: user.username,
-      country: user.country,
-      status: user.status,
-      paid: user.paid,
-      paid_until: user.paidUntil,
-      avatar_url: user.avatar || null
-    });
-  } catch (err) {
-    console.error("syncUserProfile failed:", err);
+    await supabase.from('users').upsert(profile);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] syncUserProfile failed. Routing through Server Proxy...");
+      try {
+        await invokeProxy("syncUserProfile", { profile });
+      } catch (proxyErr) {
+        console.error("Proxy syncUserProfile failed:", proxyErr);
+      }
+    } else {
+      console.error("syncUserProfile failed:", err);
+    }
   }
 }
 
@@ -196,32 +266,38 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
   challenges: Challenge[];
   paymentRequests: PaymentRequest[];
 }> {
+  const safeUserId = ensureUUID(userId);
+  let accountsRaw: any[] = [];
+  let tradesRaw: any[] = [];
+  let challengesRaw: any[] = [];
+  let paymentsRaw: any[] = [];
+
   try {
-    const safeUserId = ensureUUID(userId);
+    try {
+      const { data: aData } = await supabase.from('accounts').select('*').eq('user_id', safeUserId);
+      const { data: tData } = await supabase.from('trades').select('*').eq('user_id', safeUserId);
+      const { data: cData } = await supabase.from('challenges').select('*').eq('user_id', safeUserId);
+      const { data: pData } = await supabase.from('payments').select('*').eq('user_id', safeUserId);
 
-    // Fetch accounts
-    const { data: accountsRaw } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', safeUserId);
-
-    // Fetch trades
-    const { data: tradesRaw } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('user_id', safeUserId);
-
-    // Fetch challenges
-    const { data: challengesRaw } = await supabase
-      .from('challenges')
-      .select('*')
-      .eq('user_id', safeUserId);
-
-    // Fetch payments
-    const { data: paymentsRaw } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('user_id', safeUserId);
+      accountsRaw = aData || [];
+      tradesRaw = tData || [];
+      challengesRaw = cData || [];
+      paymentsRaw = pData || [];
+    } catch (clientErr: any) {
+      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+      if (isNetworkError) {
+        console.warn("[CLIENT_BLOCKED] Direct Supabase load failed. Routing to Server Proxy...");
+        const res = await invokeProxy("loadUserData", { userId: safeUserId });
+        if (res.success && res.data) {
+          accountsRaw = res.data.accountsRaw || [];
+          tradesRaw = res.data.tradesRaw || [];
+          challengesRaw = res.data.challengesRaw || [];
+          paymentsRaw = res.data.paymentsRaw || [];
+        }
+      } else {
+        throw clientErr;
+      }
+    }
 
     // Map DB items back to Frontend structure
     const accounts: Account[] = (accountsRaw || []).map(a => ({
@@ -236,6 +312,15 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
 
     if (accounts.length === 0) {
       accounts.push({ id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' });
+      accounts.push({
+        id: ensureUUID('ftmo-100k'),
+        name: 'Compte FTMO 100k',
+        type: 'propfirm',
+        capital: 100000,
+        target: 8,
+        dailyLoss: 5,
+        globalLoss: 10
+      });
     }
 
     const trades: Trade[] = (tradesRaw || []).map(t => ({
@@ -267,6 +352,19 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       createdAt: c.created_at || new Date().toISOString()
     }));
 
+    if (challenges.length === 0) {
+      challenges.push({
+        id: ensureUUID('ftmo-100k-challenge'),
+        accountId: ensureUUID('ftmo-100k'),
+        name: 'Compte FTMO 100k',
+        capital: 100000,
+        target: 8,
+        dailyLoss: 5,
+        globalLoss: 10,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     const paymentRequests: PaymentRequest[] = (paymentsRaw || []).map(p => ({
       id: p.id,
       userId: p.user_id,
@@ -283,9 +381,23 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
   } catch (err) {
     console.error("loadUserDataFromSupabase error:", err);
     return {
-      accounts: [{ id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' }],
+      accounts: [
+        { id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' },
+        { id: ensureUUID('ftmo-100k'), name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+      ],
       trades: [],
-      challenges: [],
+      challenges: [
+        {
+          id: ensureUUID('ftmo-100k-challenge'),
+          accountId: ensureUUID('ftmo-100k'),
+          name: 'Compte FTMO 100k',
+          capital: 100000,
+          target: 8,
+          dailyLoss: 5,
+          globalLoss: 10,
+          createdAt: new Date().toISOString()
+        }
+      ],
       paymentRequests: []
     };
   }
@@ -295,116 +407,188 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
  * Save / Update single entities
  */
 export async function saveAccountToSupabase(userId: string, account: Account): Promise<void> {
-  try {
-    const safeUserId = ensureUUID(userId);
-    const safeId = ensureUUID(account.id);
+  const safeUserId = ensureUUID(userId);
+  const safeId = ensureUUID(account.id);
+  const row = {
+    id: safeId,
+    user_id: safeUserId,
+    name: account.name,
+    type: account.type,
+    capital: account.capital || null,
+    target: account.target || null,
+    daily_loss: account.dailyLoss || null,
+    global_loss: account.globalLoss || null
+  };
 
-    await supabase
-      .from('accounts')
-      .upsert({
-        id: safeId,
-        user_id: safeUserId,
-        name: account.name,
-        type: account.type,
-        capital: account.capital || null,
-        target: account.target || null,
-        daily_loss: account.dailyLoss || null,
-        global_loss: account.globalLoss || null
-      });
-  } catch (err) {
-    console.error("saveAccountToSupabase error:", err);
+  try {
+    await supabase.from('accounts').upsert(row);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] saveAccountToSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("saveAccount", { row });
+      } catch (proxyErr) {
+        console.error("Proxy saveAccount failed:", proxyErr);
+      }
+    } else {
+      console.error("saveAccountToSupabase error:", err);
+    }
   }
 }
 
 export async function deleteAccountFromSupabase(accountId: string): Promise<void> {
+  const safeId = ensureUUID(accountId);
+  const userId = getCurrentUserId();
   try {
-    await supabase.from('accounts').delete().eq('id', ensureUUID(accountId));
-  } catch (err) {
-    console.error("deleteAccountFromSupabase error:", err);
+    await supabase.from('accounts').delete().eq('id', safeId);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] deleteAccountFromSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("deleteAccount", { userId, accountId: safeId });
+      } catch (proxyErr) {
+        console.error("Proxy deleteAccount failed:", proxyErr);
+      }
+    } else {
+      console.error("deleteAccountFromSupabase error:", err);
+    }
   }
 }
 
 export async function saveTradeToSupabase(userId: string, trade: Trade): Promise<void> {
-  try {
-    const safeUserId = ensureUUID(userId);
-    const safeId = ensureUUID(trade.id);
-    const safeAccId = ensureUUID(trade.accountId);
+  const safeUserId = ensureUUID(userId);
+  const safeId = ensureUUID(trade.id);
+  const safeAccId = ensureUUID(trade.accountId);
+  const row = {
+    id: safeId,
+    user_id: safeUserId,
+    account_id: safeAccId,
+    date: trade.date,
+    pair: trade.pair,
+    direction: trade.side,
+    status: trade.pnl > 0 ? 'WIN' : (trade.pnl < 0 ? 'LOSS' : 'BE'),
+    pnl: trade.pnl,
+    setup: trade.setup || null,
+    screenshot_url: trade.screenshot || null
+  };
 
-    await supabase
-      .from('trades')
-      .upsert({
-        id: safeId,
-        user_id: safeUserId,
-        account_id: safeAccId,
-        date: trade.date,
-        pair: trade.pair,
-        direction: trade.side,
-        status: trade.pnl > 0 ? 'WIN' : (trade.pnl < 0 ? 'LOSS' : 'BE'),
-        pnl: trade.pnl,
-        setup: trade.setup || null,
-        screenshot_url: trade.screenshot || null
-      });
-  } catch (err) {
-    console.error("saveTradeToSupabase error:", err);
+  try {
+    await supabase.from('trades').upsert(row);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] saveTradeToSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("saveTrade", { row });
+      } catch (proxyErr) {
+        console.error("Proxy saveTrade failed:", proxyErr);
+      }
+    } else {
+      console.error("saveTradeToSupabase error:", err);
+    }
   }
 }
 
 export async function deleteTradeFromSupabase(tradeId: string): Promise<void> {
+  const safeId = ensureUUID(tradeId);
+  const userId = getCurrentUserId();
   try {
-    await supabase.from('trades').delete().eq('id', ensureUUID(tradeId));
-  } catch (err) {
-    console.error("deleteTradeFromSupabase error:", err);
+    await supabase.from('trades').delete().eq('id', safeId);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] deleteTradeFromSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("deleteTrade", { userId, tradeId: safeId });
+      } catch (proxyErr) {
+        console.error("Proxy deleteTrade failed:", proxyErr);
+      }
+    } else {
+      console.error("deleteTradeFromSupabase error:", err);
+    }
   }
 }
 
 export async function saveChallengeToSupabase(userId: string, challenge: Challenge): Promise<void> {
-  try {
-    const safeUserId = ensureUUID(userId);
-    const safeId = ensureUUID(challenge.id);
-    const safeAccId = ensureUUID(challenge.accountId);
+  const safeUserId = ensureUUID(userId);
+  const safeId = ensureUUID(challenge.id);
+  const safeAccId = ensureUUID(challenge.accountId);
+  const row = {
+    id: safeId,
+    user_id: safeUserId,
+    account_id: safeAccId,
+    name: challenge.name,
+    capital: challenge.capital,
+    target: challenge.target,
+    daily_loss: challenge.dailyLoss,
+    global_loss: challenge.globalLoss
+  };
 
-    await supabase
-      .from('challenges')
-      .upsert({
-        id: safeId,
-        user_id: safeUserId,
-        account_id: safeAccId,
-        name: challenge.name,
-        capital: challenge.capital,
-        target: challenge.target,
-        daily_loss: challenge.dailyLoss,
-        global_loss: challenge.globalLoss
-      });
-  } catch (err) {
-    console.error("saveChallengeToSupabase error:", err);
+  try {
+    await supabase.from('challenges').upsert(row);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] saveChallengeToSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("saveChallenge", { row });
+      } catch (proxyErr) {
+        console.error("Proxy saveChallenge failed:", proxyErr);
+      }
+    } else {
+      console.error("saveChallengeToSupabase error:", err);
+    }
   }
 }
 
 export async function deleteChallengeFromSupabase(challengeId: string): Promise<void> {
+  const safeId = ensureUUID(challengeId);
+  const userId = getCurrentUserId();
   try {
-    await supabase.from('challenges').delete().eq('id', ensureUUID(challengeId));
-  } catch (err) {
-    console.error("deleteChallengeFromSupabase error:", err);
+    await supabase.from('challenges').delete().eq('id', safeId);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] deleteChallengeFromSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("deleteChallenge", { userId, challengeId: safeId });
+      } catch (proxyErr) {
+        console.error("Proxy deleteChallenge failed:", proxyErr);
+      }
+    } else {
+      console.error("deleteChallengeFromSupabase error:", err);
+    }
   }
 }
 
 export async function savePaymentToSupabase(userId: string, payment: PaymentRequest): Promise<void> {
-  try {
-    const safeUserId = ensureUUID(userId);
-    const safeId = ensureUUID(payment.id);
+  const safeUserId = ensureUUID(userId);
+  const safeId = ensureUUID(payment.id);
+  const row = {
+    id: safeId,
+    user_id: safeUserId,
+    amount: payment.amount,
+    proof_file_url: payment.proofScreenshot,
+    network: payment.network,
+    status: payment.status
+  };
 
-    await supabase
-      .from('payments')
-      .upsert({
-        id: safeId,
-        user_id: safeUserId,
-        amount: payment.amount,
-        proof_file_url: payment.proofScreenshot,
-        network: payment.network,
-        status: payment.status
-      });
-  } catch (err) {
-    console.error("savePaymentToSupabase error:", err);
+  try {
+    await supabase.from('payments').upsert(row);
+  } catch (err: any) {
+    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
+    if (isNetworkError) {
+      console.warn("[CLIENT_BLOCKED] savePaymentToSupabase failed. Routing through proxy...");
+      try {
+        await invokeProxy("savePayment", { row });
+      } catch (proxyErr) {
+        console.error("Proxy savePayment failed:", proxyErr);
+      }
+    } else {
+      console.error("savePaymentToSupabase error:", err);
+    }
   }
 }
 
@@ -413,13 +597,28 @@ export async function savePaymentToSupabase(userId: string, payment: PaymentRequ
  */
 export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let data: any[] = [];
+    try {
+      const { data: directData, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+      data = directData || [];
+    } catch (clientErr: any) {
+      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+      if (isNetworkError) {
+        console.warn("[CLIENT_BLOCKED] adminLoadAllUsersFromSupabase failed. Routing through proxy...");
+        const res = await invokeProxy("adminLoadAllUsers", {});
+        if (res.success && res.data) {
+          data = res.data;
+        }
+      } else {
+        throw clientErr;
+      }
     }
 
     return (data || []).map(p => ({
@@ -444,19 +643,34 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
  */
 export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest[]> {
   try {
-    const { data: payments, error } = await supabase
-      .from('payments')
-      .select(`
-        *,
-        users (
-          email,
-          username
-        )
-      `)
-      .order('payment_date', { ascending: false });
+    let payments: any[] = [];
+    try {
+      const { data: directData, error } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          users (
+            email,
+            username
+          )
+        `)
+        .order('payment_date', { ascending: false });
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+      payments = directData || [];
+    } catch (clientErr: any) {
+      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+      if (isNetworkError) {
+        console.warn("[CLIENT_BLOCKED] adminLoadAllPaymentsFromSupabase failed. Routing through proxy...");
+        const res = await invokeProxy("adminLoadAllPayments", {});
+        if (res.success && res.data) {
+          payments = res.data;
+        }
+      } else {
+        throw clientErr;
+      }
     }
 
     return (payments || []).map(p => {
