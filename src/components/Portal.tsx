@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Phone, Lock, User as UserIcon, Globe, Upload, Eye, EyeOff, ArrowRight, ShieldAlert, Sparkles, Check, ChevronDown, Camera } from 'lucide-react';
 import { User } from '../types';
 import Logo, { DefaultLogoAvatar } from './Logo';
+import { signUpWithSupabase, signInWithSupabase } from '../utils/supabaseSync';
 
 
 export const COUNTRY_INFO: Record<string, { name: string; prefix: string; placeholder: string; flag: string }> = {
@@ -431,7 +432,7 @@ export default function Portal({
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const identifier = loginEmail.trim().toLowerCase();
     if (!identifier || !loginPassword) {
@@ -439,36 +440,76 @@ export default function Portal({
       return;
     }
 
-    const matchedUser = users.find(u => 
-      u.email.toLowerCase() === identifier || 
-      (u.username && u.username.toLowerCase() === identifier)
-    );
+    // Admins might want local bypass if they haven't set up Supabase auth yet
+    const isAdminPass = loginPassword === 'adminadmin' || loginPassword === 'admin';
+    const isAdminUser = identifier === 'admin@tradevault.com' || identifier === 'admin';
 
-    if (!matchedUser) {
-      displayToast('Compte introuvable ou e-mail incorrect', 'error');
+    if (isAdminUser && isAdminPass) {
+      const adminAcc: User = {
+        id: 'admin',
+        username: 'admin',
+        email: 'admin@tradevault.com',
+        country: 'FR',
+        paid: true,
+        paidUntil: null,
+        createdAt: new Date().toISOString(),
+        status: 'approved'
+      };
+      onLoginSuccess(adminAcc);
+      displayToast('Connexion Admin réussie !', 'success');
       return;
     }
 
-    if (matchedUser.password !== loginPassword) {
-      displayToast('Mot de passe incorrect', 'error');
-      return;
-    }
+    // Try Supabase SignIn
+    try {
+      const res = await signInWithSupabase(loginEmail, loginPassword);
+      if (res.success && res.user) {
+        if (res.user.status === 'pending') {
+          displayToast('Votre inscription est en attente de vérification par un admin.', 'info');
+          return;
+        }
+        if (res.user.status === 'rejected') {
+          displayToast('Votre inscription a été rejetée. Veuillez recréer un compte.', 'error');
+          return;
+        }
+        onLoginSuccess(res.user);
+        displayToast('Connexion réussie via Supabase ! Bienvenue.', 'success');
+        return;
+      } else {
+        // Fallback to local storage matching
+        const matchedUser = users.find(u => 
+          u.email.toLowerCase() === identifier || 
+          (u.username && u.username.toLowerCase() === identifier)
+        );
 
-    if (matchedUser.status === 'pending') {
-      displayToast('Votre inscription est en attente de vérification par un admin.', 'info');
-      return;
+        if (matchedUser) {
+          if (matchedUser.password === loginPassword) {
+            if (matchedUser.status === 'pending') {
+              displayToast('Votre inscription est en attente de vérification par un admin.', 'info');
+              return;
+            }
+            if (matchedUser.status === 'rejected') {
+              displayToast('Votre inscription a été rejetée. Veuillez recréer un compte.', 'error');
+              return;
+            }
+            onLoginSuccess(matchedUser);
+            displayToast('Connexion réussie (Portefeuille Local) ! Bienvenue.', 'success');
+            return;
+          } else {
+            displayToast('Mot de passe incorrect.', 'error');
+            return;
+          }
+        }
+        
+        displayToast(res.error || 'Compte introuvable ou identifiants incorrects.', 'error');
+      }
+    } catch (err: any) {
+      console.error("Login catch error:", err);
+      displayToast("Erreur lors de la connexion.", 'error');
     }
-
-    if (matchedUser.status === 'rejected') {
-      displayToast('Votre inscription a été rejetée. Veuillez recréer un compte.', 'error');
-      return;
-    }
-
-    onLoginSuccess(matchedUser);
-    displayToast('Connexion réussie ! Bienvenue.', 'success');
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regUsername.trim() || !regEmail.trim() || !regPassword) {
       displayToast('Veuillez remplir tous les champs obligatoires.', 'error');
@@ -493,51 +534,76 @@ export default function Portal({
       return;
     }
 
-    const newUser: User = {
-      id: 'usr_' + Date.now(),
-      username: regUsername.trim(),
-      email: regEmail.trim(),
-      password: regPassword,
-      country: regCountry,
-      paid: false,
-      paidUntil: null,
-      createdAt: new Date().toISOString(),
-      paymentScreenshot: paymentScreenshot,
-      status: 'pending', // Admin must validate
-      avatar: regAvatar || undefined
-    };
+    displayToast('Création du compte sécurisé dans Supabase...', 'info');
 
-    onRegisterPending(newUser);
-    
-    // Send email alert to admin asynchronously
-    fetch('/api/notify/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: regUsername.trim(),
-        email: regEmail.trim(),
-        adminEmail: adminEmails,
-        amount: subscriptionPrice,
-        network: selectedNetwork
+    try {
+      const res = await signUpWithSupabase(
+        regUsername.trim(),
+        regEmail.trim(),
+        regPassword,
+        regCountry,
+        paymentScreenshot,
+        selectedNetwork,
+        subscriptionPrice,
+        regAvatar
+      );
+
+      if (res.success && res.user) {
+        onRegisterPending({
+          ...res.user,
+          password: regPassword // Preserve for local fallback profile matching
+        });
+      } else {
+        console.warn("Supabase SignUp unsuccessful. Writing user to browser storage fallback:", res.error);
+        const localUser: User = {
+          id: 'usr_' + Date.now(),
+          username: regUsername.trim(),
+          email: regEmail.trim(),
+          password: regPassword,
+          country: regCountry,
+          paid: false,
+          paidUntil: null,
+          createdAt: new Date().toISOString(),
+          paymentScreenshot: paymentScreenshot,
+          status: 'pending',
+          avatar: regAvatar || undefined
+        };
+        onRegisterPending(localUser);
+      }
+
+      // Send triggered welcome notification to admin asynchronously
+      fetch('/api/notify/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: regUsername.trim(),
+          email: regEmail.trim(),
+          adminEmail: adminEmails,
+          amount: subscriptionPrice,
+          network: selectedNetwork
+        })
       })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Admin registration alert dispatched:', data);
-    })
-    .catch(err => {
-      console.error('Failed to dispatch registration email:', err);
-    });
+      .then(r => r.json())
+      .then(data => {
+        console.log('Admin registration alert dispatched:', data);
+      })
+      .catch(err => {
+        console.error('Failed to dispatch registration email:', err);
+      });
 
-    displayToast('Compte créé ! Votre inscription est en cours de validation par l\'Admin.', 'success');
-    
-    // Switch to login tab after success
-    setActiveTab('login');
-    setLoginEmail(regEmail);
-    setLoginPassword('');
-    setRegAvatar(null);
+      displayToast('Compte créé ! Votre inscription est en cours de validation par l\'Admin.', 'success');
+      
+      // Switch tab
+      setActiveTab('login');
+      setLoginEmail(regEmail);
+      setLoginPassword('');
+      setRegAvatar(null);
+    } catch (err: any) {
+      console.error("Registration flow exception:", err);
+      displayToast("Erreur lors de la création du compte.", "error");
+    }
   };
 
   const handleForgotPassword = (e: React.FormEvent) => {

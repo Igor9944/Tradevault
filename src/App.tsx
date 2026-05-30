@@ -34,6 +34,21 @@ import {
 
 import { customAlert, customConfirm } from './utils/customDialog';
 
+import { 
+  syncUserProfile, 
+  saveAccountToSupabase, 
+  deleteAccountFromSupabase, 
+  saveTradeToSupabase, 
+  deleteTradeFromSupabase, 
+  saveChallengeToSupabase, 
+  deleteChallengeFromSupabase, 
+  savePaymentToSupabase,
+  adminLoadAllUsersFromSupabase,
+  adminLoadAllPaymentsFromSupabase,
+  ensureUUID,
+  generateUUID
+} from './utils/supabaseSync';
+
 // Subcomponents
 import Portal from './components/Portal';
 import Checkout from './components/Checkout';
@@ -123,8 +138,16 @@ export default function App() {
     const savedUser = sessionStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
+      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
       const saved = localStorage.getItem(`tv_trades_${u.id}`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Trade[];
+        if (!isAdmin && parsed.some(t => t.id === 't1' || t.id === 't2' || t.id === 't3')) {
+          return [];
+        }
+        return parsed;
+      }
+      return [];
     }
     const saved = localStorage.getItem('tv_trades');
     return saved ? JSON.parse(saved) : DEFAULT_TRADES;
@@ -136,6 +159,7 @@ export default function App() {
       const u = JSON.parse(savedUser) as User;
       const saved = localStorage.getItem(`tv_challenges_${u.id}`);
       if (saved) return JSON.parse(saved);
+      return [];
     }
     const saved = localStorage.getItem('tv_challenges');
     return saved ? JSON.parse(saved) : DEFAULT_CHALLENGES;
@@ -145,8 +169,15 @@ export default function App() {
     const savedUser = sessionStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
+      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
       const saved = localStorage.getItem(`tv_accounts_${u.id}`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Account[];
+        if (!isAdmin && parsed.some(a => a.id === 'ftmo-100k')) {
+          return [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
+        }
+        return parsed;
+      }
       // Fallback to single empty personal account for registration
       const freshAccounts = [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
       localStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
@@ -196,8 +227,13 @@ export default function App() {
     const savedUser = sessionStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
+      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
       const saved = localStorage.getItem(`tv_selected_account_id_${u.id}`);
-      if (saved) return saved;
+      if (saved) {
+        if (!isAdmin && saved === 'ftmo-100k') return 'personal';
+        return saved;
+      }
+      return 'personal';
     }
     const saved = localStorage.getItem('tv_selected_account_id');
     return saved || 'personal';
@@ -283,21 +319,21 @@ export default function App() {
       localStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(trades));
     }
     localStorage.setItem('tv_trades', JSON.stringify(trades));
-  }, [trades, currentUser?.id]);
+  }, [trades]);
 
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(`tv_challenges_${currentUser.id}`, JSON.stringify(challenges));
     }
     localStorage.setItem('tv_challenges', JSON.stringify(challenges));
-  }, [challenges, currentUser?.id]);
+  }, [challenges]);
 
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(`tv_accounts_${currentUser.id}`, JSON.stringify(accounts));
     }
     localStorage.setItem('tv_accounts', JSON.stringify(accounts));
-  }, [accounts, currentUser?.id]);
+  }, [accounts]);
 
   useEffect(() => {
     localStorage.setItem('tv_admin_emails', adminEmails);
@@ -320,30 +356,67 @@ export default function App() {
       localStorage.setItem(`tv_selected_account_id_${currentUser.id}`, selectedAccountId);
     }
     localStorage.setItem('tv_selected_account_id', selectedAccountId);
-  }, [selectedAccountId, currentUser?.id]);
+  }, [selectedAccountId]);
 
-  // Sync workspace dynamically when user logs in
+  // Sync workspace dynamically when user logs in & load data from Supabase
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      
-      const savedTrades = localStorage.getItem(`tv_trades_${uId}`);
-      setTrades(savedTrades ? JSON.parse(savedTrades) : []);
+      const isAdmin = currentUser.email === 'admin@tradevault.com' || currentUser.username === 'admin';
 
-      const savedChallenges = localStorage.getItem(`tv_challenges_${uId}`);
-      setChallenges(savedChallenges ? JSON.parse(savedChallenges) : []);
+      if (isAdmin) {
+        // Administrative view: Load users & payments from remote database
+        adminLoadAllUsersFromSupabase()
+          .then(dbUsers => {
+            if (dbUsers && dbUsers.length > 0) {
+              setUsers(dbUsers);
+            }
+          })
+          .catch(err => console.error("Error fetching administrative users:", err));
 
-      const savedAccs = localStorage.getItem(`tv_accounts_${uId}`);
-      if (savedAccs) {
-        setAccounts(JSON.parse(savedAccs));
+        adminLoadAllPaymentsFromSupabase()
+          .then(dbPayments => {
+            if (dbPayments) {
+              setPaymentRequests(dbPayments);
+            }
+          })
+          .catch(err => console.error("Error fetching administrative payments:", err));
       } else {
-        const freshAccounts = [{ id: 'personal', name: 'Compte Personnel', type: 'personal' }];
-        setAccounts(freshAccounts);
-        localStorage.setItem(`tv_accounts_${uId}`, JSON.stringify(freshAccounts));
-      }
+        // Standard trader workspace: Real-time query from Supabase
+        import('./utils/supabaseSync').then(({ loadUserDataFromSupabase }) => {
+          loadUserDataFromSupabase(uId)
+            .then(dbData => {
+              setAccounts(dbData.accounts);
+              setTrades(dbData.trades);
+              setChallenges(dbData.challenges);
+              
+              const savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
+              // If the current saved ID is a default name like "personal", map it to our standardized UUID
+              const mappedSelAcc = (savedSelAcc === 'personal' || !savedSelAcc) 
+                ? ensureUUID('personal') 
+                : ensureUUID(savedSelAcc);
+              
+              setSelectedAccountId(mappedSelAcc);
+            })
+            .catch(err => {
+              console.error("Supabase user data load failed. Falling back to local cache:", err);
+              // Local storage fallback for maximum resilience
+              let savedTradesRaw = localStorage.getItem(`tv_trades_${uId}`);
+              let savedChallengesRaw = localStorage.getItem(`tv_challenges_${uId}`);
+              let savedAccsRaw = localStorage.getItem(`tv_accounts_${uId}`);
+              let savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
 
-      const savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
-      setSelectedAccountId(savedSelAcc || 'personal');
+              let initialTrades = savedTradesRaw ? JSON.parse(savedTradesRaw) : [];
+              let initialChallenges = savedChallengesRaw ? JSON.parse(savedChallengesRaw) : [];
+              let initialAccounts = savedAccsRaw ? JSON.parse(savedAccsRaw) : [{ id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' }];
+
+              setTrades(initialTrades);
+              setChallenges(initialChallenges);
+              setAccounts(initialAccounts);
+              setSelectedAccountId(savedSelAcc || ensureUUID('personal'));
+            });
+        });
+      }
     }
   }, [currentUser?.id]);
 
@@ -444,31 +517,50 @@ export default function App() {
   // Trade CRUD
   const handleAddTrade = (newTrade: Trade) => {
     setTrades(prev => [...prev, newTrade]);
+    if (currentUser) {
+      saveTradeToSupabase(currentUser.id, newTrade);
+    }
   };
 
   const handleEditTrade = (id: string, updated: Partial<Trade>) => {
-    setTrades(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t));
+    setTrades(prev => {
+      const mapped = prev.map(t => t.id === id ? { ...t, ...updated } : t);
+      const updatedTrade = mapped.find(t => t.id === id);
+      if (currentUser && updatedTrade) {
+        saveTradeToSupabase(currentUser.id, updatedTrade);
+      }
+      return mapped;
+    });
   };
 
   const handleDeleteTrade = (id: string) => {
     setTrades(prev => prev.filter(t => t.id !== id));
+    if (currentUser) {
+      deleteTradeFromSupabase(id);
+    }
   };
 
   // Prop firm challenge CRUD
   const handleAddChallenge = (newCh: Challenge) => {
     setChallenges(prev => [...prev, newCh]);
+    if (currentUser) {
+      saveChallengeToSupabase(currentUser.id, newCh);
+    }
   };
 
   const handleDeleteAccount = (id: string) => {
     console.log("Deleting account with ID:", id);
-    if (id === 'personal' || id === 'ftmo-100k') {
+    if (id === ensureUUID('personal') || id === ensureUUID('ftmo-100k') || id === 'personal' || id === 'ftmo-100k') {
       customAlert("Action Non Autorisée", "La suppression du compte personnel et du compte FTMO par défaut n'est pas autorisée.");
       return;
     }
     setAccounts(prev => prev.filter(a => a.id !== id));
     setChallenges(prev => prev.filter(c => c.accountId !== id));
+    if (currentUser) {
+      deleteAccountFromSupabase(id);
+    }
     if (selectedAccountId === id) {
-      setSelectedAccountId('personal');
+      setSelectedAccountId(ensureUUID('personal'));
     }
   };
 
@@ -478,6 +570,9 @@ export default function App() {
       return;
     }
     setChallenges(prev => prev.filter(c => c.id !== id));
+    if (currentUser) {
+      deleteChallengeFromSupabase(id);
+    }
   };
 
   // Admin CRUD
@@ -487,14 +582,18 @@ export default function App() {
     const now = new Date();
     const expiry = new Date();
     expiry.setDate(now.getDate() + 90); // 3 mois d'accès
+    const expiryStr = expiry.toISOString();
 
     const approved: User = {
       ...target,
       status: 'approved',
       paid: true,
-      paidUntil: expiry.toISOString()
+      paidUntil: expiryStr
     };
     setUsers(prev => prev.map(u => u.id === userId ? approved : u));
+
+    // Update profile in Supabase
+    syncUserProfile(approved);
 
     // Send triggered Welcome Email via Resend Client-Server flow
     fetch('/api/notify/approve', {
@@ -527,7 +626,14 @@ export default function App() {
   };
 
   const handleRejectUser = (userId: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'rejected' } : u));
+    setUsers(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, status: 'rejected' as const } : u);
+      const target = updated.find(u => u.id === userId);
+      if (target) {
+        syncUserProfile(target);
+      }
+      return updated;
+    });
   };
 
   const handleApproveRenewal = (payId: string) => {
@@ -549,11 +655,12 @@ export default function App() {
     const newExpiry = new Date(baseDate);
     // User stated that their account has been renewed for 30 days
     newExpiry.setDate(baseDate.getDate() + 30);
+    const expiryStr = newExpiry.toISOString();
 
     const renewedUser: User = {
       ...targetUser,
       paid: true,
-      paidUntil: newExpiry.toISOString()
+      paidUntil: expiryStr
     };
 
     // Update state lists
@@ -562,7 +669,14 @@ export default function App() {
       setCurrentUser(renewedUser);
     }
 
-    setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' } : r));
+    // Sync Approved profile and approved payment to Supabase
+    syncUserProfile(renewedUser);
+    savePaymentToSupabase(targetUser.id, {
+      ...req,
+      status: 'approved'
+    });
+
+    setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' as const } : r));
 
     // Send confirmation email via Resend
     fetch('/api/notify/renewal-approve', {
@@ -585,7 +699,14 @@ export default function App() {
   };
 
   const handleRejectRenewal = (payId: string) => {
-    setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'rejected' } : r));
+    setPaymentRequests(prev => {
+      const updated = prev.map(r => r.id === payId ? { ...r, status: 'rejected' as const } : r);
+      const req = updated.find(r => r.id === payId);
+      if (req) {
+        savePaymentToSupabase(req.userId, req);
+      }
+      return updated;
+    });
   };
 
   const handleCheckCronRenewals = () => {
@@ -613,7 +734,7 @@ export default function App() {
     e.preventDefault();
     if (!newAccName.trim()) return;
 
-    const accId = 'acc_' + Date.now();
+    const accId = generateUUID();
     const newAcc: Account = {
       id: accId,
       name: newAccName.trim(),
@@ -625,11 +746,14 @@ export default function App() {
     };
 
     setAccounts(prev => [...prev, newAcc]);
+    if (currentUser) {
+      saveAccountToSupabase(currentUser.id, newAcc);
+    }
 
     // If type is prop firm challenge, automatically seed a corresponding Challenge object
     if (newAccType === 'propfirm') {
       const newCh: Challenge = {
-        id: 'ch_' + Date.now(),
+        id: generateUUID(),
         accountId: accId,
         name: newAccName.trim(),
         capital: parseFloat(newAccCapital) || 100000,
@@ -639,6 +763,9 @@ export default function App() {
         createdAt: new Date().toISOString()
       };
       setChallenges(prev => [...prev, newCh]);
+      if (currentUser) {
+        saveChallengeToSupabase(currentUser.id, newCh);
+      }
     }
 
     setSelectedAccountId(accId);
