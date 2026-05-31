@@ -58,6 +58,7 @@ import Dashboard from './components/Dashboard';
 import Journal from './components/Journal';
 import Calendar from './components/Calendar';
 import Stats from './components/Stats';
+import { BackgroundVideo } from './components/BackgroundVideo';
 import Challenges from './components/Challenges';
 import Admin from './components/Admin';
 import Logo, { DefaultLogoAvatar } from './components/Logo';
@@ -262,8 +263,15 @@ export default function App() {
   const [profileUsername, setProfileUsername] = useState('');
   const [profileCountry, setProfileCountry] = useState('FR');
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-  const [profilePassword, setProfilePassword] = useState('');
-  const [showProfilePassword, setShowProfilePassword] = useState(false);
+  
+  const [profileOldPassword, setProfileOldPassword] = useState('');
+  const [profileNewPassword, setProfileNewPassword] = useState('');
+  const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
+  
+  const [showProfileOldPassword, setShowProfileOldPassword] = useState(false);
+  const [showProfileNewPassword, setShowProfileNewPassword] = useState(false);
+  const [showProfileConfirmPassword, setShowProfileConfirmPassword] = useState(false);
+
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const openProfileModal = () => {
@@ -271,8 +279,15 @@ export default function App() {
     setProfileUsername(currentUser.username || '');
     setProfileCountry(currentUser.country || 'FR');
     setProfileAvatar(currentUser.avatar || null);
-    setProfilePassword(currentUser.password || '');
-    setShowProfilePassword(false);
+    
+    setProfileOldPassword('');
+    setProfileNewPassword('');
+    setProfileConfirmPassword('');
+    
+    setShowProfileOldPassword(false);
+    setShowProfileNewPassword(false);
+    setShowProfileConfirmPassword(false);
+    
     setProfileModalOpen(true);
   };
 
@@ -280,13 +295,31 @@ export default function App() {
     e.preventDefault();
     if (!currentUser) return;
     if (!profileUsername.trim()) return;
+    
+    let finalPassword = currentUser.password;
+
+    if (profileOldPassword || profileNewPassword || profileConfirmPassword) {
+      if (profileOldPassword !== currentUser.password) {
+        customAlert('Erreur', 'L\'ancien mot de passe est incorrect.');
+        return;
+      }
+      if (profileNewPassword !== profileConfirmPassword) {
+        customAlert('Erreur', 'Les nouveaux mots de passe ne correspondent pas.');
+        return;
+      }
+      if (profileNewPassword.length < 6) {
+        customAlert('Erreur', 'Le nouveau mot de passe doit contenir au moins 6 caractères.');
+        return;
+      }
+      finalPassword = profileNewPassword;
+    }
 
     const updatedUser: User = {
       ...currentUser,
       username: profileUsername.trim(),
       country: profileCountry,
       avatar: profileAvatar || undefined,
-      password: profilePassword.trim() || currentUser.password
+      password: finalPassword
     };
 
     // Update session
@@ -529,8 +562,7 @@ export default function App() {
   };
 
   const handleCheckoutCancel = () => {
-    setCurrentUser(null);
-    setCurrentScreen('login_portal');
+    setCurrentScreen('app');
   };
 
   // Switch accounts list
@@ -807,10 +839,13 @@ export default function App() {
 
       {/* 3. APPLICATION WORKSPACE SCREEN */}
       {currentScreen === 'app' && currentUser && (
-        <div className="flex-1 flex flex-col lg:flex-row min-h-screen">
+        <div className="flex-1 flex flex-col lg:flex-row min-h-screen relative z-0">
+          
+          {/* YOUTUBE BACKGROUND LOOP */}
+          <BackgroundVideo />
           
           {/* Navigation Sidebar panel */}
-          <aside className="w-full lg:w-64 bg-slate-950 border-r border-[#1e293b]/70 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-screen shrink-0 relative z-30">
+          <aside className="w-full lg:w-64 bg-slate-950/80 backdrop-blur-xl border-r border-[#1e293b]/70 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-screen shrink-0 relative z-30">
             <div className="space-y-6">
               
               {/* Brand Logo and Name */}
@@ -818,22 +853,6 @@ export default function App() {
                 <div>
                   <h2 className="text-xl font-black font-display tracking-tight text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
                   <span className="text-[9px] text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
-                </div>
-              </div>
-
-              {/* Premium Language controller */}
-              <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-slate-900/60 rounded-xl border border-zinc-800/60 text-xs">
-                <span className="text-[9px] text-[#475569] font-bold uppercase tracking-wider font-mono">Options</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={toggleLang}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#080808]/80 hover:bg-[#00FF9C]/10 text-slate-300 hover:text-white transition-all border border-zinc-800/70 text-[10px] font-bold font-mono tracking-wide"
-                    title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
-                  >
-                    <Globe size={11} className="text-[#00FF9C]" />
-                    <span>{lang === 'fr' ? 'FR' : 'EN'}</span>
-                  </button>
                 </div>
               </div>
 
@@ -1356,25 +1375,70 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-indigo-400 font-bold uppercase tracking-wide block">Nouveau Mot de Passe *</label>
+                <label className="text-[10px] text-slate-450 font-bold uppercase tracking-wide block">Ancien Mot de Passe</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <Lock size={14} />
                   </span>
                   <input
-                    type={showProfilePassword ? "text" : "password"}
-                    value={profilePassword}
-                    onChange={(e) => setProfilePassword(e.target.value)}
+                    type={showProfileOldPassword ? "text" : "password"}
+                    value={profileOldPassword}
+                    onChange={(e) => setProfileOldPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
-                    placeholder="Changer de mot de passe"
-                    required
+                    placeholder="Saisissez votre ancien mot de passe"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowProfilePassword(!showProfilePassword)}
+                    onClick={() => setShowProfileOldPassword(!showProfileOldPassword)}
                     className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
                   >
-                    {showProfilePassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {showProfileOldPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-indigo-400 font-bold uppercase tracking-wide block">Nouveau Mot de Passe</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                    <Lock size={14} />
+                  </span>
+                  <input
+                    type={showProfileNewPassword ? "text" : "password"}
+                    value={profileNewPassword}
+                    onChange={(e) => setProfileNewPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    placeholder="Nouveau mot de passe"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileNewPassword(!showProfileNewPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    {showProfileNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-450 font-bold uppercase tracking-wide block">Confirmer Nouveau Mot de Passe</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                    <Lock size={14} />
+                  </span>
+                  <input
+                    type={showProfileConfirmPassword ? "text" : "password"}
+                    value={profileConfirmPassword}
+                    onChange={(e) => setProfileConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    placeholder="Confirmez"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileConfirmPassword(!showProfileConfirmPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    {showProfileConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>

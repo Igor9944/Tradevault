@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from './translations';
 
-export type Lang = 'fr' | 'en';
+export type Lang = 'fr';
 
 interface ThemeLanguageContextType {
   lang: Lang;
@@ -13,26 +13,13 @@ interface ThemeLanguageContextType {
 const ThemeLanguageContext = createContext<ThemeLanguageContextType | undefined>(undefined);
 
 export const ThemeLanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLangState] = useState<Lang>(() => {
-    return (localStorage.getItem('tv_lang') as Lang) || 'fr';
-  });
+  const lang: Lang = 'fr';
 
-  // Language Side Effect
-  useEffect(() => {
-    localStorage.setItem('tv_lang', lang);
-  }, [lang]);
-
-  const toggleLang = () => {
-    setLangState(prev => (prev === 'fr' ? 'en' : 'fr'));
-  };
-
-  const setLang = (newLang: Lang) => {
-    setLangState(newLang);
-  };
+  const toggleLang = () => {};
+  const setLang = (newLang: Lang) => {};
 
   const t = (key: string): string => {
-    const dict = translations[lang] || translations['fr'];
-    return dict[key] || translations['fr'][key] || key;
+    return translations['fr'][key] || key;
   };
 
   return (

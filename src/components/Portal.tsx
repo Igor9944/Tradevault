@@ -762,19 +762,6 @@ export default function Portal({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Quick interactive toggles inside sticky header */}
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 text-xs">
-            <button
-              type="button"
-              onClick={toggleLang}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/30 hover:bg-[#00FF9C]/10 text-white/70 hover:text-white transition-all text-[8px] font-mono font-bold uppercase"
-              title="Language Change (FR/EN)"
-            >
-              <Globe size={10} className="text-[#00FF9C]" />
-              <span>{lang === 'fr' ? 'FR' : 'EN'}</span>
-            </button>
-          </div>
-
           <button 
             type="button"
             onClick={() => scrollSectionToId('portal-card-segment')}

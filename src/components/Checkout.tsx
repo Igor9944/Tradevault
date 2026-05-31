@@ -283,7 +283,7 @@ export default function Checkout({
               onClick={onCancel}
               className="w-full py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 text-xs font-semibold"
             >
-              Annuler et retourner au portail
+              Annuler
             </button>
           </div>
 

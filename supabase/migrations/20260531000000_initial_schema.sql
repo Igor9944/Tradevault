@@ -73,15 +73,26 @@ ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
 -- Politiques de base (chaque utilisateur voit uniquement ses propres données)
+DROP POLICY IF EXISTS "Les utilisateurs voient leurs propres infos" ON public.users;
 CREATE POLICY "Les utilisateurs voient leurs propres infos" ON public.users FOR SELECT USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Les utilisateurs modifient leurs propres infos" ON public.users;
 CREATE POLICY "Les utilisateurs modifient leurs propres infos" ON public.users FOR UPDATE USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs comptes" ON public.accounts;
 CREATE POLICY "Les utilisateurs gèrent leurs comptes" ON public.accounts FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs trades" ON public.trades;
 CREATE POLICY "Les utilisateurs gèrent leurs trades" ON public.trades FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs challenges" ON public.challenges;
 CREATE POLICY "Les utilisateurs gèrent leurs challenges" ON public.challenges FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Les utilisateurs voient et créent leurs paiements" ON public.payments;
 CREATE POLICY "Les utilisateurs voient et créent leurs paiements" ON public.payments FOR ALL USING (auth.uid() = user_id);
 
 -- Gérer automatiquement la création d'un profil après l'inscription (Trigger Supabase Auth)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
