@@ -21,6 +21,7 @@ import {
 import { User } from '../types';
 import Logo, { DefaultLogoAvatar } from './Logo';
 import { signUpWithSupabase, signInWithSupabase } from '../utils/supabaseSync';
+import { envoyerEmail } from '../utils/emailService';
 
 export const COUNTRY_INFO: Record<string, { name: string; prefix: string; placeholder: string; flag: string }> = {
   FR: { name: 'France', prefix: '+33', placeholder: 'Ex: trader.fr@gmail.com', flag: '🇫🇷' },
@@ -600,19 +601,12 @@ export default function Portal({
         onRegisterPending(localUser);
       }
 
-      fetch('/api/notify/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: regUsername.trim(),
-          email: regEmail.trim(),
-          adminEmail: adminEmails,
-          amount: subscriptionPrice,
-          network: selectedNetwork
-        })
-      })
-      .then(r => r.json())
-      .catch(err => console.error(err));
+      envoyerEmail('new_user', { 
+        email: regEmail.trim(), 
+        username: regUsername.trim(),
+        amount: subscriptionPrice,
+        network: selectedNetwork
+      }, paymentScreenshot);
 
       displayToast('Compte enregistré en attente de validation admin !', 'success');
       setActiveTab('login');

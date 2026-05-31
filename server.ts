@@ -346,7 +346,14 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         });
 
         if (authError) {
-          return res.json({ success: false, error: authError.message });
+          const errMsg = authError.message || String(authError);
+          const isHtmlError = errMsg.includes("<!DOCTYPE") || errMsg.includes("<");
+          console.log(`[PROXY_SIGNUP] Supabase auth failed, trying memory fallback store...`);
+          const mockResult = handleInmemoryProxyAction("signUp", args);
+          if (!mockResult.success && isHtmlError) {
+            return res.json({ success: false, error: "Serveur inactif (projet Supabase potentiellement en pause)." });
+          }
+          return res.json(mockResult);
         }
 
         const userId = authData.user?.id;
@@ -423,12 +430,17 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         }
 
         if (authError) {
-          console.log(`[PROXY_SIGNIN] Supabase auth failed (${authError.message || authError}), trying memory fallback store...`);
+          const errMsg = authError.message || String(authError);
+          const isHtmlError = errMsg.includes("<!DOCTYPE") || errMsg.includes("<");
+          console.log(`[PROXY_SIGNIN] Supabase auth failed, trying memory fallback store...`);
           const mockResult = handleInmemoryProxyAction("signIn", args);
           if (mockResult.success) {
             return res.json(mockResult);
           }
-          return res.json({ success: false, error: authError.message || String(authError) });
+          if (isHtmlError) {
+            return res.json({ success: false, error: "Identifiant incorrect ou Serveur de base de données inactif (projet Supabase potentiellement en pause)." });
+          }
+          return res.json({ success: false, error: errMsg });
         }
 
         const userId = authData.user?.id;

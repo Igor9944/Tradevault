@@ -61,6 +61,7 @@ import Stats from './components/Stats';
 import Challenges from './components/Challenges';
 import Admin from './components/Admin';
 import Logo, { DefaultLogoAvatar } from './components/Logo';
+import { envoyerEmail } from './utils/emailService';
 
 
 export default function App() {
@@ -507,27 +508,12 @@ export default function App() {
     setPaymentRequests(prev => [...prev, newRequest]);
     
     // Asynchronously dispatch the email notification to admin via backend API
-    fetch('/api/notify/renewal-request', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: currentUser.username,
-        email: currentUser.email,
-        adminEmail: adminEmails,
-        amount: subscriptionPrice,
-        network: network,
-        paymentId: paymentId
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Early renewal admin notification email dispatched:', data);
-    })
-    .catch(err => {
-      console.error('Failed to dispatch early renewal admin notification:', err);
-    });
+    envoyerEmail('withdrawal_request', { 
+      email: currentUser.email, 
+      username: currentUser.username, 
+      amount: subscriptionPrice, 
+      network: network 
+    }, proofBase64);
 
     setCurrentScreen('app');
     setActiveTab('dashboard');
@@ -638,24 +624,7 @@ export default function App() {
     syncUserProfile(approved);
 
     // Send triggered Welcome Email via Resend Client-Server flow
-    fetch('/api/notify/approve', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: target.email,
-        username: target.username,
-        subscriptionPeriod: subscriptionPeriod
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Approve welcome notification dispatched:', data);
-    })
-    .catch(err => {
-      console.error('Failed to dispatch welcome notification email:', err);
-    });
+    envoyerEmail('approve_user', { email: target.email, username: target.username });
 
     // Trigger success notification via background service
     import('./utils/notificationService').then(({ sendPushNotification }) => {
@@ -721,23 +690,7 @@ export default function App() {
     setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' as const } : r));
 
     // Send confirmation email via Resend
-    fetch('/api/notify/renewal-approve', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: targetUser.email,
-        username: targetUser.username
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Renewal approval email dispatched:', data);
-    })
-    .catch(err => {
-      console.error('Failed to dispatch renewal welcome email:', err);
-    });
+    envoyerEmail('renewal_confirm', { email: targetUser.email, username: targetUser.username });
   };
 
   const handleRejectRenewal = (payId: string) => {
