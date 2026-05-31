@@ -692,3 +692,113 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
     return [];
   }
 }
+
+/**
+ * Triggers Google OAuth sign-in flow.
+ * Configured as bypass-iframe popup support.
+ */
+export async function signInWithGoogle(): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        skipBrowserRedirect: true,
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || !data.url) {
+      throw new Error("Impossible de générer l'URL d'authentification Google.");
+    }
+
+    return { success: true, url: data.url };
+  } catch (err: any) {
+    console.error("Error initiating Google sign-in:", err);
+    return { success: false, error: err.message || String(err) };
+  }
+}
+
+/**
+ * Processes a Supabase OAuth auth session to load or dynamically create user profiles.
+ */
+export async function handleSupabaseSession(session: any): Promise<{ success: boolean; user?: User; error?: string }> {
+  if (!session || !session.user) {
+    return { success: false, error: "Aucune session utilisateur active décelée." };
+  }
+
+  const authUser = session.user;
+  const userId = authUser.id;
+  const userEmail = authUser.email || '';
+
+  try {
+    // Check if public profile exists
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError) {
+      console.warn("Public users lookup error, might need server-proxy fallback:", profileError);
+    }
+
+    let user: User;
+
+    if (profile) {
+      user = {
+        id: userId,
+        username: profile.username || authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
+        email: userEmail || profile.email,
+        country: profile.country || 'FR',
+        paid: profile.paid ?? false,
+        paidUntil: profile.paid_until || null,
+        status: (profile.status || 'approved') as 'approved' | 'pending' | 'rejected',
+        avatar: profile.avatar_url || authUser.user_metadata?.avatar_url || undefined,
+        createdAt: profile.created_at || new Date().toISOString()
+      };
+    } else {
+      // First-time Google user: create dynamic approved profile record in DB
+      // Note: By default, newly connected Google accounts are approved but not paid.
+      // They are redirected to checkout to complete their payment sequence.
+      const newProfile = {
+        id: ensureUUID(userId),
+        email: userEmail,
+        username: authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
+        country: 'FR',
+        status: 'approved',
+        paid: false,
+        paid_until: null,
+        avatar_url: authUser.user_metadata?.avatar_url || null,
+        created_at: new Date().toISOString()
+      };
+
+      try {
+        await supabase.from('users').upsert(newProfile);
+      } catch (insertErr) {
+        console.warn("Client-side insert failed, routing through proxy:", insertErr);
+        await invokeProxy("syncUserProfile", { profile: newProfile });
+      }
+
+      user = {
+        id: userId,
+        username: newProfile.username,
+        email: newProfile.email,
+        country: newProfile.country,
+        paid: newProfile.paid,
+        paidUntil: newProfile.paid_until,
+        status: newProfile.status as 'approved' | 'pending' | 'rejected',
+        avatar: newProfile.avatar_url || undefined,
+        createdAt: newProfile.created_at
+      };
+    }
+
+    return { success: true, user };
+  } catch (err: any) {
+    console.error("handleSupabaseSession error:", err);
+    return { success: false, error: err.message || String(err) };
+  }
+}

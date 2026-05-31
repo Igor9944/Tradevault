@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import Logo, { DefaultLogoAvatar } from './Logo';
-import { signUpWithSupabase, signInWithSupabase } from '../utils/supabaseSync';
-import { envoyerEmail } from '../utils/emailService';
+import { signUpWithSupabase, signInWithSupabase, signInWithGoogle } from '../utils/supabaseSync';
+import { supabase } from '../lib/supabase';
 
 export const COUNTRY_INFO: Record<string, { name: string; prefix: string; placeholder: string; flag: string }> = {
   FR: { name: 'France', prefix: '+33', placeholder: 'Ex: trader.fr@gmail.com', flag: '🇫🇷' },
@@ -413,6 +413,37 @@ export default function Portal({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const res = await signInWithGoogle();
+      if (res.success && res.url) {
+        // Center the popup screen
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        const pop = window.open(
+          res.url,
+          'google_oauth_popup',
+          `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+        );
+        if (!pop) {
+          displayToast("Le bloqueur de popups a empêché l'authentification Google. Veuillez autoriser les fenêtres contextuelles.", "error");
+        }
+      } else {
+        displayToast(res.error || "Une erreur s'est produite lors de l'authentification.", "error");
+      }
+    } catch (err: any) {
+      console.error(err);
+      displayToast("Échec de connexion Google.", "error");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   // Nav scroll listen
   useEffect(() => {
     const handleScroll = () => {
@@ -601,13 +632,6 @@ export default function Portal({
         onRegisterPending(localUser);
       }
 
-      envoyerEmail('new_user', { 
-        email: regEmail.trim(), 
-        username: regUsername.trim(),
-        amount: subscriptionPrice,
-        network: selectedNetwork
-      }, paymentScreenshot);
-
       displayToast('Compte enregistré en attente de validation admin !', 'success');
       setActiveTab('login');
       setLoginEmail(regEmail);
@@ -632,27 +656,23 @@ export default function Portal({
     setForgotResult(null);
 
     try {
-      const response = await fetch('/api/auth/forgot-password-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailToSearch })
+      const redirectUrl = window.location.origin.includes('localhost') || window.location.origin.includes('run.app') 
+        ? `${window.location.origin}/reset-password` 
+        : 'https://traderpr0.netlify.app/reset-password';
+
+      const { data, error } = await supabase.auth.resetPasswordForEmail(emailToSearch, {
+        redirectTo: redirectUrl,
       });
 
-      const data = await response.json();
-      if (data.success) {
-        setResetStep(2);
-        if (data.simulated && data.code) {
-          setForgotResult(`[OTP CODE SIMULÉ] : ${data.code}`);
-          displayToast(`Code OTP simulé : ${data.code}`, "info");
-        } else {
-          displayToast("Un code de validation OTP a été envoyé !", "success");
-        }
-      } else {
-        displayToast(data.error || "Erreur d'envoi OTP.", "error");
+      if (error) {
+        throw error;
       }
-    } catch (err) {
-      console.error(err);
-      displayToast("Erreur de connexion serveur.", "error");
+
+      setResetStep(2);
+      displayToast("Le lien de réinitialisation a été envoyé !", "success");
+    } catch (err: any) {
+      console.error("Error sending reset password email:", err);
+      displayToast(err.message || "Erreur lors de la réinitialisation de mot de passe.", "error");
     } finally {
       setResetLoading(false);
     }
@@ -965,7 +985,8 @@ export default function Portal({
 
               {/* Login block */}
               {activeTab === 'login' && !forgotOpen && (
-                <form onSubmit={handleLogin} className="space-y-4 text-left">
+                <>
+                  <form onSubmit={handleLogin} className="space-y-4 text-left">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">E-mail ou Pseudo</label>
                     <input
@@ -1015,16 +1036,40 @@ export default function Portal({
                     IDENTIFIER MON COMPTE <ArrowRight size={13} />
                   </button>
                 </form>
-              )}
+
+                {/* Separator */}
+                <div className="relative flex py-4 items-center">
+                  <div className="flex-grow border-t border-white/5"></div>
+                  <span className="flex-shrink mx-4 text-[9px] font-mono text-white/30 uppercase tracking-widest">OU</span>
+                  <div className="flex-grow border-t border-white/5"></div>
+                </div>
+
+                {/* Google Sign-In Button */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading}
+                  className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#00FF9C]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                >
+                  <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                  </svg>
+                  {googleLoading ? "CHARGEMENT..." : "SE CONNECTER AVEC GOOGLE"}
+                </button>
+              </>
+            )}
 
               {/* Password recover OTP */}
               {activeTab === 'login' && forgotOpen && (
                 <div className="space-y-4 text-left">
-                  <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider">Réinitialisation de mot de passe (OTP)</h3>
+                  <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider">Réinitialisation de mot de passe</h3>
                   
                   {resetStep === 1 ? (
                     <>
-                      <p className="text-white/40 text-xs">Entrez votre e-mail de membre pour generer un code OTP de sécurité à 7 chiffres.</p>
+                      <p className="text-white/40 text-xs text-left">Entrez votre adresse e-mail de membre pour recevoir votre lien de réinitialisation sécurisé.</p>
                       <form onSubmit={handleRequestOTP} className="space-y-3">
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Adresse e-mail</label>
@@ -1057,73 +1102,27 @@ export default function Portal({
                       </form>
                     </>
                   ) : (
-                    <>
-                      <p className="text-xs text-white/60 font-sans bg-white/5 p-3 rounded-lg border border-white/5 leading-relaxed">
-                        Un code secret de validation à 7 chiffres a été initié à : <span className="text-[#00FF9C] font-semibold">{forgotEmail}</span>
-                      </p>
-                      <form onSubmit={handleVerifyOTPAndReset} className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Code OTP (7 chiffres)</label>
-                          <input
-                            type="text"
-                            value={resetOTP}
-                            onChange={(e) => setResetOTP(e.target.value.replace(/\D/g, '').slice(0, 7))}
-                            placeholder="Ex: 5829302"
-                            className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-center font-mono text-base tracking-widest text-[#00FF9C] focus:outline-none focus:border-[#00FF9C]"
-                            required
-                          />
-                        </div>
+                    <div className="space-y-5 text-center py-4 bg-[#050508]/60 p-4 border border-white/5 rounded-xl">
+                      <div className="w-12 h-12 rounded-full bg-[#00FF9C]/10 border border-[#00FF9C]/30 flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(0,255,156,0.15)]">
+                        <Check size={20} className="text-[#00FF9C]" />
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-bold text-white uppercase tracking-wider font-sans">Lien Transmis ! ✉️</p>
+                        <p className="text-[10px] text-white/50 leading-relaxed font-mono">
+                          Un e-mail contenant un lien sécurisé de réinitialisation a été envoyé à : <strong className="text-white/80 font-mono">{forgotEmail}</strong>.
+                          <br /><br />
+                          Veuillez cliquer sur ce lien depuis votre e-mail pour modifier votre mot de passe TradeVault.
+                        </p>
+                      </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Nouveau mot de passe</label>
-                            <input
-                              type="password"
-                              value={resetNewPassword}
-                              onChange={(e) => setResetNewPassword(e.target.value)}
-                              placeholder="Min. 8 caractères"
-                              className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-[#00FF9C]"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Confirmer mot de passe</label>
-                            <input
-                              type="password"
-                              value={resetConfirmPassword}
-                              onChange={(e) => setResetConfirmPassword(e.target.value)}
-                              placeholder="Vérification"
-                              className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-[#00FF9C]"
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => { setResetStep(1); setForgotResult(null); }}
-                            className="flex-1 py-3 border border-white/10 rounded-xl text-xs font-mono text-white/40 hover:bg-white/5 font-bold cursor-pointer"
-                            disabled={resetLoading}
-                          >
-                            PRÉCÉDENT
-                          </button>
-                          <button
-                            type="submit"
-                            className="flex-1 py-3 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
-                            disabled={resetLoading}
-                          >
-                            {resetLoading ? 'RÉINIT...' : 'VALIDER'}
-                          </button>
-                        </div>
-                      </form>
-                    </>
-                  )}
-
-                  {forgotResult && (
-                    <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-white text-center text-[10px] font-mono break-all animate-pulse">
-                      {forgotResult}
+                      <button
+                        type="button"
+                        onClick={() => { setForgotOpen(false); setResetStep(1); }}
+                        className="w-full py-2.5 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase transition-all cursor-pointer block text-center"
+                      >
+                        REVENIR À LA CONNEXION
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1131,7 +1130,8 @@ export default function Portal({
 
               {/* TAB CONTENT: Register */}
               {activeTab === 'register' && (
-                <form onSubmit={handleRegister} className="space-y-4 text-left">
+                <>
+                  <form onSubmit={handleRegister} className="space-y-4 text-left">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Pseudo de Trader *</label>
@@ -1233,7 +1233,31 @@ export default function Portal({
                     SOUMETTRE MON INSCRIPTION POUR ACTIONS
                   </button>
                 </form>
-              )}
+
+                {/* Separator */}
+                <div className="relative flex py-4 items-center">
+                  <div className="flex-grow border-t border-white/5"></div>
+                  <span className="flex-shrink mx-4 text-[9px] font-mono text-white/30 uppercase tracking-widest">OU</span>
+                  <div className="flex-grow border-t border-white/5"></div>
+                </div>
+
+                {/* Google Sign-In Button */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading}
+                  className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#00FF9C]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                >
+                  <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                  </svg>
+                  {googleLoading ? "CHARGEMENT..." : "S'INSCRIRE AVEC GOOGLE"}
+                </button>
+              </>
+            )}
 
             </div>
           </div>

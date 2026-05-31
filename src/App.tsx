@@ -47,8 +47,10 @@ import {
   adminLoadAllUsersFromSupabase,
   adminLoadAllPaymentsFromSupabase,
   ensureUUID,
-  generateUUID
+  generateUUID,
+  handleSupabaseSession
 } from './utils/supabaseSync';
+import { supabase } from './lib/supabase';
 
 // Subcomponents
 import CustomEffects from './components/CustomEffects';
@@ -62,7 +64,7 @@ import { BackgroundVideo } from './components/BackgroundVideo';
 import Challenges from './components/Challenges';
 import Admin from './components/Admin';
 import Logo, { DefaultLogoAvatar } from './components/Logo';
-import { envoyerEmail } from './utils/emailService';
+import ResetPassword from './components/ResetPassword';
 
 
 export default function App() {
@@ -231,7 +233,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [currentScreen, setCurrentScreen] = useState<'login_portal' | 'checkout' | 'app'>(() => {
+  const [currentScreen, setCurrentScreen] = useState<'login_portal' | 'checkout' | 'app' | 'reset-password'>(() => {
+    if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.hash.includes('type=recovery') || window.location.href.includes('reset-password'))) {
+      return 'reset-password';
+    }
     const userSaved = sessionStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
@@ -357,6 +362,70 @@ export default function App() {
   const [newAccTarget, setNewAccTarget] = useState('8');
   const [newAccDailyLoss, setNewAccDailyLoss] = useState('5');
   const [newAccGlobalLoss, setNewAccGlobalLoss] = useState('10');
+
+  // Google OAuth Popup handler & Event Listener for cross-window communication
+  useEffect(() => {
+    // 1. If this window is a popup we just opened, we check if it is redirected from Google / Supabase
+    if (typeof window !== 'undefined' && window.opener) {
+      if (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token') || window.location.search.includes('code=')) {
+        setTimeout(() => {
+          try {
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+            window.close();
+          } catch (err) {
+            console.error("Popup communication error:", err);
+          }
+        }, 1000);
+      }
+    }
+
+    // 2. Opener listener to receive credentials and log the user in
+    const handleOAuthMessage = async (event: MessageEvent) => {
+      const origin = event.origin;
+      // Allow relative transitions and sandbox.run.app Origins
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost') && origin !== window.location.origin) {
+        return;
+      }
+
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        try {
+          // Delay session lookup slightly to ensure token writing wraps up
+          setTimeout(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              const res = await handleSupabaseSession(session);
+              if (res.success && res.user) {
+                // Register user locally or update lists if they are new
+                setUsers(prev => {
+                  if (!prev.some(u => u.id === res.user!.id)) {
+                    return [...prev, res.user!];
+                  }
+                  return prev.map(u => u.id === res.user!.id ? res.user! : u);
+                });
+                
+                // Activate session
+                setCurrentUser(res.user);
+                
+                // Navigate screen
+                setCurrentScreen(res.user.paid ? 'app' : 'checkout');
+                
+                (window as any).showCustomAlert?.('Succès', 'Connexion Google réussie !');
+              } else {
+                (window as any).showCustomAlert?.('Erreur', res.error || 'Impossible de charger votre session Google.');
+              }
+            } else {
+              (window as any).showCustomAlert?.('Erreur', 'Session de connexion introuvable.');
+            }
+          }, 100);
+        } catch (err: any) {
+          console.error("Popup handler runtime error:", err);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, []);
 
   // Trigger LocalStorage sync on change
   useEffect(() => {
@@ -540,17 +609,9 @@ export default function App() {
 
     setPaymentRequests(prev => [...prev, newRequest]);
     
-    // Asynchronously dispatch the email notification to admin via backend API
-    envoyerEmail('withdrawal_request', { 
-      email: currentUser.email, 
-      username: currentUser.username, 
-      amount: subscriptionPrice, 
-      network: network 
-    }, proofBase64);
-
     setCurrentScreen('app');
     setActiveTab('dashboard');
-    customAlert("Paiement Transmis", `Preuve de versement USDT transmise avec succès !\n\nL'administrateur a été instantanément notifié de votre demande de renouvellement par e-mail. Vos accès Premium seront mis à jour (prolongation de 30 jours) dès validation manuelle.`);
+    customAlert("Paiement Transmis", `Preuve de versement USDT transmise avec succès !\n\nVos accès Premium seront mis à jour (prolongation de 30 jours) dès validation manuelle.`);
 
     import('./utils/notificationService').then(({ sendPushNotification }) => {
       sendPushNotification(
@@ -655,9 +716,6 @@ export default function App() {
     // Update profile in Supabase
     syncUserProfile(approved);
 
-    // Send triggered Welcome Email via Resend Client-Server flow
-    envoyerEmail('approve_user', { email: target.email, username: target.username });
-
     // Trigger success notification via background service
     import('./utils/notificationService').then(({ sendPushNotification }) => {
       sendPushNotification(
@@ -720,9 +778,6 @@ export default function App() {
     });
 
     setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' as const } : r));
-
-    // Send confirmation email via Resend
-    envoyerEmail('renewal_confirm', { email: targetUser.email, username: targetUser.username });
   };
 
   const handleRejectRenewal = (payId: string) => {
@@ -821,6 +876,18 @@ export default function App() {
           subscriptionPeriod={subscriptionPeriod}
           adminEmails={adminEmails}
           onResetPasswordSuccess={handleResetPasswordSuccess}
+        />
+      )}
+
+      {/* 1.5. RESET PASSWORD SCREEN */}
+      {currentScreen === 'reset-password' && (
+        <ResetPassword 
+          onBackToLogin={() => {
+            setCurrentScreen('login_portal');
+            if (typeof window !== 'undefined') {
+              window.history.pushState('', document.title, '/');
+            }
+          }}
         />
       )}
 

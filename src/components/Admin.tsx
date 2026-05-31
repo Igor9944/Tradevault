@@ -184,7 +184,7 @@ export default function Admin({
             type="button"
             onClick={() => {
               onCheckCronRenewals();
-              customAlert("Cron Daemon", "Vérification planifiée (Cron) déclenchée ! Le serveur système interroge tous les traders expirant dans exactement 7 jours et expédie les rappels d'abonnement via Resend.");
+              customAlert("Cron Daemon", "Vérification planifiée (Cron) déclenchée ! Le serveur système interroge tous les traders expirant dans exactement 7 jours et expédie les rappels d'abonnement via l'infrastructure SMTP connectée.");
             }}
             className="px-3 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 rounded-xl text-yellow-400 font-mono font-bold text-[10px] uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
           >
@@ -196,7 +196,7 @@ export default function Admin({
             [SYS_ALERT_MAIL_DAEMON] : Emails administrateurs cibles : <span className="text-white font-bold">{adminEmails || 'aucun'}</span>
           </span>
           <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-            Des alertes transactionnelles automatisées sont transmises en temps réel via l'API Resend à chaque étape (Inscription de trader, approbation, demande d'early renewal, validation ou planification quotidienne de renouvellement).
+            Des alertes transactionnelles automatisées sont transmises en temps réel via l'infrastructure sécurisée de messagerie à chaque étape (Inscription de trader, approbation, demande d'early renewal, validation ou planification quotidienne de renouvellement).
           </p>
         </div>
       </div>
