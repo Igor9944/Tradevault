@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import Logo, { DefaultLogoAvatar } from './Logo';
-import { signUpWithSupabase, signInWithSupabase, signInWithGoogle } from '../utils/supabaseSync';
+import { signUpWithSupabase, signInWithSupabase, signInWithGoogle, signInWithGitHub } from '../utils/supabaseSync';
 import { supabase } from '../lib/supabase';
 
 export const COUNTRY_INFO: Record<string, { name: string; prefix: string; placeholder: string; flag: string }> = {
@@ -415,6 +415,7 @@ export default function Portal({
   };
 
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [githubLoading, setGithubLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -442,6 +443,35 @@ export default function Portal({
       displayToast("Échec de connexion Google.", "error");
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleGitHubSignIn = async () => {
+    setGithubLoading(true);
+    try {
+      const res = await signInWithGitHub();
+      if (res.success && res.url) {
+        // Center the popup screen
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        const pop = window.open(
+          res.url,
+          'github_oauth_popup',
+          `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+        );
+        if (!pop) {
+          displayToast("Le bloqueur de popups a empêché l'authentification GitHub. Veuillez autoriser les fenêtres contextuelles.", "error");
+        }
+      } else {
+        displayToast(res.error || "Une erreur s'est produite lors de l'authentification.", "error");
+      }
+    } catch (err: any) {
+      console.error(err);
+      displayToast("Échec de connexion GitHub.", "error");
+    } finally {
+      setGithubLoading(false);
     }
   };
 
@@ -1046,20 +1076,34 @@ export default function Portal({
                 </div>
 
                 {/* Google Sign-In Button */}
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={googleLoading}
-                  className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#00FF9C]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
-                >
-                  <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                  </svg>
-                  {googleLoading ? "CHARGEMENT..." : "SE CONNECTER AVEC GOOGLE"}
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={googleLoading}
+                    className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#00FF9C]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                    </svg>
+                    {googleLoading ? "..." : "GOOGLE"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGitHubSignIn}
+                    disabled={githubLoading}
+                    className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#00FF9C]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.43 9.8 8.2 11.38.6.11.82-.26.82-.58v-2.05c-3.33.72-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.08-.74.08-.73.08-.73 1.2.09 1.83 1.24 1.83 1.24 1.07 1.82 2.8 1.29 3.49.99.11-.77.41-1.29.74-1.58-2.65-.3-5.43-1.32-5.43-5.91 0-1.3.47-2.36 1.25-3.19-.13-.31-.55-1.51.11-3.14 0 0 .99-.32 3.25 1.23.94-.26 1.95-.39 2.96-.39 1.01 0 2.02.13 2.96.39 2.26-1.55 3.25-1.23 3.25-1.23.66 1.63.24 2.83.12 3.14.78.83 1.25 1.89 1.25 3.19 0 4.6-2.79 5.6-5.45 5.89.43.37.81 1.1.81 2.22v3.29c0 .33.22.71.82.58C20.57 21.8 24 17.31 24 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                    {githubLoading ? "..." : "GITHUB"}
+                  </button>
+                </div>
               </>
             )}
 
@@ -1153,26 +1197,35 @@ export default function Portal({
                         <ArrowRight size={14} className="text-[#00FF9C] group-hover:translate-x-1 transition-transform" />
                       </button>
 
-                      {/* Option 2: S'inscrire avec Google */}
-                      <button
-                        type="button"
-                        onClick={handleGoogleSignIn}
-                        disabled={googleLoading}
-                        className="w-full py-4 px-5 bg-[#4285F4]/10 hover:bg-[#4285F4]/20 text-white rounded-xl text-xs font-mono font-bold tracking-widest uppercase border border-[#4285F4]/10 hover:border-[#4285F4]/30 flex items-center justify-between transition-all cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="p-2 bg-white/5 rounded-lg text-[#4285F4] group-hover:bg-[#4285F4]/20 transition-colors">
-                            <svg className="w-4 h-4 transition-transform group-hover:scale-110 select-none pointer-events-none" viewBox="0 0 24 24">
-                              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                            </svg>
-                          </span>
-                          <span>{googleLoading ? "Chargement..." : "S'inscrire avec Google"}</span>
-                        </div>
-                        <ArrowRight size={14} className="text-[#4285F4] group-hover:translate-x-1 transition-transform" />
-                      </button>
+                      {/* Option 2: S'inscrire avec Google ou GitHub */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={handleGoogleSignIn}
+                          disabled={googleLoading}
+                          className="w-full py-4 px-4 bg-[#4285F4]/10 hover:bg-[#4285F4]/20 text-white rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase border border-[#4285F4]/10 hover:border-[#4285F4]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                        >
+                          <svg className="w-4 h-4 transition-transform group-hover:scale-110 select-none pointer-events-none" viewBox="0 0 24 24">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                          </svg>
+                          {googleLoading ? "..." : "GOOGLE"}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={handleGitHubSignIn}
+                          disabled={githubLoading}
+                          className="w-full py-4 px-4 bg-[#333]/30 hover:bg-[#333]/50 text-white rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase border border-[#333]/20 hover:border-[#333]/50 flex items-center justify-center gap-2.5 transition-all cursor-pointer group"
+                        >
+                          <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.43 9.8 8.2 11.38.6.11.82-.26.82-.58v-2.05c-3.33.72-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.08-.74.08-.73.08-.73 1.2.09 1.83 1.24 1.83 1.24 1.07 1.82 2.8 1.29 3.49.99.11-.77.41-1.29.74-1.58-2.65-.3-5.43-1.32-5.43-5.91 0-1.3.47-2.36 1.25-3.19-.13-.31-.55-1.51.11-3.14 0 0 .99-.32 3.25 1.23.94-.26 1.95-.39 2.96-.39 1.01 0 2.02.13 2.96.39 2.26-1.55 3.25-1.23 3.25-1.23.66 1.63.24 2.83.12 3.14.78.83 1.25 1.89 1.25 3.19 0 4.6-2.79 5.6-5.45 5.89.43.37.81 1.1.81 2.22v3.29c0 .33.22.71.82.58C20.57 21.8 24 17.31 24 12c0-6.63-5.37-12-12-12z" />
+                          </svg>
+                          {githubLoading ? "..." : "GITHUB"}
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <>

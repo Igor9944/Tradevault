@@ -242,6 +242,19 @@ export async function syncUserProfile(user: User): Promise<void> {
 
   try {
     await supabase.from('users').upsert(profile);
+    try {
+      // Keep 'profiles' table in sync for approval and status changes
+      await supabase.from('profiles').upsert({
+        id: ensureUUID(user.id),
+        full_name: user.username,
+        email: user.email,
+        status: user.status,
+        payment_proof: user.paymentScreenshot || null,
+        created_at: user.createdAt
+      });
+    } catch (profErr) {
+      console.warn("Profiles table double sync failed (ignored):", profErr);
+    }
   } catch (err: any) {
     const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
     if (isNetworkError) {
@@ -723,6 +736,35 @@ export async function signInWithGoogle(): Promise<{ success: boolean; url?: stri
 }
 
 /**
+ * Triggers GitHub OAuth sign-in flow.
+ * Configured as bypass-iframe popup support.
+ */
+export async function signInWithGitHub(): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        skipBrowserRedirect: true,
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || !data.url) {
+      throw new Error("Impossible de générer l'URL d'authentification GitHub.");
+    }
+
+    return { success: true, url: data.url };
+  } catch (err: any) {
+    console.error("Error initiating GitHub sign-in:", err);
+    return { success: false, error: err.message || String(err) };
+  }
+}
+
+/**
  * Processes a Supabase OAuth auth session to load or dynamically create user profiles.
  */
 export async function handleSupabaseSession(session: any): Promise<{ success: boolean; user?: User; error?: string }> {
@@ -761,15 +803,15 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
         createdAt: profile.created_at || new Date().toISOString()
       };
     } else {
-      // First-time Google user: create dynamic approved profile record in DB
-      // Note: By default, newly connected Google accounts are approved but not paid.
-      // They are redirected to checkout to complete their payment sequence.
+      // First-time Google user: create dynamic pending profile record in DB
+      // Note: By default, newly connected Google accounts are pending and not paid.
+      // They are redirected to the onboarding payment checkout page to submit their payment proof.
       const newProfile = {
         id: ensureUUID(userId),
         email: userEmail,
         username: authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
         country: 'FR',
-        status: 'approved',
+        status: 'pending',
         paid: false,
         paid_until: null,
         avatar_url: authUser.user_metadata?.avatar_url || null,
@@ -778,6 +820,19 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
 
       try {
         await supabase.from('users').upsert(newProfile);
+        try {
+          // Double sync into 'profiles' table for compatibility as described in the DB guidelines
+          await supabase.from('profiles').upsert({
+            id: ensureUUID(userId),
+            full_name: newProfile.username,
+            email: userEmail,
+            status: 'pending',
+            payment_proof: null,
+            created_at: newProfile.created_at
+          });
+        } catch (profilesErr) {
+          console.warn("Profiles table double sync ignored:", profilesErr);
+        }
       } catch (insertErr) {
         console.warn("Client-side insert failed, routing through proxy:", insertErr);
         await invokeProxy("syncUserProfile", { profile: newProfile });

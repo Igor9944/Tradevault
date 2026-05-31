@@ -368,14 +368,39 @@ export default function App() {
     // 1. If this window is a popup we just opened, we check if it is redirected from Google / Supabase
     if (typeof window !== 'undefined' && window.opener) {
       if (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token') || window.location.search.includes('code=')) {
-        setTimeout(() => {
+        setTimeout(async () => {
           try {
-            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+            let sessionObj = null;
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              sessionObj = session;
+            } catch (e) {
+              console.error("Popup: error getSession:", e);
+            }
+
+            const hash = window.location.hash;
+            if (!sessionObj && hash) {
+              const params = new URLSearchParams(hash.replace('#', '?'));
+              const accessToken = params.get('access_token');
+              const refreshToken = params.get('refresh_token');
+              const expiresIn = params.get('expires_in');
+              if (accessToken && refreshToken) {
+                sessionObj = {
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                  expires_in: expiresIn ? parseInt(expiresIn) : 3600
+                };
+              }
+            }
+
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', session: sessionObj }, '*');
             window.close();
           } catch (err) {
             console.error("Popup communication error:", err);
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+            window.close();
           }
-        }, 1000);
+        }, 800);
       }
     }
 
@@ -391,9 +416,28 @@ export default function App() {
         try {
           // Delay session lookup slightly to ensure token writing wraps up
           setTimeout(async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-              const res = await handleSupabaseSession(session);
+            const passedSession = event.data?.session;
+            let finalSession = null;
+            if (passedSession) {
+              try {
+                const { data, error } = await supabase.auth.setSession({
+                  access_token: passedSession.access_token,
+                  refresh_token: passedSession.refresh_token
+                });
+                if (!error && data?.session) {
+                  finalSession = data.session;
+                }
+              } catch (e) {
+                console.error("Error setting session dynamically:", e);
+              }
+            }
+            if (!finalSession) {
+              const { data: { session } } = await supabase.auth.getSession();
+              finalSession = session;
+            }
+
+            if (finalSession) {
+              const res = await handleSupabaseSession(finalSession);
               if (res.success && res.user) {
                 // Register user locally or update lists if they are new
                 setUsers(prev => {
