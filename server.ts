@@ -602,6 +602,31 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
     }
     const cleanEmail = email.trim().toLowerCase();
     
+    // Check if user exists in either Supabase or in-memory store
+    let userExists = false;
+    if (cleanEmail === "admin@tradevault.com") {
+      userExists = true;
+    } else if (inMemoryUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
+      userExists = true;
+    } else if (serverSupabase) {
+      try {
+        const { data, error } = await serverSupabase
+          .from('users')
+          .select('email')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+        if (data && data.email) {
+          userExists = true;
+        }
+      } catch (err) {
+        console.warn("[OTP_LOOKUP] Failed to query Supabase for recovery email:", err);
+      }
+    }
+
+    if (!userExists) {
+      return res.json({ success: false, error: "Cette adresse e-mail ne correspond à aucun compte enregistré." });
+    }
+
     // Generate an exact 7-digit OTP
     const code = Math.floor(1000000 + Math.random() * 9000000).toString();
     
@@ -627,7 +652,7 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
     }
 
     try {
-      await resend.emails.send({
+      const emailResponse = await resend.emails.send({
         from: fromEmail,
         to: [cleanEmail],
         subject: "[TradeVault Pro] Code de Réinitialisation de Mot de Passe OTP",
@@ -646,9 +671,13 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
         `
       });
 
+      if (emailResponse.error) {
+        throw new Error(emailResponse.error.message || JSON.stringify(emailResponse.error));
+      }
+
       return res.json({ success: true, simulated: false });
     } catch (apiError: any) {
-      console.warn("Resend auth failed. Falling back to simulated OTP:", apiError);
+      console.warn("Resend email delivery failed. Falling back to simulated OTP:", apiError);
       return res.json({
         success: true,
         simulated: true,
@@ -686,6 +715,13 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
 
     // Success, invalidate OTP
     otpStorage.delete(cleanEmail);
+
+    // Save in in-memory list so the user can sign-in via fallback with their new password
+    const userToUpdate = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    if (userToUpdate) {
+      userToUpdate.password = newPassword;
+      console.log(`[LOCAL_PW_RESET] Local password updated for: ${cleanEmail}`);
+    }
 
     console.log(`[OTP_SUCCESS] Password update approved for email: ${cleanEmail}`);
     return res.json({ success: true, message: "Mot de passe réinitialisé de manière sécurisée !" });

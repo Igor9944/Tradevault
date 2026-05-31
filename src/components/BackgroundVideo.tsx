@@ -27,6 +27,10 @@ export const BackgroundVideo: React.FC = () => {
         <source src="/trading_background.mp4" type="video/mp4" />
         <source src="/video.mp4" type="video/mp4" />
         <source src="/trading_video.mp4" type="video/mp4" />
+        
+        {/* Premium direct cloud stream backups representing glowing neon green candlestick charts & tickers */}
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-bull-concept-with-stock-market-charts-34442-large.mp4" type="video/mp4" />
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-financial-ticker-stock-results-screen-34440-large.mp4" type="video/mp4" />
       </video>
       {/* Visual overlay gradient mapping to preserve text contrast with dark theme */}
       <div className="absolute inset-0 bg-radial-gradient from-transparent to-slate-950/80 pointer-events-none" />

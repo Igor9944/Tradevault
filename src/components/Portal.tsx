@@ -628,12 +628,6 @@ export default function Portal({
       return;
     }
 
-    const matched = users.some(u => u.email.toLowerCase() === emailToSearch);
-    if (!matched && emailToSearch !== 'admin@tradevault.com') {
-      displayToast("Compte introuvable.", "error");
-      return;
-    }
-
     setResetLoading(true);
     setForgotResult(null);
 
