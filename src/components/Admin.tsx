@@ -67,9 +67,9 @@ export default function Admin({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* ADMIN SETUP FORM CARD */}
-        <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30">
-          <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-indigo-900/10 pb-3 flex items-center gap-1.5">
-            <Settings size={16} className="text-indigo-400" /> Configuration de l'Espace Administrateur
+        <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60">
+          <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-zinc-800/40 pb-3 flex items-center gap-1.5">
+            <Settings size={16} className="text-[#00FF9C]" /> Configuration de l'Espace Administrateur
           </h3>
 
           <form onSubmit={handleSaveEmails} className="space-y-4">
@@ -83,11 +83,11 @@ export default function Admin({
                   value={emailsInput}
                   onChange={(e) => setEmailsInput(e.target.value)}
                   placeholder="admin@tradevault.com, support@tradevault.com"
-                  className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white placeholder-slate-500 font-mono focus:outline-none"
+                  className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#00FF9C]"
                 />
                 <button
                   type="submit"
-                  className="py-2 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-sans transition-all"
+                  className="py-2 px-5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all"
                 >
                   Mettre à jour
                 </button>
@@ -100,8 +100,8 @@ export default function Admin({
         </div>
 
         {/* ADMIN CRYPTO & PRICING COORDINATES FORM CARD */}
-        <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30">
-          <h3 className="text-sm font-black font-mono tracking-widest text-amber-400 uppercase mb-4 border-b border-indigo-900/10 pb-3 flex items-center gap-1.5">
+        <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60">
+          <h3 className="text-sm font-black font-mono tracking-widest text-amber-400 uppercase mb-4 border-b border-zinc-800/40 pb-3 flex items-center gap-1.5">
             <span>🪙</span> Coordonnées Portefeuille & Tarification
           </h3>
 
@@ -174,10 +174,10 @@ export default function Admin({
       </div>
 
       {/* NOTIFICATION LOG SIMULATOR */}
-      <div className="bg-slate-950/40 p-5 border border-indigo-950/20 rounded-2xl space-y-4">
+      <div className="bg-[#0c0c0e]/60 p-5 border border-zinc-800/50 rounded-2xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-indigo-400">
-            <Mail size={16} className="text-indigo-400 shrink-0" />
+          <div className="flex items-center gap-2 text-[#00FF9C]">
+            <Mail size={16} className="text-[#00FF9C] shrink-0" />
             <span className="text-[11px] font-black font-mono uppercase tracking-wider block">Daemon de Notification Email & Cron</span>
           </div>
           <button
@@ -192,17 +192,17 @@ export default function Admin({
           </button>
         </div>
         <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-900 space-y-2">
-          <span className="text-[10px] text-indigo-300 block font-mono">
+          <span className="text-[10px] text-[#00FF9C] block font-mono">
             [SYS_ALERT_MAIL_DAEMON] : Emails administrateurs cibles : <span className="text-white font-bold">{adminEmails || 'aucun'}</span>
           </span>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
+          <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
             Des alertes transactionnelles automatisées sont transmises en temps réel via l'API Resend à chaque étape (Inscription de trader, approbation, demande d'early renewal, validation ou planification quotidienne de renouvellement).
           </p>
         </div>
       </div>
 
       {/* EARLY RENEWALS PURE TABLE */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 space-y-4">
+      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
         <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
           <span>⚡</span> Demandes de Renouvellement Anticipé (+30 jours) ({paymentRequests.filter(r => r.status === 'pending').length} en attente)
         </h3>
@@ -210,10 +210,10 @@ export default function Admin({
           Les traders approuvés ci-dessous ont demandé un renouvellement d'abonnement immédiat sans attendre l'expiration de leur période d'accès en cours.
         </p>
 
-        <div className="overflow-x-auto border border-indigo-950/60 rounded-xl bg-slate-950/30 font-mono text-[11px]">
+        <div className="overflow-x-auto border border-zinc-800/50 rounded-xl bg-[#080808]/40 font-mono text-[11px]">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-950 border-b border-indigo-950/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+              <tr className="bg-[#050505] border-b border-zinc-800/40 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
                 <th className="p-3">Identifiant Trader</th>
                 <th className="p-3">Réseau & Montant</th>
                 <th className="p-3">Date Soumis</th>
@@ -221,7 +221,7 @@ export default function Admin({
                 <th className="p-3 text-center">Statut / Décision</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-indigo-950/20">
+            <tbody className="divide-y divide-zinc-800/20">
               {paymentRequests.length > 0 ? (
                 paymentRequests.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-900/30 text-slate-300">
@@ -299,18 +299,18 @@ export default function Admin({
       </div>
 
       {/* PENDING REGISTRATIONS PURE TABLE */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 space-y-4">
+      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
         <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
-          <Users size={16} className="text-indigo-400" /> Inscriptions et Preuves de Paiements à Valider ({pendingUsers.length})
+          <Users size={16} className="text-[#00FF9C]" /> Inscriptions et Preuves de Paiements à Valider ({pendingUsers.length})
         </h3>
         <p className="text-[10.5px] text-slate-400">
           Auditez les captures de transferts des traders et validez manuellement l'activation de leur abonnement à {subscriptionPrice} USD pour {subscriptionPeriod} mois.
         </p>
 
-        <div className="overflow-x-auto border border-indigo-950/60 rounded-xl bg-slate-950/30">
+        <div className="overflow-x-auto border border-zinc-800/40 rounded-xl bg-[#080808]/40">
           <table className="w-full text-left border-collapse font-mono text-[11px]">
             <thead>
-              <tr className="bg-slate-950 border-b border-indigo-950/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+              <tr className="bg-[#050505] border-b border-zinc-800/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
                 <th className="p-3">Trader d'accès</th>
                 <th className="p-3">Adresse E-mail</th>
                 <th className="p-3">Date créé</th>
@@ -318,7 +318,7 @@ export default function Admin({
                 <th className="p-3 text-center">Décision manuel</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-indigo-950/20">
+            <tbody className="divide-y divide-zinc-800/20">
               {pendingUsers.length > 0 ? (
                 pendingUsers.map((pending) => (
                   <tr key={pending.id} className="hover:bg-slate-900/30 text-slate-300">
@@ -332,7 +332,7 @@ export default function Admin({
                         <button
                           type="button"
                           onClick={() => setActiveImage(pending.paymentScreenshot!)}
-                          className="px-2.5 py-1 text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                          className="px-2.5 py-1 text-[10px] font-bold bg-[#00FF9C]/10 hover:bg-[#00FF9C]/20 text-[#00FF9C] border border-[#00FF9C]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                         >
                           <ImageIcon size={12} /> Voir capture d'écran
                         </button>
@@ -380,7 +380,7 @@ export default function Admin({
       </div>
 
       {/* ALL USERS LIST & ONLINE STATUS */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 space-y-4">
+      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
@@ -391,7 +391,7 @@ export default function Admin({
             </p>
           </div>
           
-          <div className="flex gap-4 text-[10px] uppercase font-mono font-black text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-indigo-950/40">
+          <div className="flex gap-4 text-[10px] uppercase font-mono font-black text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-zinc-800/50">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-emerald-400">{users.filter(u => u.status === 'approved').length} En Ligne</span>
@@ -403,10 +403,10 @@ export default function Admin({
           </div>
         </div>
 
-        <div className="overflow-x-auto border border-indigo-950/60 rounded-xl bg-slate-950/30">
+        <div className="overflow-x-auto border border-zinc-800/40 rounded-xl bg-[#080808]/40">
           <table className="w-full text-left border-collapse font-mono text-[11px]">
             <thead>
-              <tr className="bg-slate-950 border-b border-indigo-950/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+              <tr className="bg-[#050505] border-b border-zinc-800/40 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
                 <th className="p-3">Trader d'accès</th>
                 <th className="p-3">Adresse E-mail</th>
                 <th className="p-3">Date d'Inscription</th>
@@ -414,7 +414,7 @@ export default function Admin({
                 <th className="p-3 text-center">Activité en Direct</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-indigo-950/15">
+            <tbody className="divide-y divide-zinc-800/20">
               {users.map((trader) => {
                 // Let's make approved users online, plus the main admin is always online!
                 const isOnline = trader.email === 'admin@tradevault.com' || trader.status === 'approved';
@@ -429,7 +429,7 @@ export default function Admin({
                         )}
                         <span className="font-bold text-white">{trader.username}</span>
                         {trader.email === 'admin@tradevault.com' && (
-                          <span className="text-[8.5px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest">Admin</span>
+                          <span className="text-[8.5px] font-bold text-[#00FF9C] bg-[#00FF9C]/10 px-1.5 py-0.5 rounded border border-[#00FF9C]/20 uppercase tracking-widest">Admin</span>
                         )}
                       </div>
                     </td>
@@ -483,7 +483,7 @@ export default function Admin({
           <div className="absolute top-5 right-5 text-white/70 hover:text-white bg-slate-900/40 p-2 rounded-full">
             <X size={24} />
           </div>
-          <img src={activeImage} alt="Validation Proof" className="max-w-full max-h-[92vh] object-contain rounded-lg border border-indigo-900/20 shadow-2xl" />
+          <img src={activeImage} alt="Validation Proof" className="max-w-full max-h-[92vh] object-contain rounded-lg border border-zinc-800 shadow-2xl" />
         </div>
       )}
 

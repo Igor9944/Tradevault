@@ -102,7 +102,7 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
     const defaultData = {
       payment: {
         title: 'Paiement $10 validé ! 🎉',
-        message: 'Félicitations, votre accès à vie "TRADING Lead Spirit" est actif.'
+        message: 'Félicitations, votre accès "TradeVault Premium" est de nouveau actif.'
       },
       trading: {
         title: '[Alerte Arbitrage] BTC/USD 🚨',

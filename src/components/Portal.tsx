@@ -1,9 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Lock, User as UserIcon, Globe, Upload, Eye, EyeOff, ArrowRight, ShieldAlert, Sparkles, Check, ChevronDown, Camera } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { useThemeLang } from '../utils/themeLanguageContext';
+import { 
+  Mail, 
+  Lock, 
+  User as UserIcon, 
+  Upload, 
+  Eye, 
+  EyeOff, 
+  ArrowRight, 
+  ShieldAlert, 
+  Sparkles, 
+  Check, 
+  ChevronDown, 
+  MousePointer,
+  HelpCircle,
+  Globe
+} from 'lucide-react';
 import { User } from '../types';
 import Logo, { DefaultLogoAvatar } from './Logo';
 import { signUpWithSupabase, signInWithSupabase } from '../utils/supabaseSync';
-
 
 export const COUNTRY_INFO: Record<string, { name: string; prefix: string; placeholder: string; flag: string }> = {
   FR: { name: 'France', prefix: '+33', placeholder: 'Ex: trader.fr@gmail.com', flag: '🇫🇷' },
@@ -68,6 +85,83 @@ interface Candle {
   type: 'up' | 'down';
 }
 
+function CanvasParticles() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let particles: Array<{ x: number; y: number; vx: number; vy: number; radius: number }> = [];
+    let animationFrameId: number;
+
+    const resize = () => {
+      canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
+      canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize, { passive: true });
+
+    // Seed particles
+    const particleCount = 40;
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        radius: Math.random() * 1.5 + 0.5
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.strokeStyle = 'rgba(0, 255, 156, 0.04)';
+      ctx.lineWidth = 0.8;
+
+      particles.forEach((p, idx) => {
+        // Move
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw connections
+        for (let j = idx + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      });
+
+      animationFrameId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none select-none z-0" />;
+}
+
 function TradingDevicesSimulator() {
   const [candles, setCandles] = useState<Candle[]>([
     { high: 85, low: 15, open: 30, close: 70, type: 'up' },
@@ -102,56 +196,41 @@ function TradingDevicesSimulator() {
   }, []);
 
   return (
-    <div className="relative w-full py-16 px-4 flex flex-col items-center justify-center overflow-hidden min-h-[380px] bg-slate-950/40 rounded-2xl border border-indigo-950/50 mt-4">
-      {/* Absolute high-tech connectivity world map coordinates pattern from Image 1 */}
-      <div className="absolute inset-0 opacity-[0.08] pointer-events-none overflow-hidden select-none">
-        <svg className="w-full h-full text-indigo-400" viewBox="0 0 800 400" fill="currentColor">
+    <div className="relative w-full py-12 px-4 flex flex-col items-center justify-center overflow-hidden min-h-[360px] bg-[#080808] rounded-2xl border border-white/5 mt-4">
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none overflow-hidden pb-4">
+        <svg className="w-full h-full text-[#00FF9C]" viewBox="0 0 800 400" fill="currentColor">
           <pattern id="dot-grid" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
             <circle cx="2" cy="2" r="1.2" fill="currentColor" />
           </pattern>
           <rect width="100%" height="100%" fill="url(#dot-grid)" />
-          
-          {/* Faint connecting lines */}
-          <path d="M 50,150 Q 200,80 350,150 T 650,150" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4,4" />
-          <path d="M 120,280 Q 280,200 440,280 T 760,200" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="3,3" />
         </svg>
       </div>
 
-      {/* Floating abstract decorative graphics */}
-      <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/30 rounded-full px-2.5 py-0.5 text-[9px] text-green-400 font-bold uppercase tracking-wider animate-pulse font-mono">
-        <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-ping shrink-0"></span>
-        <span className="w-1.5 h-1.5 rounded-full bg-green-500 block absolute left-2.5 shrink-0"></span>
-        <span className="ml-[6px]">Flux Live • Connecté</span>
+      <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-[#00FF9C]/5 border border-[#00FF9C]/20 rounded-full px-2.5 py-0.5 text-[9px] text-[#00FF9C] font-mono tracking-wider">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] block animate-ping shrink-0"></span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] block absolute left-2.5 shrink-0"></span>
+        <span className="ml-[6px]">ENGINE STREAMING • VERIFIED</span>
       </div>
 
-      {/* Devices stack mimicking Image 1 */}
-      <div className="relative w-full max-w-[420px] h-[240px] flex items-center justify-center scale-95 sm:scale-100 transition-all select-none">
-        
-        {/* DEVICE 1: Central Large Monitor Screen representing master laptop/desktop */}
-        <div className="relative w-[190px] xs:w-[220px] sm:w-[250px] aspect-[16/10] bg-[#0c0f1d] rounded-t-xl border-t-[3.5px] border-x-[3.5px] border-slate-700/80 shadow-2xl overflow-hidden flex flex-col p-1 z-10 transition-transform duration-500">
-          {/* Blue reflection gloss bar */}
-          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-[#3b82f6]/40 z-20"></div>
-          {/* Grid panel screen */}
-          <div className="w-full h-full bg-[#050711] rounded border border-slate-900/40 relative flex flex-col justify-end p-2 overflow-hidden">
-            {/* Grid line overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.02)_1px,transparent_1px)] bg-[size:10px_10px]" />
+      <div className="relative w-full max-w-[380px] h-[220px] flex items-center justify-center scale-95 sm:scale-100 transition-all select-none z-10">
+        {/* Device monitor */}
+        <div className="relative w-[210px] aspect-[16/10] bg-[#000000] rounded-t-xl border-t-[3px] border-x-[3px] border-white/10 shadow-2xl overflow-hidden flex flex-col p-1 transition-transform">
+          <div className="w-full h-full bg-[#030303] rounded border border-white/5 relative flex flex-col justify-end p-2 overflow-hidden">
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:10px_10px]" />
             
-            {/* Chart candlesticks screen live */}
-            <div className="w-full h-[65%] flex items-end justify-between px-1 relative z-10">
+            <div className="w-full h-[70%] flex items-end justify-between px-1 relative z-10">
               {candles.map((candle, idx) => (
                 <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full relative group">
-                  {/* Candlestick High/Low Wick */}
                   <div 
-                    className={`absolute w-[1.5px] ${candle.type === 'up' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
+                    className={`absolute w-[1.2px] ${candle.type === 'up' ? 'bg-[#00FF9C]' : 'bg-[#FF4D4D]'}`}
                     style={{
                       height: `${candle.high - candle.low}%`,
                       bottom: `${candle.low}%`,
                     }}
                   />
-                  {/* Candlestick Real Body */}
                   <div 
-                    className={`w-[4px] sm:w-[5px] rounded-[1px] relative shadow-lg ${
-                      candle.type === 'up' ? 'bg-[#10b981] shadow-[#10b981]/20' : 'bg-[#ef4444] shadow-[#ef4444]/20'
+                    className={`w-[4.5px] rounded-[1px] relative ${
+                      candle.type === 'up' ? 'bg-[#00FF9C] shadow-[0_0_8px_rgba(0,255,156,0.3)]' : 'bg-[#FF4D4D]'
                     }`}
                     style={{
                       height: `${Math.max(4, Math.abs(candle.close - candle.open))}%`,
@@ -159,176 +238,114 @@ function TradingDevicesSimulator() {
                     }}
                   />
 
-                  {/* Red SELL / Green BUY flags exactly as in Image 1 */}
                   {idx === 2 && (
-                    <div 
-                      className="absolute z-35 animate-bounce"
-                      style={{ bottom: `${Math.max(candle.high + 6, 68)}%` }}
-                    >
-                      <div className="bg-[#ef4444] text-[6px] xs:text-[7px] font-black text-white px-1 py-0.5 rounded flex items-center gap-0.5 shadow-md shadow-red-950/40 font-mono tracking-wider border border-red-500/20">
-                        SELL⬇
+                    <div className="absolute z-20 animate-bounce" style={{ bottom: `${Math.max(candle.high + 6, 68)}%` }}>
+                      <div className="bg-[#FF4D4D] text-[6px] font-black text-black px-1 py-0.5 rounded tracking-wider font-mono">
+                        S
                       </div>
-                      <div className="w-1 h-1 bg-[#ef4444] rotate-45 mx-auto -mt-0.5 shadow" />
                     </div>
                   )}
 
                   {idx === 6 && (
-                    <div 
-                      className="absolute z-35 animate-bounce"
-                      style={{ bottom: `${Math.max(candle.high + 6, 75)}%` }}
-                    >
-                      <div className="bg-[#10b981] text-[6px] xs:text-[7px] font-black text-white px-1 py-0.5 rounded flex items-center gap-0.5 shadow-md shadow-green-950/40 font-mono tracking-wider border border-green-500/20">
-                        BUY⬆
-                      </div>
-                      <div className="w-1 h-1 bg-[#10b981] rotate-45 mx-auto -mt-0.5 shadow" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Glowing Logo Watermark in screen */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-5 z-0">
-               <span className="text-xl font-black tracking-widest text-[#3b82f6] font-mono">T R A D E V A U L T</span>
-            </div>
-          </div>
-        </div>
-        {/* Monitor Base Pedestal */}
-        <div className="absolute bottom-[23px] left-1/2 transform -translate-x-1/2 w-10 h-6 bg-gradient-to-b from-[#1e293b] to-[#0a0f1d] z-0 shadow-lg rounded-b border-b border-slate-800"></div>
-        <div className="absolute bottom-[16px] left-1/2 transform -translate-x-1/2 w-16 h-1.5 bg-[#1e293b] z-0 shadow-xl rounded-sm"></div>
-
-        {/* DEVICE 2: Laptop representation placed to the left (Image 1 style) */}
-        <div className="absolute left-[3px] xs:left-[10px] sm:left-[20px] bottom-[26px] w-[85px] sm:w-[105px] aspect-[1.3] bg-[#0c0f20] rounded-lg border-[1.5px] border-slate-700/90 p-0.5 shadow-2xl z-20 overflow-hidden group hover:scale-[1.03] transition-transform duration-300 ring-1 ring-sky-500/20">
-          <div className="w-full h-full bg-[#030612] rounded relative flex flex-col justify-end p-1 overflow-hidden">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.02)_1px,transparent_1px)] bg-[size:5px_5px]" />
-            {/* Live Chart Mini Candlesticks */}
-            <div className="w-full h-[60%] flex items-end justify-between px-0.5 relative z-10">
-              {candles.slice(1, 7).map((candle, idx) => (
-                <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full relative">
-                  <div 
-                    className={`absolute w-[1px] ${candle.type === 'up' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
-                    style={{
-                      height: `${candle.high * 0.85 - candle.low * 0.85}%`,
-                      bottom: `${candle.low * 0.85}%`,
-                    }}
-                  />
-                  <div 
-                    className={`w-[2.5px] rounded-[0.5px] ${candle.type === 'up' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
-                    style={{
-                      height: `${Math.max(3, Math.abs(candle.close - candle.open) * 0.85)}%`,
-                      bottom: `${Math.min(candle.open, candle.close) * 0.85}%`,
-                    }}
-                  />
-                  
-                  {idx === 3 && (
-                    <div 
-                      className="absolute z-30 animate-bounce cursor-default"
-                      style={{ bottom: `${Math.max(candle.high * 0.85 + 5, 55)}%` }}
-                    >
-                      <div className="bg-[#ef4444] text-[5px] font-black text-white px-0.5 py-0.5 rounded shadow flex items-center gap-0.5 leading-none font-mono">
-                        SELL⬇
+                    <div className="absolute z-20 animate-bounce" style={{ bottom: `${Math.max(candle.high + 6, 75)}%` }}>
+                      <div className="bg-[#00FF9C] text-[6px] font-black text-black px-1 py-0.5 rounded tracking-wider font-mono">
+                        B
                       </div>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-        {/* Base line for Laptop keyboard section */}
-        <div className="absolute left-[-5px] xs:left-[2px] sm:left-[12px] bottom-[20px] w-[110px] sm:w-[130px] h-1.5 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 z-20 rounded-b shadow-md border-b border-slate-950"></div>
 
-        {/* DEVICE 3: Smartphone vertically positioned on the Right (Image 1 style) */}
-        <div className="absolute right-[5px] xs:right-[12px] sm:right-[22px] bottom-[20px] w-[45px] sm:w-[50px] aspect-[9/16] bg-[#0b0e1b] rounded-lg border-[1.5px] border-slate-700/90 p-0.5 shadow-2xl z-30 overflow-hidden hover:scale-[1.05] transition-transform duration-300 ring-1 ring-emerald-500/20">
-          {/* Top Speaker / Notch */}
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-5 h-1.5 bg-slate-950 rounded-b z-40 flex items-center justify-center">
-            <span className="w-1 h-[1px] bg-slate-800 block"></span>
-          </div>
-          
-          <div className="w-full h-full bg-[#040610] rounded-md relative flex flex-col justify-end p-0.5 overflow-hidden">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.02)_1px,transparent_1px)] bg-[size:4px_4px]" />
-            {/* Live Chart Micro vertical */}
-            <div className="w-full h-[65%] flex items-end justify-between px-[1px] relative z-10">
-              {candles.slice(3, 9).map((candle, idx) => (
-                <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full relative">
-                  <div 
-                    className={`absolute w-[0.8px] ${candle.type === 'up' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
-                    style={{
-                      height: `${candle.high * 0.8 - candle.low * 0.8}%`,
-                      bottom: `${candle.low * 0.8}%`,
-                    }}
-                  />
-                  <div 
-                    className={`w-[1.8px] rounded-[0.2px] ${candle.type === 'up' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
-                    style={{
-                      height: `${Math.max(2.5, Math.abs(candle.close - candle.open) * 0.8)}%`,
-                      bottom: `${Math.min(candle.open, candle.close) * 0.8}%`,
-                    }}
-                  />
-
-                  {idx === 2 && (
-                    <div 
-                      className="absolute z-30 animate-bounce cursor-default"
-                      style={{ bottom: `${Math.max(candle.high * 0.8 + 5, 50)}%` }}
-                    >
-                      <div className="bg-[#10b981] text-[5px] font-black text-white px-0.5 py-0.5 rounded shadow flex items-center gap-0.5 leading-none font-mono">
-                        BUY⬆
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 z-0 font-mono tracking-[0.2em] text-[#00FF9C] text-xs font-bold">
+              TRADEVAULT
             </div>
           </div>
         </div>
-
-      </div>
-
-      {/* Caption footer detail for multi screens */}
-      <div className="text-center mt-3 z-10 max-w-[280px]">
-        <h4 className="text-[11px] font-bold text-slate-200 uppercase tracking-wider mb-1">Station de Trading Synchrone</h4>
-        <p className="text-[9px] text-blue-400 font-extrabold uppercase tracking-[0.16em]">Multi-Supports • Cloud • Latence Zéro</p>
+        <div className="absolute bottom-[23px] left-1/2 transform -translate-x-1/2 w-8 h-6 bg-gradient-to-b from-white/10 to-transparent z-0"></div>
+        <div className="absolute bottom-[16px] left-1/2 transform -translate-x-1/2 w-14 h-1 bg-white/15 z-0 rounded-sm"></div>
       </div>
     </div>
   );
 }
 
-// High-fidelity Tether USDT TRC20 and BEP20 styled SVG Icons matching user-uploaded references
 export const UsdtTrc20Icon = () => (
-  <svg viewBox="0 0 100 100" className="w-10 h-10 select-none shrink-0" referrerPolicy="no-referrer">
-    {/* Green circle base */}
-    <circle cx="50" cy="50" r="45" fill="#26a17b" stroke="#ffffff" strokeWidth="2.5" />
-    {/* Outer bevel ring for coin style */}
-    <circle cx="50" cy="50" r="39" fill="none" stroke="#2ebb8d" strokeWidth="2" />
-    {/* Tether T logo */}
-    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#ffffff" />
-    <ellipse cx="50" cy="48" rx="27" ry="7.5" fill="none" stroke="#ffffff" strokeWidth="4" />
-    {/* Red TRON badge overlay at bottom right */}
-    <circle cx="78" cy="78" r="18" fill="#e81313" stroke="#ffffff" strokeWidth="2.5" />
-    {/* TRON triangle symbol */}
-    <path d="M 78,66 L 89,83 H 67 Z M 78,71 L 84,81 H 72 Z" fill="#ffffff" />
+  <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0" referrerPolicy="no-referrer">
+    <circle cx="50" cy="50" r="45" fill="#141414" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
+    <circle cx="50" cy="50" r="39" fill="none" stroke="#00FF9C" strokeWidth="1.5" strokeDasharray="2,2" />
+    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#00FF9C" />
+    <ellipse cx="50" cy="48" rx="27" ry="7.5" fill="none" stroke="#ffffff" strokeWidth="2.5" />
+    <circle cx="78" cy="78" r="15" fill="#FF4D4D" />
+    <path d="M 78,69 L 86,83 H 70 Z" fill="#ffffff" transform="scale(0.85) translate(13, 11)" />
   </svg>
 );
 
 export const UsdtBep20Icon = () => (
-  <svg viewBox="0 0 100 100" className="w-10 h-10 select-none shrink-0" referrerPolicy="no-referrer">
-    {/* Green circle base with tilted coin style */}
-    <circle cx="50" cy="50" r="45" fill="#26a17b" stroke="#ffffff" strokeWidth="2.5" />
-    {/* Outer bevel ring for coin style */}
-    <circle cx="50" cy="50" r="39" fill="none" stroke="#2ebb8d" strokeWidth="2" />
-    {/* Tether T logo */}
-    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#ffffff" />
-    <ellipse cx="50" cy="48" rx="27" ry="7.5" fill="none" stroke="#ffffff" strokeWidth="4" />
-    {/* Yellow BSC badge overlay */}
-    <circle cx="78" cy="78" r="18" fill="#f3ba2f" stroke="#ffffff" strokeWidth="2.5" />
-    {/* BNB Logo style */}
-    {/* Center diamond */}
-    <path d="M 78,71.5 L 81.5,75 L 78,78.5 L 74.5,75 Z" fill="#181a20" />
-    {/* Surrounding blocks */}
-    <path d="M 78,66 L 85,73 L 81.5,76.5 L 78,73 L 74.5,76.5 L 71,73 Z" fill="#ffffff" />
-    <path d="M 78,84 L 85,77 L 81.5,73.5 L 78,77 L 74.5,73.5 L 71,77 Z" fill="#ffffff" />
+  <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0" referrerPolicy="no-referrer">
+    <circle cx="50" cy="50" r="45" fill="#141414" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
+    <circle cx="50" cy="50" r="39" fill="none" stroke="#00FF9C" strokeWidth="1.5" strokeDasharray="2,2" />
+    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#00FF9C" />
+    <ellipse cx="50" cy="48" rx="27" ry="7.5" fill="none" stroke="#ffffff" strokeWidth="2.5" />
+    <circle cx="78" cy="78" r="15" fill="#FFB300" />
+    <path d="M 78,70 L 83,75 L 78,80 L 73,75 Z" fill="#000000" />
   </svg>
 );
+
+const LiveHeroChart = () => {
+  const [data, setData] = useState<{ time: number; price: number }[]>([]);
+
+  useEffect(() => {
+    // Generate initial flat-ish data
+    const initialData = [];
+    let price = 1.0;
+    for (let i = 0; i < 50; i++) {
+      initialData.push({ time: i, price });
+    }
+    setData(initialData);
+
+    const interval = setInterval(() => {
+      setData((prev) => {
+        const lastPrice = prev[prev.length - 1].price;
+        // Random walk
+        const change = (Math.random() - 0.48) * 0.05;
+        const newPrice = Math.max(0.1, lastPrice + change);
+        const newData = [...prev.slice(1), { time: prev[prev.length - 1].time + 1, price: newPrice }];
+        return newData;
+      });
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="absolute top-[50%] -translate-y-1/2 left-[50%] -translate-x-1/2 w-[100vw] h-48 md:h-72 z-0 overflow-hidden pointer-events-none fade-in opacity-80">
+      {/* Edge gradient masks to fade the trace smoothly instead of hard cuts */}
+      <div className="absolute inset-y-0 left-0 w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none"></div>
+      <div className="absolute inset-y-0 right-0 w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
+      <div className="absolute inset-x-0 bottom-0 h-24 z-10 bg-gradient-to-t from-black to-transparent pointer-events-none"></div>
+      
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="heroLiveColor" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.6}/>
+              <stop offset="95%" stopColor="#00FF9C" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <Area 
+            type="monotone" 
+            dataKey="price" 
+            stroke="#00FF9C" 
+            strokeWidth={3} 
+            fillOpacity={1} 
+            fill="url(#heroLiveColor)" 
+            isAnimationActive={false} 
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 interface PortalProps {
   onLoginSuccess: (user: User) => void;
@@ -353,14 +370,14 @@ export default function Portal({
   adminEmails = 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
   onResetPasswordSuccess
 }: PortalProps) {
+  const { lang, toggleLang, t } = useThemeLang();
   const [activeTab, setActiveTab ] = useState<'login' | 'register'>('login');
   
-  // Login form state
+  // Forms state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Register form state
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -370,32 +387,39 @@ export default function Portal({
   const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
   const [regAvatar, setRegAvatar] = useState<string | null>(null);
 
-  // Reset password states
+  // Forgot Password / OTP elements
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotResult, setForgotResult] = useState<string | null>(null);
-
-  // New OTP reset flow states
-  const [resetStep, setResetStep] = useState<1 | 2>(1); // 1 = request code, 2 = verify code & reset
+  const [resetStep, setResetStep] = useState<1 | 2>(1);
   const [resetOTP, setResetOTP] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
 
-  // Left/Right selection Network
+  // Active networks
   const [selectedNetwork, setSelectedNetwork] = useState<'TRC20' | 'BEP20'>('TRC20');
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [customScrolled, setCustomScrolled] = useState(false);
 
   const WALLETS = {
     TRC20: adminWalletTRC20,
     BEP20: adminWalletBEP20
   };
 
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
-
   const displayToast = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
   };
+
+  // Nav scroll listen
+  useEffect(() => {
+    const handleScroll = () => {
+      setCustomScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -412,7 +436,7 @@ export default function Portal({
       reader.onload = (event) => {
         if (event.target?.result) {
           setRegAvatar(event.target.result as string);
-          displayToast('Photo de profil chargée avec succès !', 'success');
+          displayToast('Photo de profil chargée !', 'success');
         }
       };
       reader.readAsDataURL(file);
@@ -434,7 +458,7 @@ export default function Portal({
       reader.onload = (event) => {
         if (event.target?.result) {
           setPaymentScreenshot(event.target.result as string);
-          displayToast('Capture d\'écran chargée avec succès !', 'success');
+          displayToast('Capture d\'écran chargée !', 'success');
         }
       };
       reader.readAsDataURL(file);
@@ -449,7 +473,6 @@ export default function Portal({
       return;
     }
 
-    // Admins might want local bypass if they haven't set up Supabase auth yet
     const isAdminPass = loginPassword === 'adminadmin' || loginPassword === 'admin';
     const isAdminUser = identifier === 'admin@tradevault.com' || identifier === 'admin';
 
@@ -469,23 +492,21 @@ export default function Portal({
       return;
     }
 
-    // Try Supabase SignIn
     try {
       const res = await signInWithSupabase(loginEmail, loginPassword);
       if (res.success && res.user) {
         if (res.user.status === 'pending') {
-          displayToast('Votre inscription est en attente de vérification par un admin.', 'info');
+          displayToast('Votre inscription est en attente de validation.', 'info');
           return;
         }
         if (res.user.status === 'rejected') {
-          displayToast('Votre inscription a été rejetée. Veuillez recréer un compte.', 'error');
+          displayToast('Votre inscription a été rejetée.', 'error');
           return;
         }
         onLoginSuccess(res.user);
-        displayToast('Connexion réussie via Supabase ! Bienvenue.', 'success');
+        displayToast('Connexion réussie via Supabase ! Code pro validé.', 'success');
         return;
       } else {
-        // Fallback to local storage matching
         const matchedUser = users.find(u => 
           u.email.toLowerCase() === identifier || 
           (u.username && u.username.toLowerCase() === identifier)
@@ -494,15 +515,15 @@ export default function Portal({
         if (matchedUser) {
           if (matchedUser.password === loginPassword) {
             if (matchedUser.status === 'pending') {
-              displayToast('Votre inscription est en attente de vérification par un admin.', 'info');
+              displayToast('Inscription en attente de vérification.', 'info');
               return;
             }
             if (matchedUser.status === 'rejected') {
-              displayToast('Votre inscription a été rejetée. Veuillez recréer un compte.', 'error');
+              displayToast('Cette inscription a été rejetée.', 'error');
               return;
             }
             onLoginSuccess(matchedUser);
-            displayToast('Connexion réussie (Portefeuille Local) ! Bienvenue.', 'success');
+            displayToast('Connexion réussie (Fallback Local) !', 'success');
             return;
           } else {
             displayToast('Mot de passe incorrect.', 'error');
@@ -510,40 +531,40 @@ export default function Portal({
           }
         }
         
-        displayToast(res.error || 'Compte introuvable ou identifiants incorrects.', 'error');
+        displayToast(res.error || 'Identifiants incorrects ou compte introuvable.', 'error');
       }
     } catch (err: any) {
-      console.error("Login catch error:", err);
-      displayToast("Erreur lors de la connexion.", 'error');
+      console.error(err);
+      displayToast("Erreur de connexion.", 'error');
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regUsername.trim() || !regEmail.trim() || !regPassword) {
-      displayToast('Veuillez remplir tous les champs obligatoires.', 'error');
+      displayToast('Veuillez remplir les champs requis.', 'error');
       return;
     }
     if (regPassword.length < 8) {
-      displayToast('Le mot de passe doit contenir au moins 8 caractères.', 'error');
+      displayToast('Mot de passe : min 8 caractères.', 'error');
       return;
     }
     if (regPassword !== regConfirm) {
-      displayToast('Les mots de passe ne correspondent pas.', 'error');
+      displayToast('Les mots de passe diffèrent.', 'error');
       return;
     }
     if (!paymentScreenshot) {
-      displayToast('La capture d\'écran du paiement d\'inscription est obligatoire.', 'error');
+      displayToast('Capture d\'écran de preuve obligatoire.', 'error');
       return;
     }
 
     const exist = users.some(u => u.email.toLowerCase() === regEmail.trim().toLowerCase());
     if (exist) {
-      displayToast('Cette adresse e-mail est déjà utilisée.', 'error');
+      displayToast('E-mail déjà enregistré.', 'error');
       return;
     }
 
-    displayToast('Création du compte sécurisé dans Supabase...', 'info');
+    displayToast('Sécurisation du compte dans Supabase...', 'info');
 
     try {
       const res = await signUpWithSupabase(
@@ -560,10 +581,9 @@ export default function Portal({
       if (res.success && res.user) {
         onRegisterPending({
           ...res.user,
-          password: regPassword // Preserve for local fallback profile matching
+          password: regPassword
         });
       } else {
-        console.warn("Supabase SignUp unsuccessful. Writing user to browser storage fallback:", res.error);
         const localUser: User = {
           id: 'usr_' + Date.now(),
           username: regUsername.trim(),
@@ -580,12 +600,9 @@ export default function Portal({
         onRegisterPending(localUser);
       }
 
-      // Send triggered welcome notification to admin asynchronously
       fetch('/api/notify/signup', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: regUsername.trim(),
           email: regEmail.trim(),
@@ -595,23 +612,16 @@ export default function Portal({
         })
       })
       .then(r => r.json())
-      .then(data => {
-        console.log('Admin registration alert dispatched:', data);
-      })
-      .catch(err => {
-        console.error('Failed to dispatch registration email:', err);
-      });
+      .catch(err => console.error(err));
 
-      displayToast('Compte créé ! Votre inscription est en cours de validation par l\'Admin.', 'success');
-      
-      // Switch tab
+      displayToast('Compte enregistré en attente de validation admin !', 'success');
       setActiveTab('login');
       setLoginEmail(regEmail);
       setLoginPassword('');
       setRegAvatar(null);
     } catch (err: any) {
-      console.error("Registration flow exception:", err);
-      displayToast("Erreur lors de la création du compte.", "error");
+      console.error(err);
+      displayToast("Erreur d'inscription.", "error");
     }
   };
 
@@ -620,13 +630,13 @@ export default function Portal({
     const emailToSearch = forgotEmail.trim().toLowerCase();
     
     if (!emailToSearch) {
-      displayToast("Saisissez une adresse e-mail valide.", "error");
+      displayToast("Insérez une adresse valide.", "error");
       return;
     }
 
     const matched = users.some(u => u.email.toLowerCase() === emailToSearch);
     if (!matched && emailToSearch !== 'admin@tradevault.com') {
-      displayToast("Aucun compte n'a été trouvé avec cette adresse e-mail.", "error");
+      displayToast("Compte introuvable.", "error");
       return;
     }
 
@@ -644,17 +654,17 @@ export default function Portal({
       if (data.success) {
         setResetStep(2);
         if (data.simulated && data.code) {
-          setForgotResult(`[SIMULATION MODE] Code OTP envoyé : ${data.code}`);
-          displayToast(`Code OTP simulé envoyé : ${data.code}`, "info");
+          setForgotResult(`[OTP CODE SIMULÉ] : ${data.code}`);
+          displayToast(`Code OTP simulé : ${data.code}`, "info");
         } else {
-          displayToast("Un code OTP à 7 chiffres a été envoyé par e-mail !", "success");
+          displayToast("Un code de validation OTP a été envoyé !", "success");
         }
       } else {
-        displayToast(data.error || "Erreur de génération OTP.", "error");
+        displayToast(data.error || "Erreur d'envoi OTP.", "error");
       }
     } catch (err) {
       console.error(err);
-      displayToast("Une erreur réseau s'est produite.", "error");
+      displayToast("Erreur de connexion serveur.", "error");
     } finally {
       setResetLoading(false);
     }
@@ -666,17 +676,17 @@ export default function Portal({
     const otpCodeClean = resetOTP.trim();
 
     if (otpCodeClean.length !== 7 || !/^\d+$/.test(otpCodeClean)) {
-      displayToast("Le code OTP doit être composé de 7 chiffres.", "error");
+      displayToast("Le code OTP requiert 7 chiffres.", "error");
       return;
     }
 
     if (resetNewPassword.length < 8) {
-      displayToast("Le mot de passe doit contenir au moins 8 caractères.", "error");
+      displayToast("Le mot de passe doit faire au moins 8 caractères.", "error");
       return;
     }
 
     if (resetNewPassword !== resetConfirmPassword) {
-      displayToast("Les nouveaux mots de passe ne correspondent pas.", "error");
+      displayToast("Mots de passe non concordants.", "error");
       return;
     }
 
@@ -695,14 +705,11 @@ export default function Portal({
 
       const data = await response.json();
       if (data.success) {
-        // Update local memory & browser sync!
         if (onResetPasswordSuccess) {
           onResetPasswordSuccess(emailToReset, resetNewPassword);
         }
         
-        displayToast("Mot de passe réinitialisé de manière sécurisée !", "success");
-        
-        // Reset recovery form layout back to default login state
+        displayToast("Mot de passe mis à jour !", "success");
         setForgotOpen(false);
         setResetStep(1);
         setResetOTP('');
@@ -710,575 +717,662 @@ export default function Portal({
         setResetConfirmPassword('');
         setForgotResult(null);
       } else {
-        displayToast(data.error || "Code incorrect ou expiré.", "error");
+        displayToast(data.error || "Code incorrect.", "error");
       }
     } catch (err) {
       console.error(err);
-      displayToast("Erreur réseau.", "error");
+      displayToast("Erreur serveur.", "error");
     } finally {
       setResetLoading(false);
     }
   };
 
-  // Find dynamic matched user avatar during connection typing
-  const matchedUserForAvatar = activeTab === 'login' && loginEmail
-    ? users.find(u => 
-        u.email.toLowerCase() === loginEmail.trim().toLowerCase() || 
-        (u.username && u.username.toLowerCase() === loginEmail.trim().toLowerCase())
-      )
-    : null;
+  const scrollSectionToId = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
-    <div className="min-height-screen py-10 px-4 md:px-10 flex items-center justify-center relative">
-      <div className="grid-bg"></div>
-      <div className="glow-orb-1"></div>
-      <div className="glow-orb-2"></div>
+    <div className="min-h-screen bg-black text-white relative flex flex-col items-center justify-start overflow-hidden w-full">
+      {/* Dynamic particles backdrop canvas */}
+      <CanvasParticles />
 
+      {/* Global Toast */}
       {toastMessage && (
-        <div className={`fixed top-5 right-5 z-50 p-4 rounded-lg flex items-center gap-2 border shadow-lg ${
-          toastMessage.type === 'success' ? 'bg-[#10b981]/20 border-[#10b981] text-[#10b981]' : 
-          toastMessage.type === 'error' ? 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]' :
-          'bg-[#3b82f6]/20 border-[#3b82f6] text-[#3b82f6]'
+        <div className={`fixed top-8 right-8 z-55 p-4 rounded-xl flex items-center gap-3 border shadow-2xl backdrop-blur-md transition-all animate-fade-in ${
+          toastMessage.type === 'success' ? 'bg-[#00FF9C]/10 border-[#00FF9C] text-[#00FF9C]' : 
+          toastMessage.type === 'error' ? 'bg-[#FF4D4D]/10 border-[#FF4D4D] text-[#FF4D4D]' :
+          'bg-white/5 border-white/20 text-white'
         }`}>
-          <span>{toastMessage.type === 'success' ? '✅' : toastMessage.type === 'error' ? '❌' : 'ℹ️'}</span>
-          <span className="text-sm font-medium">{toastMessage.text}</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></div>
+          <span className="text-xs font-mono font-medium">{toastMessage.text}</span>
         </div>
       )}
 
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 rounded-2xl overflow-hidden glass-panel shadow-2xl">
-        
-        {/* LEFT COLUMN: Login and Registration */}
-        <div className="col-span-1 lg:col-span-7 p-6 md:p-12 flex flex-col justify-between">
-          <div>
-            {/* Header Brand */}
-            <div className="flex flex-col items-start gap-1.5 mb-8">
-              <Logo size="lg" variant="dark" />
-              <p className="text-[9px] text-[#475569] tracking-[0.22em] font-mono font-bold uppercase pl-3">TRACK. ANALYZE. EVOLVE.</p>
-            </div>
+      {/* FIXED PREMIUM NAVIGATION SECTION === */}
+      <nav className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 border-b flex justify-between items-center px-6 md:px-12 py-4 ${
+        customScrolled 
+          ? 'bg-black/85 backdrop-blur-md border-white/5 shadow-2xl py-3.5' 
+          : 'bg-transparent border-transparent py-5'
+      }`}>
+        <div className="flex items-center gap-3">
+          <span className="text-lg md:text-xl font-black font-display tracking-tight leading-none text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">
+            TRADE<span className="text-[#00FF9C]">VAULT</span>
+          </span>
+        </div>
 
-            <h2 className="text-2xl font-black text-white mb-2 leading-tight">
-              Bienvenue sur <span className="bg-gradient-to-r from-blue-400 to-indigo-500 font-extrabold bg-clip-text text-transparent">TradeVault</span>
-            </h2>
-            <p className="text-slate-400 text-xs mb-6 font-sans">
-              Connecte-toi ou crée ton compte pour accéder à ton journal de trading et ton Track Record.
+        <div className="hidden md:flex items-center gap-8 text-[11px] font-mono tracking-wider text-white/50">
+          <button onClick={() => scrollSectionToId('features')} className="hover:text-white underline-hover cursor-pointer">FIDÉLITÉ STATS</button>
+          <button onClick={() => scrollSectionToId('showcase')} className="hover:text-white underline-hover cursor-pointer">PROPFIRM PREVIEW</button>
+          <button onClick={() => scrollSectionToId('portal-card-segment')} className="hover:text-white underline-hover cursor-pointer font-bold text-[#00FF9C]">ACCÉDER</button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Quick interactive toggles inside sticky header */}
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 text-xs">
+            <button
+              type="button"
+              onClick={toggleLang}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/30 hover:bg-[#00FF9C]/10 text-white/70 hover:text-white transition-all text-[8px] font-mono font-bold uppercase"
+              title="Language Change (FR/EN)"
+            >
+              <Globe size={10} className="text-[#00FF9C]" />
+              <span>{lang === 'fr' ? 'FR' : 'EN'}</span>
+            </button>
+          </div>
+
+          <button 
+            type="button"
+            onClick={() => scrollSectionToId('portal-card-segment')}
+            className="btn-sweep px-5 py-2 rounded-full text-[10px] font-mono tracking-widest font-bold uppercase transition-all"
+          >
+            <span>JOIN PRO ↗</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* HERO SECTION (MIN HEIGHT SCREEN) === */}
+      <header className="min-h-screen pt-24 w-full flex flex-col justify-between items-center relative z-10 px-6 max-w-7xl mx-auto mb-12">
+        <div></div> {/* Spacer */}
+
+        <div className="text-center space-y-8 max-w-5xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 text-[9px] font-mono tracking-[0.2em] text-[#00FF9C] uppercase">
+            <Sparkles size={10} /> THE NEXT GENERATION OF POSITIONS AUDITING
+          </div>
+
+          <div className="relative w-full py-8 md:py-12 flex justify-center items-center">
+            {/* Clamp large typographic display */}
+            <h1 className="text-4xl min-[480px]:text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black tracking-tight leading-[0.9] text-white select-none relative z-10">
+              <span className="block opacity-90">VAULT YOUR TRADES IN</span>
+              <span className="block text-[#00FF9C] drop-shadow-[0_0_15px_rgba(0,255,156,0.15)] mt-1.5 font-bold">PURE UNBIASED CLARITY.</span>
+            </h1>
+            
+            {/* Real-time background trace stretching edge-to-edge */}
+            <LiveHeroChart />
+          </div>
+
+          <p className="text-white/40 max-w-xl mx-auto text-xs sm:text-sm font-sans font-light leading-relaxed relative z-10">
+            Eliminate cognitive bias, streamline propfirm targets, and monitor real-time leverage logs securely. An offline-resilient dashboard designed for maximum visual high-fidelity.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <button 
+              type="button"
+              onClick={() => scrollSectionToId('portal-card-segment')}
+              className="px-8 py-3.5 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-[0_0_30px_rgba(255,255,255,0.06)] active:scale-95 cursor-pointer"
+            >
+              DÉMARRER MA GESTION ↗
+            </button>
+            <button 
+              type="button"
+              onClick={() => scrollSectionToId('features')}
+              className="px-8 py-3.5 bg-black hover:bg-white/5 text-white border border-white/25 rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
+            >
+              EN SAVOIR PLUS ↓
+            </button>
+          </div>
+        </div>
+
+        {/* Live price ticker container at very bottom of hero */}
+        <div className="w-screen border-t border-b border-white/5 py-3.5 bg-black overflow-hidden relative select-none">
+          <div className="animate-ticker text-[10px] font-mono tracking-wider font-medium text-white/50 gap-16 uppercase">
+            {/* Double copies for seamless endless loop scroll */}
+            <div className="flex items-center gap-16 pr-16 shrink-0">
+              <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#00FF9C]">$88,432.20 (+4.25%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">ETH / USDT</strong> <span className="text-rose-400">$3,450.15 (-1.12%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#00FF9C]">$182.40 (+12.40%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">FTM / USDT</strong> <span className="text-[#00FF9C]">$0.925 (+15.20%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#00FF9C]">$612.80 (+0.85%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#00FF9C]">$0.145 (+3.12%)</span></span>
+            </div>
+            <div className="flex items-center gap-16 shrink-0">
+              <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#00FF9C]">$88,432.20 (+4.25%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">ETH / USDT</strong> <span className="text-rose-400">$3,450.15 (-1.12%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#00FF9C]">$182.40 (+12.40%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">FTM / USDT</strong> <span className="text-[#00FF9C]">$0.925 (+15.20%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#00FF9C]">$612.80 (+0.85%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#00FF9C]">$0.145 (+3.12%)</span></span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* HORIZONTAL SHOWCASE / PROPFIRMS PRO DETAILS === */}
+      <section id="showcase" className="w-full py-24 px-6 max-w-7xl mx-auto z-20">
+        <div className="space-y-12">
+          <div className="max-w-xl space-y-3">
+            <span className="text-[9px] font-mono tracking-[0.25em] text-[#00FF9C] uppercase block font-bold">MONITOR PROPFIRMS TARGETS</span>
+            <h2 className="text-3xl sm:text-4xl font-display font-black text-white uppercase tracking-tight">PREMIUM BUILT-IN HARNESS.</h2>
+            <p className="text-xs text-white/40 font-sans leading-relaxed">
+              Never breach daily drawdown rules again. Explore standard seed targets or tilt these cards to verify limits dynamically in high contrast layout.
             </p>
+          </div>
 
-            {/* Inscription / Connexion Tabs */}
-            <div className="flex bg-[#0f172a]/60 p-1.5 rounded-xl mb-6 border border-[#1e293b]/60">
-              <button
-                type="button"
-                onClick={() => { setActiveTab('login'); setForgotResult(null); }}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
-                  activeTab === 'login' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Connexion
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('register'); setForgotResult(null); }}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
-                  activeTab === 'register' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Inscription
-              </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 three-d-perspective">
+            
+            {/* Challenge Card 1: FTMO */}
+            <div className="tilt-card bg-[#080808] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#00FF9C]/30 transition-all">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <span className="text-[10px] font-mono text-[#00FF9C] bg-[#00FF9C]/5 border border-[#00FF9C]/20 px-2.5 py-1 rounded-full uppercase">FTMO HARNESS</span>
+                  <span className="text-[11px] font-mono text-white/30">ID: FTMO-100K</span>
+                </div>
+                <h3 className="text-xl font-display font-bold text-white uppercase">Sovereign 100K Capital</h3>
+                <p className="text-xs text-white/50 leading-relaxed font-sans">
+                  Configured daily limits strict cap at 5%, target criteria at 8% total yield. Full automated audits synchronized dynamically.
+                </p>
+              </div>
+              <div className="flex justify-between items-baseline pt-4 border-t border-white/5">
+                <div>
+                  <span className="text-[9px] font-mono text-white/30 block uppercase">LIMIT RULE</span>
+                  <span className="text-xs font-mono font-bold text-[#00FF9C]">$5,000 drawdown</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-mono text-white/30 block uppercase">TARGET</span>
+                  <span className="text-sm font-mono font-bold text-white">$8,000 profit</span>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-[#0a0f24]/50 p-6 md:p-8 rounded-3xl border border-indigo-500/15 backdrop-blur-md shadow-2xl text-left">
+            {/* Challenge Card 2: Personal */}
+            <div className="tilt-card bg-[#080808] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#00FF9C]/30 transition-all">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <span className="text-[10px] font-mono text-[#00FF9C] bg-[#00FF9C]/5 border border-[#00FF9C]/20 px-2.5 py-1 rounded-full uppercase">UNRESTRICTED</span>
+                  <span className="text-[11px] font-mono text-white/30">ID: USER-SPOT</span>
+                </div>
+                <h3 className="text-xl font-display font-bold text-white uppercase">Personal Spot Portfolio</h3>
+                <p className="text-xs text-white/50 leading-relaxed font-sans">
+                  No evaluation targets or mandatory triggers. Built specifically to log swing trades, spot accounts, or margin trades with manual oversight.
+                </p>
+              </div>
+              <div className="flex justify-between items-baseline pt-4 border-t border-white/5">
+                <div>
+                  <span className="text-[9px] font-mono text-white/30 block uppercase">LIMIT RULE</span>
+                  <span className="text-xs font-mono font-bold text-white/60">Self-Imposed Drawdown</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-mono text-white/30 block uppercase">TARGET</span>
+                  <span className="text-sm font-mono font-bold text-white">UnBounded</span>
+                </div>
+              </div>
+            </div>
 
+            {/* Challenge Card 3: CustomEvaluation */}
+            <div className="tilt-card bg-[#080808] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#00FF9C]/30 transition-all">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <span className="text-[10px] font-mono text-[#00FF9C] bg-[#00FF9C]/5 border border-[#00FF9C]/20 px-2.5 py-1 rounded-full uppercase">CUSTOM FIRM</span>
+                  <span className="text-[11px] font-mono text-white/30">ID: MY-EVAL-200K</span>
+                </div>
+                <h3 className="text-xl font-display font-bold text-white uppercase">Prop firm Evaluation</h3>
+                <p className="text-xs text-white/50 leading-relaxed font-sans">
+                  Flexible setups configured instantly for custom evaluations. Multi-account switches with zero-override on local caches.
+                </p>
+              </div>
+              <div className="flex justify-between items-baseline pt-4 border-t border-white/5">
+                <div>
+                  <span className="text-[9px] font-mono text-white/30 block uppercase">LIMIT RULE</span>
+                  <span className="text-xs font-mono font-bold text-rose-400">Custom rules</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-mono text-white/30 block uppercase">TARGET</span>
+                  <span className="text-sm font-mono font-bold text-[#00FF9C]">Variable goal</span>
+                </div>
+              </div>
+            </div>
 
-            {/* TAB CONTENT: LOGIN */}
-            {activeTab === 'login' && !forgotOpen && (
-              <form onSubmit={handleLogin} className="space-y-4">
-                {/* Identifiant Input */}
-                <div className="space-y-1.5">
-                  <label className="text-xs text-white font-bold tracking-wide">Identifiant (E-mail ou Nom d'utilisateur)</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
-                      <Mail size={16} />
-                    </span>
+          </div>
+        </div>
+      </section>
+
+      {/* PORTAL LOGIN CARD SEGMENT === */}
+      <section id="portal-card-segment" className="w-full py-20 px-6 max-w-5xl mx-auto z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 rounded-2xl overflow-hidden border border-white/5 bg-black shadow-2xl relative">
+          
+          {/* LEFT COLUMN: Login / Register Forms */}
+          <div className="col-span-1 lg:col-span-7 p-6 md:p-10 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-lg font-black font-display tracking-tight leading-none text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">
+                  TRADE<span className="text-[#00FF9C]">VAULT</span>
+                </span>
+              </div>
+
+              <h2 className="text-2xl font-display font-black text-white uppercase tracking-tight mb-2">
+                ACCÈS PORTAIL SÉCURISÉ
+              </h2>
+              <p className="text-white/40 text-xs mb-6 font-sans">
+                Renseignez votre e-mail ou créez un compte. Pour vous inscrire, joignez impérativement la preuve de versement crypto correspondante.
+              </p>
+
+              {/* Inscription / Connexion Tabs */}
+              <div className="flex bg-[#080808] p-1 rounded-full mb-6 border border-white/5 max-w-sm">
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('login'); setForgotResult(null); }}
+                  className={`flex-1 py-2 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase transition-all ${
+                    activeTab === 'login' ? 'bg-[#00FF9C] text-black shadow-md' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  Connexion
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('register'); setForgotResult(null); }}
+                  className={`flex-1 py-2 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase transition-all ${
+                    activeTab === 'register' ? 'bg-[#00FF9C] text-black shadow-md' : 'text-white/40 hover:text-white'
+                  }`}
+                >
+                  Inscription
+                </button>
+              </div>
+
+              {/* Login block */}
+              {activeTab === 'login' && !forgotOpen && (
+                <form onSubmit={handleLogin} className="space-y-4 text-left">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">E-mail ou Pseudo</label>
                     <input
                       type="text"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="Entrez votre e-mail ou nom d'utilisateur"
-                      className="w-full pl-11 pr-4 py-3 bg-[#0a0f1d]/90 border border-[#1e293b]/80 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all font-sans"
+                      placeholder="votre@email.com ou pseudo"
+                      className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#00FF9C] transition-all"
                       required
                     />
                   </div>
-                </div>
 
-                {/* Password Input */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs text-white font-bold tracking-wide">Mot de passe</label>
-                    <button
-                      type="button"
-                      onClick={() => setForgotOpen(true)}
-                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                    >
-                      Mot de passe oublié ?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
-                      <Lock size={16} />
-                    </span>
-                    <input
-                      type={showLoginPassword ? 'text' : 'password'}
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Entrez votre mot de passe"
-                      className="w-full pl-11 pr-12 py-3 bg-[#0a0f1d]/90 border border-[#1e293b]/80 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all font-sans"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-200"
-                    >
-                      {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all mt-6"
-                >
-                  Se connecter <ArrowRight size={14} />
-                </button>
-              </form>
-            )}
-
-            {/* TAB CONTENT: PASSWORD RECOVERY */}
-            {activeTab === 'login' && forgotOpen && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Réinitialisation de mot de passe (OTP)</h3>
-                
-                {resetStep === 1 ? (
-                  <>
-                    <p className="text-slate-400 text-xs">Saisissez l'adresse e-mail de votre compte pour recevoir un code OTP de validation de sécurité à 7 chiffres.</p>
-                    <form onSubmit={handleRequestOTP} className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-slate-300 font-bold tracking-wide">Votre adresse e-mail</label>
-                        <input
-                          type="email"
-                          value={forgotEmail}
-                          onChange={(e) => setForgotEmail(e.target.value)}
-                          placeholder="votre@email.com"
-                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
-                          required
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => { setForgotOpen(false); setForgotResult(null); }}
-                          className="flex-1 py-2.5 border border-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-900 transition-all font-sans font-bold"
-                          disabled={resetLoading}
-                        >
-                          Retour
-                        </button>
-                        <button
-                          type="submit"
-                          className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-sans font-bold tracking-wider uppercase transition-all"
-                          disabled={resetLoading}
-                        >
-                          {resetLoading ? 'Envoi...' : 'Envoyer OTP'}
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-slate-300 text-xs font-sans bg-slate-950/40 p-3 rounded-lg border border-slate-950">
-                      Un code de vérification à 7 chiffres a été envoyé à : <span className="text-blue-400 font-bold font-mono">{forgotEmail}</span>
-                    </p>
-                    <form onSubmit={handleVerifyOTPAndReset} className="space-y-4">
-                      {/* OTP Code */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-slate-300 font-bold tracking-wide">Code de validation OTP (7 chiffres)</label>
-                        <input
-                          type="text"
-                          value={resetOTP}
-                          onChange={(e) => setResetOTP(e.target.value.replace(/\D/g, '').slice(0, 7))}
-                          placeholder="Ex: 5829302"
-                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-center font-mono text-lg tracking-widest focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                          required
-                        />
-                      </div>
-
-                      {/* New Password */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-slate-300 font-bold tracking-wide">Nouveau mot de passe (min 8 car.)</label>
-                        <input
-                          type="password"
-                          value={resetNewPassword}
-                          onChange={(e) => setResetNewPassword(e.target.value)}
-                          placeholder="Entrez votre nouveau mot de passe"
-                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 font-sans"
-                          required
-                        />
-                      </div>
-
-                      {/* Confirm New Password */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-slate-300 font-bold tracking-wide">Confirmer le mot de passe</label>
-                        <input
-                          type="password"
-                          value={resetConfirmPassword}
-                          onChange={(e) => setResetConfirmPassword(e.target.value)}
-                          placeholder="Confirmez votre nouveau mot de passe"
-                          className="w-full px-4 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 font-sans"
-                          required
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => { setResetStep(1); setForgotResult(null); }}
-                          className="flex-1 py-2.5 border border-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-900 transition-all font-sans font-bold"
-                          disabled={resetLoading}
-                        >
-                          Précédent
-                        </button>
-                        <button
-                          type="submit"
-                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-sans font-bold tracking-wider uppercase transition-all"
-                          disabled={resetLoading}
-                        >
-                          {resetLoading ? 'Réinitialisation...' : 'Valider'}
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
-
-                {forgotResult && (
-                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-950/20 text-[#38bdf8] text-center text-xs font-mono break-all animate-pulse">
-                    {forgotResult}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB CONTENT: REGISTER */}
-            {activeTab === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-300 font-medium font-sans">Nom de trader *</label>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Mot de Passe</label>
+                      <button
+                        type="button"
+                        onClick={() => setForgotOpen(true)}
+                        className="text-[10px] font-mono text-[#00FF9C] hover:text-[#00FF9C]/80 bg-transparent py-0 px-0 underline cursor-pointer"
+                      >
+                        OUBLIÉ ?
+                      </button>
+                    </div>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                        <UserIcon size={18} />
-                      </span>
+                      <input
+                        type={showLoginPassword ? 'text' : 'password'}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#00FF9C] pr-12 transition-all"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-white/40 hover:text-white cursor-pointer"
+                      >
+                        {showLoginPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-4 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6"
+                  >
+                    IDENTIFIER MON COMPTE <ArrowRight size={13} />
+                  </button>
+                </form>
+              )}
+
+              {/* Password recover OTP */}
+              {activeTab === 'login' && forgotOpen && (
+                <div className="space-y-4 text-left">
+                  <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider">Réinitialisation de mot de passe (OTP)</h3>
+                  
+                  {resetStep === 1 ? (
+                    <>
+                      <p className="text-white/40 text-xs">Entrez votre e-mail de membre pour generer un code OTP de sécurité à 7 chiffres.</p>
+                      <form onSubmit={handleRequestOTP} className="space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Adresse e-mail</label>
+                          <input
+                            type="email"
+                            value={forgotEmail}
+                            onChange={(e) => setForgotEmail(e.target.value)}
+                            placeholder="votre@email.com"
+                            className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#00FF9C] transition-all"
+                            required
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setForgotOpen(false); setForgotResult(null); }}
+                            className="flex-1 py-3 border border-white/10 rounded-xl text-xs font-mono text-white/40 hover:bg-white/5 font-bold cursor-pointer"
+                            disabled={resetLoading}
+                          >
+                            RETOUR
+                          </button>
+                          <button
+                            type="submit"
+                            className="flex-1 py-3 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
+                            disabled={resetLoading}
+                          >
+                            {resetLoading ? 'ENVOI...' : 'ENVOYER'}
+                          </button>
+                        </div>
+                      </form>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-white/60 font-sans bg-white/5 p-3 rounded-lg border border-white/5 leading-relaxed">
+                        Un code secret de validation à 7 chiffres a été initié à : <span className="text-[#00FF9C] font-semibold">{forgotEmail}</span>
+                      </p>
+                      <form onSubmit={handleVerifyOTPAndReset} className="space-y-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Code OTP (7 chiffres)</label>
+                          <input
+                            type="text"
+                            value={resetOTP}
+                            onChange={(e) => setResetOTP(e.target.value.replace(/\D/g, '').slice(0, 7))}
+                            placeholder="Ex: 5829302"
+                            className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-center font-mono text-base tracking-widest text-[#00FF9C] focus:outline-none focus:border-[#00FF9C]"
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Nouveau mot de passe</label>
+                            <input
+                              type="password"
+                              value={resetNewPassword}
+                              onChange={(e) => setResetNewPassword(e.target.value)}
+                              placeholder="Min. 8 caractères"
+                              className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-[#00FF9C]"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Confirmer mot de passe</label>
+                            <input
+                              type="password"
+                              value={resetConfirmPassword}
+                              onChange={(e) => setResetConfirmPassword(e.target.value)}
+                              placeholder="Vérification"
+                              className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-[#00FF9C]"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setResetStep(1); setForgotResult(null); }}
+                            className="flex-1 py-3 border border-white/10 rounded-xl text-xs font-mono text-white/40 hover:bg-white/5 font-bold cursor-pointer"
+                            disabled={resetLoading}
+                          >
+                            PRÉCÉDENT
+                          </button>
+                          <button
+                            type="submit"
+                            className="flex-1 py-3 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
+                            disabled={resetLoading}
+                          >
+                            {resetLoading ? 'RÉINIT...' : 'VALIDER'}
+                          </button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+
+                  {forgotResult && (
+                    <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-white text-center text-[10px] font-mono break-all animate-pulse">
+                      {forgotResult}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB CONTENT: Register */}
+              {activeTab === 'register' && (
+                <form onSubmit={handleRegister} className="space-y-4 text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Pseudo de Trader *</label>
                       <input
                         type="text"
                         value={regUsername}
                         onChange={(e) => setRegUsername(e.target.value)}
                         placeholder="Ex: Alexander_F"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-all font-mono"
+                        className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
                         required
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-300 font-medium font-sans">Adresse Email *</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                        <Mail size={18} />
-                      </span>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Adresse Email de Membre *</label>
                       <input
                         type="email"
                         value={regEmail}
                         onChange={(e) => setRegEmail(e.target.value)}
                         placeholder="nom@exemple.com"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-all font-mono"
+                        className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
                         required
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-300 font-medium">Mot de passe *</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                        <Lock size={18} />
-                      </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Mot de passe *</label>
                       <input
                         type={showRegPassword ? 'text' : 'password'}
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
                         placeholder="Min. 8 caractères"
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-all font-mono"
+                        className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
                         required
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegPassword(!showRegPassword)}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-300"
-                      >
-                        {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-300 font-medium font-sans">Confirmer mot de passe *</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                        <Lock size={18} />
-                      </span>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono tracking-wider text-white/50 uppercase block">Confirmer mot de passe *</label>
                       <input
                         type="password"
                         value={regConfirm}
                         onChange={(e) => setRegConfirm(e.target.value)}
                         placeholder="Vérification"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-all font-mono"
+                        className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
                         required
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* REQUIREMENT 3: Mandate proof screenshot at registration */}
-                <div className="space-y-1 bg-indigo-950/20 p-4 rounded-xl border border-indigo-900/30">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-indigo-400">📸 PREUVE DE PAIEMENT REQUISE</span>
-                    <span className="text-[9px] bg-red-500/30 text-red-300 px-2 rounded-full font-bold uppercase">Obligatoire</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
-                    Pour finaliser votre inscription, veuillez uploader la capture d'écran du paiement de l'abonnement de <span className="text-indigo-300 font-bold">$30 USDT chaque 3 mois</span> vers l'adresse crypto de droite. Un administrateur activera votre espace sous peu.
-                  </p>
+                  {/* Payment capture requirements in dark style */}
+                  <div className="space-y-2 bg-[#080808] p-4 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-mono font-bold text-[#00FF9C] tracking-wider">📸 PREUVE DE PAIEMENT REQUIS</span>
+                      <span className="text-[8px] bg-[#FF4D4D]/10 border border-[#FF4D4D]/25 text-[#FF4D4D] px-2 py-0.5 rounded-full font-mono uppercase font-bold">Obligatoire</span>
+                    </div>
+                    <p className="text-[10px] text-white/40 leading-relaxed font-sans mb-3">
+                      L'activation est soumise à un règlement d'abonnement de <strong className="text-white">${subscriptionPrice} USDT</strong> pour une durée d'utilisation de {subscriptionPeriod} mois, vers une adresse sur votre droite.
+                    </p>
 
-                  <div className="border border-dashed border-indigo-800/60 bg-slate-950/30 rounded-lg p-3 text-center transition-all hover:border-indigo-500/50 relative cursor-pointer">
-                    <input
-                      type="file"
-                      id="reg-screenshot-upload"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                    {!paymentScreenshot ? (
-                      <div className="flex flex-col items-center gap-1.5">
-                        <Upload size={24} className="text-indigo-400" />
-                        <span className="text-xs text-slate-300 font-medium">Glissez ou parcourez pour charger l'image</span>
-                        <span className="text-[10px] text-slate-500 font-mono">PNG, JGP / max 5MB</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <img src={paymentScreenshot} alt="Preuve" className="w-10 h-10 object-cover rounded border border-indigo-500" />
-                          <span className="text-xs text-indigo-300 font-mono font-medium">capture_chargee.jpg</span>
+                    <div className="border border-dashed border-white/10 bg-black rounded-lg p-3 text-center transition-all hover:border-[#00FF9C]/40 relative cursor-pointer relative">
+                      <input
+                        type="file"
+                        id="reg-screenshot-upload-premium"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      />
+                      {!paymentScreenshot ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <Upload size={18} className="text-white/40" />
+                          <span className="text-[10px] text-white/60 font-mono">Glissez-déposez la capture de preuveci</span>
+                          <span className="text-[8px] text-white/30 font-mono">PNG, JPG / Max 5MB</span>
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={(e) => { e.stopPropagation(); setPaymentScreenshot(null); }}
-                          className="text-[10px] bg-red-600/30 text-rose-300 px-2 py-1 rounded hover:bg-red-600/50"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center justify-between pointer-events-none">
+                          <div className="flex items-center gap-2">
+                            <img src={paymentScreenshot} alt="Preuve" className="w-8 h-8 object-cover rounded border border-white/10" />
+                            <span className="text-[10px] text-[#00FF9C] font-mono">Preuve_chargee.jpg</span>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={(e) => { e.stopPropagation(); setPaymentScreenshot(null); }}
+                            className="text-[9px] bg-rose-950/40 text-rose-300 px-2 py-1 rounded border border-rose-900/40 cursor-pointer pointer-events-auto"
+                          >
+                            SUPPRIMER
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/20 z-10"
-                >
-                  S'inscrire (Attente Validation)
-                </button>
-              </form>
-            )}
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all text-center cursor-pointer"
+                  >
+                    SOUMETTRE MON INSCRIPTION POUR ACTIONS
+                  </button>
+                </form>
+              )}
+
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-900/60 text-center">
-            <p className="text-[10px] text-slate-500">
-              © 2026 TradeVault. Tous droits réservés. L'investissement financier comporte des risques élevés.
+          {/* RIGHT COLUMN: Subscription pricing and address */}
+          <div className="col-span-1 lg:col-span-5 p-6 md:p-8 bg-black/60 border-l border-white/5 flex flex-col justify-between overflow-hidden relative">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-[9px] text-[#00FF9C] font-mono tracking-wider uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] block animate-pulse"></span> PROPFIRM EVAL HARNESS
+              </div>
+
+              {activeTab === 'login' ? (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-display font-black text-white uppercase tracking-tight">STATION SCIENTIFIQUE</h3>
+                  <p className="text-xs text-white/40 leading-relaxed font-sans">
+                    Loguez vos transactions avec rigueur. Surveillez votre track record FTMO, MFF ou personnel en asymétrie luxueuse doté de micro-interactions fluides.
+                  </p>
+                  <TradingDevicesSimulator />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-display font-black text-white uppercase tracking-tight">CONSIGNES DE DOTATION</h3>
+                    <p className="text-xs text-[#00FF9C] font-mono tracking-wider mt-1 font-bold">OFFRE MEMBRES PRO</p>
+                  </div>
+
+                  {/* Price bubble */}
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl relative overflow-hidden text-center flex flex-col justify-center items-center py-6">
+                    <span className="text-2xl sm:text-3xl font-mono font-black text-white">${subscriptionPrice} USD / {subscriptionPeriod} MOIS</span>
+                  </div>
+
+                  {/* Select USDT Network */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-mono text-white/40 block tracking-wider uppercase">CHOISIR LES COORDONNÉES RÉSEAU</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div 
+                        onClick={() => setSelectedNetwork('TRC20')}
+                        className={`p-2.5 rounded-xl border cursor-pointer flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
+                          selectedNetwork === 'TRC20' 
+                            ? 'border-[#00FF9C] bg-[#00FF9C]/5 text-white' 
+                            : 'border-white/5 hover:border-white/10 text-white/40'
+                        }`}
+                      >
+                        <UsdtTrc20Icon />
+                        <span className="text-[9px] font-mono font-bold">USDT TRC20</span>
+                      </div>
+
+                      <div 
+                        onClick={() => setSelectedNetwork('BEP20')}
+                        className={`p-2.5 rounded-xl border cursor-pointer flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
+                          selectedNetwork === 'BEP20' 
+                            ? 'border-[#00FF9C] bg-[#00FF9C]/5 text-white' 
+                            : 'border-white/5 hover:border-white/10 text-white/40'
+                        }`}
+                      >
+                        <UsdtBep20Icon />
+                        <span className="text-[9px] font-mono font-bold">USDT BEP20</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Copy crypto address pill */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-mono text-white/40 block tracking-wider uppercase">COPIER L'ADRESSE INTERNET</span>
+                    <div className="bg-[#080808] border border-white/5 p-3 rounded-xl flex items-center justify-between">
+                      <div className="overflow-hidden mr-2">
+                        <code className="text-[11px] font-mono text-[#00FF9C] font-semibold tracking-wide">
+                          {WALLETS[selectedNetwork].substring(0, 6)}...{WALLETS[selectedNetwork].substring(WALLETS[selectedNetwork].length - 6)}
+                        </code>
+                        <span className="text-[7.5px] font-mono text-white/30 block mt-0.5 uppercase">CLIQUEZ POUR COPIER L'ADRESSE COMPLETE</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(WALLETS[selectedNetwork]);
+                          displayToast('Adresse crypto complète copiée !', 'success');
+                        }}
+                        className="p-2 px-3.5 bg-white text-black hover:bg-[#00FF9C] rounded-lg text-[9px] font-mono font-bold uppercase shrink-0 transition-colors cursor-pointer"
+                      >
+                        COPIER
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <h5 className="text-[9px] font-mono font-bold text-[#00FF9C] tracking-wider uppercase mb-1">CONSIGNE ACTIVE</h5>
+                    <p className="text-[10px] text-white/40 font-sans leading-relaxed">
+                      Effectuez le transfert USDT prolongeant vos accès, transmettez la capture à gauche. L'administrateur valide d'ordinaire sous de brefs délais.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[8px] font-mono text-white/20 text-center mt-6">
+              TRADEVAULT CYBER SECURITY CRYPTO-ON-RAMP GATEWAY ACTIVE
             </p>
           </div>
+
         </div>
+      </section>
 
-        {/* RIGHT COLUMN: Interactive Devices Simulator (on Login) or Subscription + payment instructions (on Register) */}
-        <div className="col-span-1 lg:col-span-5 p-6 md:p-10 bg-gradient-to-b from-[#0e1726]/60 to-[#030712]/90 border-l border-[#1e293b]/50 flex flex-col justify-between overflow-hidden">
-          {activeTab === 'login' ? (
-            <div className="h-full flex flex-col justify-between">
-              <div>
-                <div className="inline-flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-3 py-1 text-[10px] text-indigo-400 font-bold tracking-wider uppercase mb-5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 block animate-pulse"></span> STATION LIVE
-                </div>
-                <h3 className="text-xl font-black text-white mb-2 uppercase tracking-wide">Espace TradeVault</h3>
-                <p className="text-slate-400 text-xs mb-6 font-sans leading-relaxed">
-                  Pratiquez une gestion rigoureuse de vos positions, surveillez vos statistiques de performance, et validez vos challenges prop-firms avec latence zéro.
-                </p>
-              </div>
-
-              {/* High-fidelity Trading Screens Simulator with dynamic chart rendering */}
-              <TradingDevicesSimulator />
-
-              <div className="mt-6 pt-5 border-t border-slate-900/60">
-                <p className="text-[10px] text-slate-500 text-center font-sans font-medium">
-                  Connexion hautement sécurisée chiffrée de bout en bout.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="h-full flex flex-col justify-between py-2">
-              <div className="space-y-8">
-                {/* 1. ABONNEMENT PREMIUM TITLE - EXTREME NEON GLOW STYLE MATCH */}
-                <div className="text-center pt-4">
-                  <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-[0.18em] font-sans drop-shadow-[0_0_15px_rgba(139,92,246,0.65)] bg-clip-text text-transparent bg-gradient-to-b from-white via-indigo-100 to-indigo-300">
-                    Abonnement Premium
-                  </h3>
-                </div>
-
-                {/* 2. SLICK FLOATING NEON PILL BOX MATCHING SCREENSHOT */}
-                <div className="relative flex justify-center py-2">
-                  {/* Outer fluid aura */}
-                  <div className="absolute inset-0 max-w-[340px] mx-auto bg-gradient-to-r from-blue-500/20 via-purple-500/25 to-pink-500/20 rounded-[2rem] blur-xl opacity-80"></div>
-                  
-                  {/* The Glass Capsule container */}
-                  <div className="relative w-full max-w-[325px] h-[75px] rounded-[1.8rem] bg-[#1a0b36]/60 border border-purple-500/40 shadow-[0_0_30px_rgba(168,85,247,0.3)] backdrop-blur-md flex items-center justify-center p-[2px] overflow-hidden">
-                    {/* Glowing wavy ambient effect inside the pill */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-[#a855f7]/15 to-transparent animate-pulse"></div>
-                    
-                    {/* Centered Large White Text */}
-                    <div className="z-10 text-2xl md:text-3xl font-bold text-white tracking-wide font-sans drop-shadow-[0_0_8px_rgba(255,255,255,0.35)]">
-                      ${subscriptionPrice} / {subscriptionPeriod} mois
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. DUAL CRYPTO NETWORKS SIDE-BY-SIDE WITH NEON GLOW CIRCLES */}
-                <div className="space-y-3">
-                  <span className="text-[9px] font-black text-slate-500 block text-center tracking-widest uppercase font-mono">
-                    Sélectionnez votre réseau de transfert
-                  </span>
-
-                  <div className="grid grid-cols-2 gap-3.5">
-                    {/* USDT TRC20 OPTION */}
-                    <div
-                      onClick={() => setSelectedNetwork('TRC20')}
-                      className={`relative p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-center gap-2 text-center group ${
-                        selectedNetwork === 'TRC20'
-                          ? 'border-indigo-500/60 bg-[#160e35]/60 shadow-[0_0_20px_rgba(99,102,241,0.2)]'
-                          : 'border-[#1e293b]/60 bg-[#060a13]/70 hover:border-slate-800'
-                      }`}
-                    >
-                      {/* Violet Glow circle indicator */}
-                      <div className="flex items-center justify-center relative">
-                        {/* High Fidelity USDT TRC20 custom icon backing */}
-                        <div className={`transition-all ${
-                          selectedNetwork === 'TRC20' ? 'shadow-[0_0_15px_rgba(38,161,123,0.5)] scale-105' : 'opacity-80'
-                        }`}>
-                          <UsdtTrc20Icon />
-                        </div>
-                        {selectedNetwork === 'TRC20' && (
-                          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-indigo-500 flex items-center justify-center text-white scale-90 border border-slate-950">
-                            <Check size={8} className="stroke-[3.5]" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-0.5">
-                        <h4 className="text-[11px] font-black text-white font-sans tracking-wide">USDT TRC20</h4>
-                        <p className="text-[8px] text-slate-500 font-medium uppercase font-mono tracking-wider">Réseau Tron</p>
-                      </div>
-                    </div>
-
-                    {/* USDT BEP20 OPTION */}
-                    <div
-                      onClick={() => setSelectedNetwork('BEP20')}
-                      className={`relative p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-center gap-2 text-center group ${
-                        selectedNetwork === 'BEP20'
-                          ? 'border-cyan-500/60 bg-[#0a1f2c]/65 shadow-[0_0_20px_rgba(6,182,212,0.2)]'
-                          : 'border-[#1e293b]/60 bg-[#060a13]/70 hover:border-slate-800'
-                      }`}
-                    >
-                      {/* Cyan Glow circle indicator */}
-                      <div className="flex items-center justify-center relative">
-                        {/* High Fidelity USDT BEP20 custom icon backing */}
-                        <div className={`transition-all ${
-                          selectedNetwork === 'BEP20' ? 'shadow-[0_0_15px_rgba(38,161,123,0.5)] scale-105' : 'opacity-80'
-                        }`}>
-                          <UsdtBep20Icon />
-                        </div>
-                        {selectedNetwork === 'BEP20' && (
-                          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-cyan-500 flex items-center justify-center text-white scale-90 border border-slate-950">
-                            <Check size={8} className="stroke-[3.5]" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-0.5">
-                        <h4 className="text-[11px] font-black text-white font-sans tracking-wide">USDT BEP20</h4>
-                        <p className="text-[8px] text-slate-500 font-medium uppercase font-mono tracking-wider">BSC BNB Chain</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. SLEEK COPY WALLET BAR INSIDE CAPSULE PILL CONTAINER (EXACT MATCH) */}
-              <div className="mt-8 space-y-4 pt-4 border-t border-slate-900/45">
-                
-                {/* Simulated address container */}
-                <div className="relative">
-                  <span className="text-[9px] font-bold text-slate-500 block mb-2 tracking-wider font-mono uppercase">
-                    Adresse de réception unique ({selectedNetwork})
-                  </span>
-
-                  {/* Elegant Horizontal Capsule copy bar */}
-                  <div className="flex items-center justify-between bg-[#040816]/95 rounded-[1.5rem] border border-indigo-505/20 pl-4 pr-1.5 py-1.5 shadow-xl">
-                    
-                    {/* Truncated representation "Tf...z9" matching style exactly */}
-                    <div className="flex flex-col">
-                      <code className="text-[12px] font-mono text-[#38bdf8] font-bold tracking-wide select-all">
-                        {WALLETS[selectedNetwork].substring(0, 4)}...{WALLETS[selectedNetwork].substring(WALLETS[selectedNetwork].length - 4)}
-                      </code>
-                      <span className="text-[7.5px] font-mono font-medium text-slate-600 block leading-tight">
-                        Cliquez sur copier pour l'adresse complète
-                      </span>
-                    </div>
-
-                    {/* Capsule-styled "COPY ↗" button with glowing border */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(WALLETS[selectedNetwork]);
-                        displayToast('Adresse crypto complète copiée avec succès !', 'success');
-                      }}
-                      className="bg-indigo-950/80 hover:bg-indigo-600 hover:text-white border border-indigo-500/40 text-indigo-300 px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
-                    >
-                      COPY <span className="text-[12px] leading-none shrink-0">↗</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Instructions helper */}
-                <div className="bg-slate-950/30 rounded-xl p-3 border border-slate-900/60">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
-                    <span className="text-[8.5px] font-black tracking-widest text-[#10b981] uppercase font-mono">Consignes d'accès rapide</span>
-                  </div>
-                  <p className="text-[9.5px] text-slate-400 font-sans leading-relaxed">
-                    Envoyez l'équivalent de <strong className="text-white">${subscriptionPrice} USDT</strong>, puis joignez la capture à gauche. L'Admin recevra une alerte et validera instantanément votre compte.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+      {/* FOOTER METADATA === */}
+      <footer className="w-full py-12 px-6 border-t border-white/5 text-center text-white/30 z-20 mt-12">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <DefaultLogoAvatar className="w-5 h-5 opacity-40" />
+            <span className="text-[10px] font-mono tracking-widest uppercase">© 2026 ROADVAULT GLOBAL</span>
+          </div>
+          <p className="text-[10px] font-mono">
+            SECURED DIRECTLY END-TO-END VIA SUPABASE CLOUD DEPLOYMENT
+          </p>
         </div>
-
-      </div>
+      </footer>
     </div>
   );
 }

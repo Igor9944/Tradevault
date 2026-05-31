@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Trade, Account } from '../types';
 import { DollarSign, Percent, TrendingUp, ShieldAlert, BadgeInfo, Calendar, Zap, Award } from 'lucide-react';
+import { useThemeLang } from '../utils/themeLanguageContext';
 
 interface DashboardProps {
   trades: Trade[];
@@ -23,6 +24,7 @@ const cardVariants = {
 };
 
 export default function Dashboard({ trades, activeAccount }: DashboardProps) {
+  const { t, lang } = useThemeLang();
   const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Accumulate P&L for Equity chart
@@ -79,8 +81,8 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
 
   // Pie chart data
   const pieData = [
-    { name: 'Gains', value: wins.length || 0.1, color: '#10b981' },
-    { name: 'Pertes', value: losses.length || 0.1, color: '#ef4444' }
+    { name: 'Gains', value: wins.length || 0.1, color: '#00FF9C' },
+    { name: 'Pertes', value: losses.length || 0.1, color: '#FF4D4D' }
   ];
 
   return (
@@ -95,43 +97,43 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
       >
         
         {/* Total P&L Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-indigo-900/30 shadow-md">
+        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60 shadow-md">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">P&L TOTAL NET</span>
-            <div className={`text-2xl font-extrabold font-mono ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('net_total_pnl')}</span>
+            <div className={`text-2xl font-extrabold font-mono ${totalPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
               {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
             </div>
-            <span className="text-[10px] text-slate-500 block font-mono">Nombre total: {trades.length} trades</span>
+            <span className="text-[10px] text-slate-500 block font-mono">{t('total_trades')}: {trades.length}</span>
           </div>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${totalPnl >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${totalPnl >= 0 ? 'bg-[#00FF9C]/10 text-[#00FF9C]' : 'bg-red-500/10 text-red-400'}`}>
             <DollarSign size={20} />
           </div>
         </motion.div>
 
         {/* Winrate Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-indigo-900/30">
+        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">RATIO VICTOIRE (WINRATE)</span>
-            <div className="text-2xl font-extrabold font-mono text-indigo-400">
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('winrate')}</span>
+            <div className="text-2xl font-extrabold font-mono text-[#00FF9C]">
               {winrate.toFixed(1)}%
             </div>
-            <span className="text-[10px] ext-slate-500 text-slate-400 block font-mono">
+            <span className="text-[10px] text-slate-500 block font-mono">
               {wins.length} W - {losses.length} L
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-[#00FF9C]/10 text-[#00FF9C] flex items-center justify-center">
             <Percent size={20} />
           </div>
         </motion.div>
 
         {/* Average Risk/Reward Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-indigo-900/30">
+        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">R:R MOYEN</span>
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('avg_risk_reward')}</span>
             <div className="text-2xl font-extrabold font-mono text-amber-500">
               {avgRRObj}
             </div>
-            <span className="text-[10px] text-slate-500 block">Gain moyen / Perte moyenne</span>
+            <span className="text-[10px] text-slate-500 block">{t('avg_gain_loss_legend')}</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
             <TrendingUp size={20} />
@@ -139,13 +141,13 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         </motion.div>
 
         {/* Max Drawdown Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-indigo-900/30">
+        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">DRAWDOWN MAX</span>
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('max_drawdown')}</span>
             <div className="text-2xl font-extrabold font-mono text-rose-500">
               ${maxDrawdown.toFixed(2)}
             </div>
-            <span className="text-[10px] text-slate-500 block">Série de perte maximale cumulée</span>
+            <span className="text-[10px] text-slate-500 block">{t('max_cumulative_drawdown_legend')}</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
             <ShieldAlert size={20} />
@@ -156,41 +158,41 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
 
 
       {/* TODAY RECAP PANELS */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30">
-        <div className="flex items-center justify-between mb-4 border-b border-indigo-900/20 pb-4">
+      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60">
+        <div className="flex items-center justify-between mb-4 border-b border-zinc-800/30 pb-4">
           <div className="flex items-center gap-2">
-            <Calendar className="text-indigo-400" size={18} />
-            <h3 className="text-sm font-black text-white font-mono uppercase tracking-widest">Performances d'Aujourd'hui</h3>
+            <Calendar className="text-[#00FF9C]" size={18} />
+            <h3 className="text-sm font-black text-white font-mono uppercase tracking-widest">{t('today_perf')}</h3>
           </div>
           <span className="text-[10px] font-mono text-slate-500 uppercase">Live Tick Engine</span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900 text-center">
-            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">P&L Journalier</span>
-            <div className={`text-base font-bold font-mono ${todayPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('daily_pnl')}</span>
+            <div className={`text-base font-bold font-mono ${todayPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
               {todayPnl >= 0 ? '+' : ''}${todayPnl.toFixed(2)}
             </div>
           </div>
 
-          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900 text-center">
-            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">Trades du Jour</span>
-            <div className="text-base font-bold font-mono text-indigo-300">
+          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('today_trades')}</span>
+            <div className="text-base font-bold font-mono text-[#00FF9C]">
               {todayTrades.length}
             </div>
           </div>
 
-          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900 text-center">
-            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">Winrate Jour</span>
-            <div className="text-base font-bold font-mono text-purple-400">
+          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('winrate')}</span>
+            <div className="text-base font-bold font-mono text-[#00FF9C]">
               {todayWinrate.toFixed(1)}%
             </div>
           </div>
 
-          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900 text-center">
-            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">Meilleur Trade</span>
-            <div className="text-base font-bold font-mono text-emerald-400">
-              {todayBest > 0 ? `+$${todayBest.toFixed(2)}` : '$0.00'}
+          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('best_trade')}</span>
+            <div className="text-base font-bold font-mono text-[#00FF9C]">
+              {todayBest > 0 ? `+${todayBest.toFixed(2)}` : '$0.00'}
             </div>
           </div>
         </div>
@@ -200,13 +202,13 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Cumulative Equity curve (Recharts Areas) */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-6 border border-indigo-900/30">
+        <div className="lg:col-span-2 glass-panel rounded-2xl p-6 border border-zinc-800/60">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-0.5">
-              <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">Évolution du Master Capital</h4>
-              <p className="text-[10px] text-slate-400">Suivi graphique cumulé des bénéfices de trading.</p>
+              <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">{t('equity_curve_title')}</h4>
+              <p className="text-[10px] text-slate-400">{t('equity_curve_desc')}</p>
             </div>
-            <div className="flex items-center gap-1.5 bg-indigo-500/10 rounded-full px-2.5 py-1 text-[9px] text-indigo-300 font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 bg-[#00FF9C]/10 rounded-full px-2.5 py-1 text-[9px] text-[#00FF9C] font-bold uppercase tracking-wider">
               <Zap size={10} /> Equity Curve
             </div>
           </div>
@@ -217,38 +219,38 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
                 <AreaChart data={equityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#00FF9C" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#16163e" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
                   <XAxis dataKey="shortDate" stroke="#475569" fontSize={10} tickLine={false} />
                   <YAxis stroke="#475569" fontSize={10} tickLine={false} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f1123', borderColor: '#312e81', borderRadius: '12px' }}
+                    contentStyle={{ backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '12px' }}
                     labelStyle={{ color: '#94a3b8', fontSize: '11px', fontFamily: 'monospace' }}
                     itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
                   />
-                  <Area type="monotone" dataKey="Pnl" name="Solde cumulé ($)" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#colorPnl)" />
+                  <Area type="monotone" dataKey="Pnl" name={t('cum_balance_legend')} stroke="#00FF9C" strokeWidth={2} fillOpacity={1} fill="url(#colorPnl)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-72 w-full flex flex-col items-center justify-center border border-dashed border-slate-900 bg-slate-950/20 rounded-xl gap-2">
+            <div className="h-72 w-full flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[#080808]/20 rounded-xl gap-2">
               <BadgeInfo size={32} className="text-slate-600 animate-pulse" />
-              <span className="text-xs text-slate-500 font-medium">Aucun trade enregistré pour tracer l'équité</span>
+              <span className="text-xs text-slate-500 font-medium">{t('no_trades_equity')}</span>
             </div>
           )}
         </div>
 
         {/* Win / Loss Split Pie Chart */}
-        <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 flex flex-col justify-between">
+        <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">Visualisation Win/Loss</h4>
-              <Award size={16} className="text-indigo-400" />
+              <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">{t('win_loss_split_title')}</h4>
+              <Award size={16} className="text-[#00FF9C]" />
             </div>
-            <p className="text-[10px] text-slate-400 mb-6">Répartition brute des gains par rapport aux pertes.</p>
+            <p className="text-[10px] text-slate-400 mb-6">{t('win_loss_split_desc')}</p>
           </div>
 
           {trades.length > 0 ? (
@@ -275,20 +277,20 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
 
               {/* Legends with detail ratio */}
               <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                <div className="p-2 border border-emerald-950/40 bg-emerald-500/5 rounded-xl">
-                  <span className="text-emerald-400 font-bold block">{wins.length} Gagnés</span>
-                  <span className="text-[10px] text-slate-500">{(trades.length > 0 ? (wins.length / trades.length) * 100 : 0).toFixed(0)}% du total</span>
+                <div className="p-2 border border-[#00FF9C]/20 bg-[#00FF9C]/5 rounded-xl">
+                  <span className="text-[#00FF9C] font-bold block">{wins.length} {t('wins')}</span>
+                  <span className="text-[10px] text-slate-500">{(trades.length > 0 ? (wins.length / trades.length) * 100 : 0).toFixed(0)}% {t('wins_losses_of_total_legend')}</span>
                 </div>
-                <div className="p-2 border border-red-950/40 bg-red-500/5 rounded-xl">
-                  <span className="text-red-400 font-bold block">{losses.length} Perdus</span>
-                  <span className="text-[10px] text-slate-500">{(trades.length > 0 ? (losses.length / trades.length) * 100 : 0).toFixed(0)}% du total</span>
+                <div className="p-2 border border-red-500/20 bg-red-500/5 rounded-xl">
+                  <span className="text-red-400 font-bold block">{losses.length} {t('losses')}</span>
+                  <span className="text-[10px] text-slate-500">{(trades.length > 0 ? (losses.length / trades.length) * 100 : 0).toFixed(0)}% {t('wins_losses_of_total_legend')}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-900 bg-slate-950/20 rounded-xl gap-2 p-6">
+            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[#080808]/20 rounded-xl gap-2 p-6">
               <BadgeInfo size={28} className="text-slate-600" />
-              <span className="text-xs text-slate-500 text-center">Aucun trade pour tracer la répartition</span>
+              <span className="text-xs text-slate-500 text-center">{t('no_trades_distribution')}</span>
             </div>
           )}
         </div>

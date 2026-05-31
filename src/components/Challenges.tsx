@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Target, Plus, Trash2, Award, AlertTriangle, CheckCircle, ShieldAlert, Sparkles, X, Info } from 'lucide-react';
 import { Challenge, Trade, Account } from '../types';
 import { customAlert, customConfirm } from '../utils/customDialog';
+import { useThemeLang } from '../utils/themeLanguageContext';
 
 interface ChallengesProps {
   challenges: Challenge[];
@@ -12,6 +13,7 @@ interface ChallengesProps {
 }
 
 export default function Challenges({ challenges, trades, onAddChallenge, onDeleteChallenge, activeAccount }: ChallengesProps) {
+  const { t } = useThemeLang();
   const [modalOpen, setModalOpen] = useState(false);
   
   // Create challenge state fields
@@ -64,8 +66,8 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
         <div className="flex items-center gap-2.5">
           <Award className="text-indigo-400 shrink-0" size={20} />
           <div>
-            <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">Tracker de Challenges Propfirm</h3>
-            <p className="text-[10px] text-slate-400">Validez vos objectifs de gain par rapport aux Drawdowns journalier et global autorisés.</p>
+            <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">{t('propfirm_challenges_tracker')}</h3>
+            <p className="text-[10px] text-slate-400">{t('propfirm_challenges_tracker_desc')}</p>
           </div>
         </div>
 
@@ -74,7 +76,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
           onClick={() => setModalOpen(true)}
           className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-1 shrink-0 shadow-lg shadow-indigo-600/20"
         >
-          <Plus size={14} /> Nouveau Challenge
+          <Plus size={14} /> {t('new_challenge')}
         </button>
       </div>
 

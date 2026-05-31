@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { useThemeLang } from './utils/themeLanguageContext';
 import { 
   Grid, 
   FileText, 
@@ -50,6 +51,7 @@ import {
 } from './utils/supabaseSync';
 
 // Subcomponents
+import CustomEffects from './components/CustomEffects';
 import Portal from './components/Portal';
 import Checkout from './components/Checkout';
 import Dashboard from './components/Dashboard';
@@ -62,6 +64,7 @@ import Logo, { DefaultLogoAvatar } from './components/Logo';
 
 
 export default function App() {
+  const { lang, toggleLang, t } = useThemeLang();
   // Load initial persistent lists or fallback to seeded mock data
   const [users, setUsers] = useState<User[]>(() => {
     // One-time hard reset to give the user a completely brand-new slate with only the admin account
@@ -858,11 +861,26 @@ export default function App() {
             <div className="space-y-6">
               
               {/* Brand Logo and Name */}
-              <div className="flex items-center gap-2.5 px-1 border-b border-indigo-950/40 pb-4">
-                <DefaultLogoAvatar className="w-8 h-8 ring-2 ring-indigo-505/20 border border-indigo-500/30" />
+              <div className="flex items-center px-1 border-b border-zinc-800 pb-4">
                 <div>
-                  <h2 className="text-sm font-black font-mono tracking-widest text-white">TRADE<span className="text-indigo-400">VAULT</span></h2>
+                  <h2 className="text-xl font-black font-display tracking-tight text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
                   <span className="text-[9px] text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
+                </div>
+              </div>
+
+              {/* Premium Language controller */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-slate-900/60 rounded-xl border border-zinc-800/60 text-xs">
+                <span className="text-[9px] text-[#475569] font-bold uppercase tracking-wider font-mono">Options</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleLang}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#080808]/80 hover:bg-[#00FF9C]/10 text-slate-300 hover:text-white transition-all border border-zinc-800/70 text-[10px] font-bold font-mono tracking-wide"
+                    title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
+                  >
+                    <Globe size={11} className="text-[#00FF9C]" />
+                    <span>{lang === 'fr' ? 'FR' : 'EN'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -1066,13 +1084,13 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-indigo-950/40 gap-4">
               <div>
                 <h1 className="text-2xl font-extrabold text-white">
-                  {activeTab === 'stats' ? 'Statistiques de Trading' : 
-                   activeTab === 'challenges' ? 'Tracker Propfirm Challenge' : 
-                   activeTab === 'admin' ? 'Administration TradeVault' : 
-                   activeTab === 'calendar' ? 'Calendrier Mensuel' : 
-                   activeTab === 'journal' ? 'Journal de Trading' : 'Tableau de bord'}
+                  {activeTab === 'stats' ? t('statistics') : 
+                   activeTab === 'challenges' ? t('propfirm_tracker') : 
+                   activeTab === 'admin' ? t('admin_space') : 
+                   activeTab === 'calendar' ? t('monthly_calendar') : 
+                   activeTab === 'journal' ? t('trading_journal') : t('dashboard')}
                 </h1>
-                {!isAdmin && <p className="text-xs text-slate-400 mt-1">Données filtrées pour : <span className="text-indigo-400 font-bold font-mono">{activeAccount.name}</span></p>}
+                {!isAdmin && <p className="text-xs text-slate-400 mt-1">{t('filtered_for')} <span className="text-indigo-400 font-bold font-mono">{activeAccount.name}</span></p>}
               </div>
 
               {/* Quick totals chips */}
@@ -1509,6 +1527,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Render PREMIUM trailing custom cursor, interactive 3D card tilts, scroll reveals and count stats */}
+      <CustomEffects />
 
     </div>
   );
