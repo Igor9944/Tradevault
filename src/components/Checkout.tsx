@@ -25,14 +25,10 @@ export default function Checkout({
   const [network, setNetwork] = useState<'TRC20' | 'BEP20'>('TRC20');
   const [copied, setCopied] = useState(false);
   const [proofFile, setProofFile] = useState<string | null>(null);
-  const [step, setStep] = useState<number>(2); // 1: Account (complet), 2: Payment, 3: Access
+  const [step] = useState<number>(2); // 1: Account (complet), 2: Payment, 3: Access
   const [realFileObject, setRealFileObject] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
-
-  // Simulated Timer State
-  const [simulating, setSimulating] = useState(false);
-  const [simProgress, setSimProgress] = useState(10); // 10 seconds count
 
   const WALLETS = {
     TRC20: adminWalletTRC20,
@@ -70,38 +66,6 @@ export default function Checkout({
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  // 10 seconds simulation countdown
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (simulating && simProgress > 0) {
-      interval = setInterval(() => {
-        setSimProgress((prev) => prev - 1);
-      }, 1000);
-    } else if (simulating && simProgress === 0) {
-      setSimulating(false);
-      setStep(3);
-      setTimeout(() => {
-        if (proofFile) {
-          onPaymentSuccess(proofFile, network);
-        } else {
-          // Fallback static placeholder if user didn't upload
-          onPaymentSuccess('placeholder_image', network);
-        }
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [simulating, simProgress, proofFile, network, onPaymentSuccess]);
-
-  const handleSimulatePayment = () => {
-    if (!proofFile) {
-      displayToast('Veuillez d\'abord uploader une capture d\'écran de preuve de paiement !');
-      return;
-    }
-    // Set status to pending in local memory immediately
-    setSimulating(true);
-    setSimProgress(10);
   };
 
   const handleRealSubmit = async () => {
@@ -234,29 +198,6 @@ export default function Checkout({
           </p>
 
           <div className="pt-2 flex flex-col gap-3">
-            {/* Quick Test Bypass feature for the evaluator/grader helper */}
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const { supabase } = await import('../lib/supabase');
-                  await supabase.from('users').update({ status: 'approved', paid: true }).eq('id', user.id);
-                  try {
-                    await supabase.from('profiles').update({ status: 'approved' }).eq('id', user.id);
-                  } catch (e) {
-                    console.log("No profiles table", e);
-                  }
-                  window.location.reload();
-                } catch (e) {
-                  console.error(e);
-                  window.location.reload();
-                }
-              }}
-              className="w-full py-2 bg-indigo-950 hover:bg-indigo-900 border border-indigo-750 text-indigo-300 rounded-xl text-[10px] font-mono uppercase tracking-widest font-bold font-mono transition-all text-center cursor-pointer shadow-lg"
-            >
-              ⚡ [TEST MODE] Activer l'accès instantanément
-            </button>
-
             <button
               type="button"
               onClick={onCancel}
@@ -413,59 +354,31 @@ export default function Checkout({
 
           {/* Action Trigger / Simulator */}
           <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-            {simulating ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2.5 text-indigo-400 text-xs font-bold">
-                  <Loader2 size={16} className="animate-spin text-indigo-400" />
-                  <span>Vérification sur la Blockchain en cours ... ({simProgress}s)</span>
-                </div>
-                <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-indigo-500 transition-all duration-1000" 
-                    style={{ width: `${(10 - simProgress) * 10}%` }}
-                  ></div>
-                </div>
-                <span className="text-[10px] text-slate-500 block text-center font-mono">Consensus {network} node verified</span>
-              </div>
-            ) : step === 3 ? (
-              <div className="text-center p-2 text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 animate-bounce">
-                🎉 TRANSACTION VALIDÉE ! Accès déverrouillé dans 1s ...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  disabled={uploading}
-                  onClick={handleRealSubmit}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00FF9C] to-emerald-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Téléchargement ...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={16} />
-                      <span>Soumettre ma preuve d'abonnement</span>
-                    </>
-                  )}
-                </button>
+            <div className="space-y-3">
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={handleRealSubmit}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00FF9C] to-emerald-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Téléchargement ...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={16} />
+                    <span>Soumettre ma preuve d'abonnement</span>
+                  </>
+                )}
+              </button>
 
-                <button
-                  type="button"
-                  onClick={handleSimulatePayment}
-                  className="w-full py-2.5 rounded-xl border border-slate-800 bg-[#0d0d12]/40 hover:bg-slate-900 text-slate-450 hover:text-white text-xs font-bold font-mono uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Sparkles size={13} /> Option B: Simuler le Checkout (10s)
-                </button>
-
-                <div className="flex justify-between items-center text-[10px] text-slate-500 font-sans pt-1">
-                  <span className="flex items-center gap-1"><ShieldCheck size={12} className="text-slate-400" /> Sécurité cryptée SSL</span>
-                  <span>Validation manuelle requise</span>
-                </div>
+              <div className="flex justify-between items-center text-[10px] text-slate-500 font-sans pt-1">
+                <span className="flex items-center gap-1"><ShieldCheck size={12} className="text-slate-400" /> Sécurité cryptée SSL</span>
+                <span>Validation manuelle requise</span>
               </div>
-            )}
+            </div>
           </div>
 
           <div className="flex gap-2">
