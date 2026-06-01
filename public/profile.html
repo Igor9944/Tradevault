@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TradeVault — Profil & Sécurité</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS SDK CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            syne: ['Syne', 'sans-serif'],
+            mono: ['Space Mono', 'monospace'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            primary: '#00FF9C',
+            accent: '#00D1FF',
+            darkBg: '#020617',
+            navyCard: 'rgba(15, 23, 42, 0.4)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #94a3b8;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 255, 156, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 209, 255, 0.03) 0%, transparent 40%),
+        linear-gradient(rgba(15, 23, 42, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.3) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+    }
+  </style>
+</head>
+<body class="min-h-screen py-8 px-4 font-sans">
+
+  <div class="max-w-4xl mx-auto space-y-6">
+    <!-- Navbar Navigation static mock -->
+    <div class="flex items-center justify-between border-b border-slate-800/80 pb-5 mb-8">
+      <div class="flex items-center gap-3">
+        <span class="text-white font-extrabold font-syne text-lg tracking-wider">TRADE<span class="text-primary">VAULT</span></span>
+        <span class="text-[9px] font-mono bg-white/5 border border-white/10 px-2 py-0.5 rounded font-black tracking-widest uppercase">MOCKUP SETTINGS</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="text-slate-400 hover:text-white transition-colors font-mono text-xs">DASHBOARD</a>
+        <button onclick="signOut()" class="px-3.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-mono border border-red-500/10">DÉCONNEXION</button>
+      </div>
+    </div>
+
+    <!-- Layout structure grids -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Side card metadata profile -->
+      <div class="col-span-1 bg-slate-900/40 border border-slate-800/85 p-6 rounded-2xl backdrop-blur-xl flex flex-col justify-between h-fit gap-6 text-center md:text-left shadow-xl">
+        <div class="space-y-4">
+          <!-- Avatar mock -->
+          <div class="w-20 h-20 bg-gradient-to-tr from-primary to-accent rounded-full border border-slate-800 flex items-center justify-center text-black font-syne font-bold text-3xl mx-auto md:mx-0 shadow-lg">
+            TV
+          </div>
+          <div class="space-y-1">
+            <h3 class="text-lg font-bold text-white font-syne" id="displayName">Trader TradeVault</h3>
+            <p class="text-slate-500 text-xs truncate break-all id" id="displayEmail">trader@example.com</p>
+          </div>
+        </div>
+
+        <div class="p-3.5 bg-black/40 border border-slate-900 rounded-xl space-y-2 text-left font-mono text-xs divide-y divide-slate-950">
+          <div class="flex justify-between py-1.5">
+            <span class="text-slate-500">ABONNEMENT:</span>
+            <span class="text-primary font-bold">PREMIUM</span>
+          </div>
+          <div class="flex justify-between py-1.5">
+            <span class="text-slate-500">STATUT ACCÈS:</span>
+            <span class="text-primary font-black uppercase flex items-center gap-1">🟢 VALIDÉ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main core settings forms -->
+      <div class="col-span-1 md:col-span-2 space-y-6">
+        
+        <!-- General Identity forms -->
+        <div class="bg-slate-900/40 border border-slate-800/85 p-6 rounded-2xl backdrop-blur-xl shadow-xl space-y-4">
+          <h2 class="text-xs font-mono font-bold tracking-widest text-accent uppercase">INFORMATIONS GÉNÉRALES</h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[9px] font-mono text-slate-500 tracking-wider mb-2">NOM DISPENSER</label>
+              <input type="text" id="update-name" disabled class="w-full bg-slate-950/80 border border-slate-800 p-3 text-sm rounded-lg text-slate-400 focus:outline-none cursor-not-allowed" value="Chargement...">
+            </div>
+            <div>
+              <label class="block text-[9px] font-mono text-slate-500 tracking-wider mb-2">PAYS PRÉFÉRÉ</label>
+              <input type="text" id="update-country" disabled class="w-full bg-slate-950/80 border border-slate-800 p-3 text-sm rounded-lg text-slate-400 focus:outline-none cursor-not-allowed" value="France (FR)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Security and Identity linking section requested -->
+        <div class="bg-slate-900/40 border border-slate-800/85 p-6 rounded-2xl backdrop-blur-xl shadow-xl space-y-6">
+          <div>
+            <h2 class="text-xs font-mono font-bold tracking-widest text-[#00FF9C] uppercase mb-1">SÉCURITÉ & AUTHENTIFICATION</h2>
+            <p class="text-xs text-slate-400 leading-relaxed font-sans">
+              Gérez les méthodes d'accès reliées à votre identifiant unique TradeVault.
+            </p>
+          </div>
+
+          <!-- Google Identity Connection module -->
+          <div class="p-5 bg-slate-950/70 border border-slate-800/70 rounded-xl space-y-4 relative overflow-hidden">
+            <div class="flex items-center justify-between gap-4 border-b border-slate-900 pb-3">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                </svg>
+                <div class="space-y-0.5">
+                  <h4 class="text-xs font-mono font-bold tracking-wider text-white">LIER MON COMPTE GOOGLE</h4>
+                  <p class="text-[10px] text-slate-500 font-sans">Permet la connexion rapide d'un seul clic via Google OAuth.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status connected identity state -->
+            <div id="identity-status-container" class="space-y-3">
+              <!-- Dynamically injected view -->
+              <p class="text-[11px] text-slate-400 font-sans">
+                Vérification de l'état des intégrations de sécurité...
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Supabase configuration
+    const finalUrl = 'https://bbolxwrtunedstpazykr.supabase.co';
+    let supabase;
+    try {
+      const storedUrl = localStorage.getItem('supabase_url') || finalUrl;
+      supabase = supabase.createClient(
+        import.meta?.env?.VITE_SUPABASE_URL || storedUrl || finalUrl, 
+        import.meta?.env?.VITE_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+      );
+    } catch (e) {
+      console.warn("Supabase initialization fell back:", e);
+    }
+
+    async function checkIdentity() {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert("Session expirée ! Veuillez vous reconnecter.");
+        window.location.href = "login.html";
+        return;
+      }
+
+      // Pre-fill display infos
+      document.getElementById('displayEmail').innerText = user.email;
+      document.getElementById('update-name').value = user.email.split('@')[0].toUpperCase();
+
+      // Check users database table for name
+      try {
+        const { data: uData } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle();
+        if (uData && uData.username) {
+          document.getElementById('displayName').innerText = uData.username;
+          document.getElementById('update-name').value = uData.username;
+        }
+      } catch (err) {}
+
+      // Identify linked providers inside active user identities array
+      const identities = user.identities || [];
+      const googleIdentity = identities.find(id => id.provider === 'google');
+      
+      const container = document.getElementById('identity-status-container');
+      
+      if (googleIdentity) {
+        // Linked Identity active template
+        const emailLinked = googleIdentity.identity_data?.email || user.email;
+        container.innerHTML = `
+          <div class="p-3.5 bg-primary/10 border border-primary/20 text-primary rounded-lg flex items-center justify-between gap-3 text-xs">
+            <span class="font-sans font-medium flex items-center gap-1.5">
+              ✅ Compte Google lié : <strong class="text-white select-all underline font-semibold">${emailLinked}</strong>
+            </span>
+            <span class="text-[9px] font-mono uppercase bg-primary/10 px-2 py-0.5 rounded font-black tracking-widest text-[#00FF9C]">ACTIF</span>
+          </div>
+          <p class="text-[10px] text-slate-500 font-sans italic pt-1">
+            Félicitations ! Vous pouvez désormais faire usage du bouton "Google" sur la page de connexion login.html pour vous authentifier d'un clic.
+          </p>
+        `;
+      } else {
+        // Link action button trigger
+        container.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 px-4 py-3 border border-slate-800 rounded-lg">
+            <span class="text-xs text-slate-400 font-sans">Aucun authentifiant Google n'est actuellement relié.</span>
+            <button onclick="linkGoogleAccount()" id="btn-link"
+              class="glow-box py-2 px-3.5 bg-primary hover:bg-[#00D1FF] text-black hover:text-black font-mono font-bold tracking-widest text-[9px] uppercase rounded-lg active:scale-95 transition-all cursor-pointer">
+              LIER MON COMPTE GOOGLE
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    async function linkGoogleAccount() {
+      const btnLink = document.getElementById('btn-link');
+      if (btnLink) {
+        btnLink.disabled = true;
+        btnLink.innerText = "CONNEXION GOOGLE...";
+      }
+      
+      try {
+        // Supabase link identities method as instructed
+        const { data, error } = await supabase.auth.linkIdentity({ provider: 'google' });
+        if (error) {
+          throw error;
+        }
+      } catch (err) {
+        alert("Échec de liaison d'identité : " + err.message);
+        if (btnLink) {
+          btnLink.disabled = false;
+          btnLink.innerText = "LIER MON COMPTE GOOGLE";
+        }
+      }
+    }
+
+    async function signOut() {
+      await supabase.auth.signOut();
+      sessionStorage.removeItem('tv_current_user');
+      window.location.href = "login.html";
+    }
+
+    // Call on load
+    window.addEventListener('load', checkIdentity);
+  </script>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TradeVault — Inscription Premium</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS SDK CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            syne: ['Syne', 'sans-serif'],
+            mono: ['Space Mono', 'monospace'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            primary: '#00FF9C',
+            accent: '#00D1FF',
+            darkBg: '#020617',
+            navyCard: 'rgba(15, 23, 42, 0.4)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #94a3b8;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 255, 156, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 209, 255, 0.03) 0%, transparent 40%),
+        linear-gradient(rgba(15, 23, 42, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.3) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+    }
+    .neon-border {
+      box-shadow: 0 0 20px rgba(0, 255, 156, 0.05);
+      border: 1px solid rgba(0, 255, 156, 0.1);
+    }
+    .neon-border:focus-within {
+      box-shadow: 0 0 30px rgba(0, 255, 156, 0.15);
+      border-color: rgba(0, 255, 156, 0.4);
+    }
+    .glowing-btn {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glowing-btn::after {
+      content: '';
+      position: absolute;
+      top: -50%; right: -50%; bottom: -50%; left: -50%;
+      background: radial-gradient(circle, rgba(0, 255, 156, 0.2) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .glowing-btn:hover::after {
+      opacity: 1;
+    }
+    .loader {
+      border: 2px solid rgba(0, 255, 156, 0.1);
+      border-top: 2px solid #00FF9C;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 antialiased">
+
+  <div class="w-full max-w-xl my-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-3 text-[10px] tracking-widest font-mono font-bold text-slate-400">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+        TRADEVAULT GATEWAY PRO
+      </div>
+      <h1 class="text-3xl md:text-4xl font-extrabold font-syne text-white tracking-tight mb-2">
+        DEVENIR TRADER <span class="text-primary italic">PREMIUM</span>
+      </h1>
+      <p class="text-slate-400 text-sm max-w-sm mx-auto font-sans">
+        Remplissez votre dossier d'adhésion immédiat et uploadez votre preuve de virement.
+      </p>
+    </div>
+
+    <!-- Main Card -->
+    <div id="form-container" class="bg-slate-900/45 border border-slate-800/80 rounded-2xl p-6 md:p-8 backdrop-blur-xl shadow-2xl relative">
+      <form id="register-form" class="space-y-6">
+        
+        <!-- Nom Complet -->
+        <div>
+          <label class="block text-[10px] font-mono font-bold tracking-widest text-[#00D1FF] uppercase mb-2">1. NOM COMPLET</label>
+          <div class="relative rounded-xl border border-slate-800 bg-slate-950/80 transition-all focus-within:border-primary/50">
+            <input type="text" id="fullname" required placeholder="ex: Jean Dupont"
+              class="w-full bg-transparent px-4 py-3.5 text-sm text-white font-sans placeholder-slate-600 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="block text-[10px] font-mono font-bold tracking-widest text-[#00D1FF] uppercase mb-2">2. ADRESSE E-MAIL</label>
+          <div class="relative rounded-xl border border-slate-800 bg-slate-950/80 transition-all focus-within:border-primary/50">
+            <input type="email" id="email" required placeholder="ex: jean.dupont@gmail.com"
+              class="w-full bg-transparent px-4 py-3.5 text-sm text-white font-sans placeholder-slate-600 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-[10px] font-mono font-bold tracking-widest text-[#00D1FF] uppercase mb-2">3. MOT DE PASSE DE SÉCURITÉ</label>
+          <div class="relative rounded-xl border border-slate-800 bg-slate-950/80 transition-all focus-within:border-primary/50">
+            <input type="password" id="password" required placeholder="Minimum 6 caractères"
+              class="w-full bg-transparent px-4 py-3.5 text-sm text-white font-sans placeholder-slate-600 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- USDT Payment Panel -->
+        <div class="p-5 bg-slate-950/90 rounded-xl border border-slate-800/80 space-y-4">
+          <div class="flex justify-between items-center pb-2 border-b border-slate-900">
+            <span class="text-[10px] font-mono font-bold tracking-widest text-[#00FF9C] uppercase">4. INSTRUCTIONS DE PAIEMENT</span>
+            <span class="px-2 py-0.5 bg-[#00FF9C]/10 border border-[#00FF9C]/20 text-primary text-[10px] font-mono rounded font-bold">30 USDT (3 Mois)</span>
+          </div>
+          
+          <p class="text-[11px] text-slate-400 font-sans leading-relaxed">
+            Pour valider votre adhésion, effectuez un versement de <strong class="text-white">30 USDT</strong> à l'adresse ci-dessous correspondante, puis insérez la capture de confirmation.
+          </p>
+
+          <!-- Network selector tabs -->
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="tab-trc" onclick="selectNetwork('TRC20')"
+              class="py-2.5 px-3 rounded-lg border border-[#00FF9C]/30 bg-[#00FF9C]/5 text-primary text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center">
+              🟢 USDT TRC20 (Tron)
+            </button>
+            <button type="button" id="tab-bep" onclick="selectNetwork('BEP20')"
+              class="py-2.5 px-3 rounded-lg border border-slate-800 bg-transparent text-slate-400 text-[10px] font-mono transition-all tracking-wider text-center">
+              🟡 USDT BEP20 (BSC)
+            </button>
+          </div>
+
+          <!-- Network Address -->
+          <div class="bg-black/60 p-3 rounded-lg border border-slate-900 flex items-center justify-between gap-3 font-mono text-xs">
+            <div class="truncate select-all text-slate-300 pr-2 cursor-pointer transition-colors hover:text-white" id="usdt-address">
+              TXFk9hYsmD9P2v7Z1u2sMv8sP7WqR6TzXh
+            </div>
+            <button type="button" onclick="copyAddress()" 
+              class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white flex items-center justify-center rounded transition-all font-bold text-[10px]">
+              COPIER
+            </button>
+          </div>
+        </div>
+
+        <!-- File upload -->
+        <div>
+          <label class="block text-[10px] font-mono font-bold tracking-widest text-[#00D1FF] uppercase mb-2">5. TRANSMETTRE LA CAPTURE DE PREUVE</label>
+          <div id="dropzone" 
+            class="border-2 border-dashed border-slate-800 hover:border-primary/40 bg-slate-950/40 hover:bg-slate-950/70 p-6 rounded-xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2">
+            <svg class="w-8 h-8 text-slate-600 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            <span class="text-xs text-slate-300 font-sans" id="file-label-text">
+              <strong class="text-primary">Glissez votre screenshot</strong> ou cliquez pour l'importer
+            </span>
+            <span class="text-[9px] text-slate-500 font-mono">Format PNG, JPG ou JPEG accepté</span>
+            <input type="file" id="proof-upload" accept="image/*" required class="hidden">
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btn-submit"
+          class="w-full py-4 bg-white text-black hover:bg-primary font-mono font-bold tracking-widest text-[10px] rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-primary/20 active:scale-95 cursor-pointer uppercase">
+          INSCRIVEZ MON COMPTE &lt;PRO/&gt;
+        </button>
+
+        <div class="text-center pt-2">
+          <p class="text-xs text-slate-500 font-sans">
+            Vous possèdez un compte ? <a href="login.html" class="text-primary hover:underline">Se connecter</a>
+          </p>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Pending / Success view -->
+    <div id="pending-container" class="hidden bg-slate-900/40 border border-amber-500/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl shadow-2xl relative text-center space-y-6">
+      <div class="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 font-bold mx-auto text-2xl animate-spin-slow">
+        ⌛
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-xl font-bold text-white uppercase font-mono tracking-widest text-amber-500">
+          Demande d'accès en cours
+        </h2>
+        <p class="text-slate-400 text-xs font-sans leading-relaxed max-w-sm mx-auto">
+          Votre paiement de <span class="text-white font-semibold">30 USDT</span> est intercepté ! Nos administrateurs finalisent la validation manuelle de vos accès. Vous serez notifié par e-mail dans environ <span class="text-primary font-medium">5 minutes</span>.
+        </p>
+      </div>
+
+      <div class="bg-black/60 p-4 rounded-xl border border-slate-800/60 text-left font-mono text-[11px] text-slate-300 divide-y divide-slate-900">
+        <div class="flex justify-between py-2">
+          <span class="text-slate-500">NOM/PSEUDO :</span>
+          <span class="text-white font-bold" id="res-username">-</span>
+        </div>
+        <div class="flex justify-between py-2">
+          <span class="text-slate-500">ADRESSE EMAIL :</span>
+          <span class="text-white font-bold break-all" id="res-email">-</span>
+        </div>
+        <div class="flex justify-between py-2">
+          <span class="text-slate-500">STATUT D'ACCÈS :</span>
+          <span class="text-amber-500 font-black tracking-wider uppercase">⏳ EN ATTENTE D'AUDIT</span>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-500 font-sans">
+        Vous pouvez fermer cet onglet en toute sérénité ou retourner à l'accueil.
+      </p>
+
+      <div class="pt-2">
+        <a href="index.html" class="inline-flex py-3 px-6 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-mono tracking-widest uppercase transition-all">
+          Retourner à l'accueil
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Supabase configuration from environment or direct input
+    const SUPABASE_URL = window.localStorage.getItem('tv_supabase_url') || window.location.origin.includes('localhost') ? 'https://bbolxwrtunedstpazykr.supabase.co' : window.location.origin.replace('.netlify.app', '.supabase.co');
+    const SUPABASE_ANON_KEY = window.localStorage.getItem('tv_supabase_anon_key') || ''; // Add default configuration detection
+    
+    // Fallback if not configured, we inspect standard configuration
+    const finalUrl = 'https://bbolxwrtunedstpazykr.supabase.co';
+    const finalAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJib2x4d3J0dW5lZHN0cGF6eWtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU5Nzg4ODgsImV4cCI6MjAzMTU1NDg4OH0.something'; // Dynamic override
+    
+    // Let's grab supabase instance
+    let supabase;
+    try {
+      const storedUrl = localStorage.getItem('supabase_url') || finalUrl;
+      const storedKey = localStorage.getItem('supabase_anon_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'; // Stub or real
+      supabase = supabase.createClient(
+        import.meta?.env?.VITE_SUPABASE_URL || storedUrl || finalUrl, 
+        import.meta?.env?.VITE_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+      );
+    } catch (e) {
+      console.warn("Supabase initialization fell back:", e);
+    }
+
+    // Network Addresses
+    const ADDRESSES = {
+      TRC20: 'TXFk9hYsmD9P2v7Z1u2sMv8sP7WqR6TzXh',
+      BEP20: '0xB0826955D11D447701725abFDe9EBE67C2C0727A'
+    };
+
+    let selectedNetwork = 'TRC20';
+    let uploadedFile = null;
+
+    // Selector network
+    function selectNetwork(net) {
+      selectedNetwork = net;
+      const tabTrc = document.getElementById('tab-trc');
+      const tabBep = document.getElementById('tab-bep');
+      const addrDiv = document.getElementById('usdt-address');
+
+      if (net === 'TRC20') {
+        tabTrc.className = "py-2.5 px-3 rounded-lg border border-[#00FF9C]/30 bg-[#00FF9C]/5 text-primary text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center";
+        tabBep.className = "py-2.5 px-3 rounded-lg border border-slate-800 bg-transparent text-slate-400 text-[10px] font-mono transition-all tracking-wider text-center";
+        addrDiv.innerText = ADDRESSES.TRC20;
+      } else {
+        tabBep.className = "py-2.5 px-3 rounded-lg border border-[#00D1FF]/30 bg-[#00D1FF]/5 text-accent text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center";
+        tabTrc.className = "py-2.5 px-3 rounded-lg border border-slate-800 bg-transparent text-slate-400 text-[10px] font-mono transition-all tracking-wider text-center";
+        addrDiv.innerText = ADDRESSES.BEP20;
+      }
+    }
+
+    // Check if parameters are passed from login redirect
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const emailParam = urlParams.get('email');
+      
+      if (emailParam) {
+        document.getElementById('email').value = emailParam;
+      }
+    });
+
+    // Copy Address
+    function copyAddress() {
+      const addressText = document.getElementById('usdt-address').innerText;
+      navigator.clipboard.writeText(addressText);
+      alert('Adresse copiée avec succès !');
+    }
+
+    // Dropzone inputs
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('proof-upload');
+    const labelText = document.getElementById('file-label-text');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('border-primary/60');
+      dropzone.classList.add('bg-slate-950/80');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('border-primary/60');
+      dropzone.classList.remove('bg-slate-950/80');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-primary/60');
+      dropzone.classList.remove('bg-slate-950/80');
+      if (e.dataTransfer.files.length > 0) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    function handleFileSelect(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Veuillez sélectionner un fichier image valide.');
+        return;
+      }
+      uploadedFile = file;
+      labelText.innerHTML = `Fichier sélectionné : <strong class="text-primary">${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+    }
+
+    // Submit handler
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const fullname = document.getElementById('fullname').value.trim();
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      const password = document.getElementById('password').value;
+      const btnSubmit = document.getElementById('btn-submit');
+
+      if (!fullname || !email || !password) {
+        alert('Veuillez remplir tous les champs requis.');
+        return;
+      }
+
+      if (!uploadedFile) {
+        alert('Veuillez importer votre preuve de paiement.');
+        return;
+      }
+
+      // Start loader
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = `<div class="loader"></div> RETOUR DE SUPABASE...`;
+
+      try {
+        // 1. Sign Up user
+        const { data: authData, error: authErr } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: fullname
+            }
+          }
+        });
+
+        if (authErr) {
+          throw new Error('Échec d\'authentification : ' + authErr.message);
+        }
+
+        const user = authData.user;
+        if (!user) {
+          throw new Error('Identifiant utilisateur introuvable.');
+        }
+
+        // 2. Upload capture to the buckets
+        const fileExt = uploadedFile.name.split('.').pop();
+        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+        
+        const { error: uploadErr } = await supabase.storage
+          .from('preuves-paiement')
+          .upload(fileName, uploadedFile);
+
+        if (uploadErr) {
+          console.warn("Storage warning :", uploadErr.message);
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('preuves-paiement')
+          .getPublicUrl(fileName);
+        
+        const publicUrl = publicUrlData?.publicUrl || '';
+
+        // 3. Update/upsert profile table user
+        try {
+          await supabase.from('users').upsert({
+            id: user.id,
+            email: email,
+            username: fullname,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          });
+        } catch (dbErr) {
+          console.warn("Table users upsert skipped :", dbErr);
+        }
+
+        try {
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            email: email,
+            full_name: fullname,
+            status: 'pending',
+            payment_proof: publicUrl,
+            created_at: new Date().toISOString()
+          });
+        } catch (dbErr) {
+          console.warn("Table profiles upsert skipped :", dbErr);
+        }
+
+        // 4. Insert Payments tracking
+        try {
+          await supabase.from('payments').insert([{
+            user_id: user.id,
+            amount: 30,
+            proof_url: publicUrl,
+            proof_file_url: publicUrl,
+            network: selectedNetwork,
+            status: 'pending'
+          }]);
+        } catch (payErr) {
+          console.warn("Payments insert skipped :", payErr);
+        }
+
+        // 5. Trigger Edge Function Notification E-mail
+        try {
+          const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL || localStorage.getItem('supabase_url') || finalUrl;
+          const supabaseAnonKey = import.meta?.env?.VITE_SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+          
+          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseAnonKey}`
+            },
+            body: JSON.stringify({
+              type: 'registration_pending',
+              user: { name: fullname, email: email },
+              context: { paymentProof: publicUrl }
+            })
+          });
+        } catch (edgeErr) {
+          console.warn("Trigger email send-email warning:", edgeErr);
+        }
+
+        // 6. Succès ! Afficher l'état en attente de validation
+        document.getElementById('res-username').innerText = fullname;
+        document.getElementById('res-email').innerText = email;
+        
+        document.getElementById('form-container').classList.add('hidden');
+        document.getElementById('pending-container').classList.remove('hidden');
+
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Une exception s\'est produite.');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `INSCRIVEZ MON COMPTE &lt;PRO/&gt;`;
+      }
+    });
+  </script>
+</body>
+</html>
