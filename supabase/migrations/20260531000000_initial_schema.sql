@@ -60,9 +60,20 @@ CREATE TABLE IF NOT EXISTS public.payments (
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
   payment_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   amount NUMERIC NOT NULL,
-  proof_file_url TEXT NOT NULL,
+  proof_file_url TEXT,
+  proof_url TEXT,
   network TEXT NOT NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected'))
+);
+
+-- 6. Table profiles (authentification et audit additionnel)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  payment_proof TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Sécurité Row Level Security (RLS)
@@ -71,6 +82,7 @@ ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Politiques de base (chaque utilisateur voit uniquement ses propres données)
 DROP POLICY IF EXISTS "Les utilisateurs voient leurs propres infos" ON public.users;
@@ -78,6 +90,9 @@ CREATE POLICY "Les utilisateurs voient leurs propres infos" ON public.users FOR 
 
 DROP POLICY IF EXISTS "Les utilisateurs modifient leurs propres infos" ON public.users;
 CREATE POLICY "Les utilisateurs modifient leurs propres infos" ON public.users FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs profils" ON public.profiles;
+CREATE POLICY "Les utilisateurs gèrent leurs profils" ON public.profiles FOR ALL USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs comptes" ON public.accounts;
 CREATE POLICY "Les utilisateurs gèrent leurs comptes" ON public.accounts FOR ALL USING (auth.uid() = user_id);
