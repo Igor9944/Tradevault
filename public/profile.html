@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TradeVault — Profil & Sécurité</title>
+  <title>TradeVault — Profil &amp; Sécurité</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&amp;family=Space+Mono:wght@400;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase JS SDK CDN -->
@@ -57,13 +57,13 @@
       </div>
       <div class="flex items-center gap-4">
         <a href="index.html" class="text-slate-400 hover:text-white transition-colors font-mono text-xs">DASHBOARD</a>
-        <button onclick="signOut()" class="px-3.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-mono border border-red-500/10">DÉCONNEXION</button>
+        <button type="button" onclick="signOut()" class="px-3.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-mono border border-red-500/10">DÉCONNEXION</button>
       </div>
     </div>
 
     <!-- Layout structure grids -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      
+
       <!-- Side card metadata profile -->
       <div class="col-span-1 bg-slate-900/40 border border-slate-800/85 p-6 rounded-2xl backdrop-blur-xl flex flex-col justify-between h-fit gap-6 text-center md:text-left shadow-xl">
         <div class="space-y-4">
@@ -91,11 +91,11 @@
 
       <!-- Main core settings forms -->
       <div class="col-span-1 md:col-span-2 space-y-6">
-        
+
         <!-- General Identity forms -->
         <div class="bg-slate-900/40 border border-slate-800/85 p-6 rounded-2xl backdrop-blur-xl shadow-xl space-y-4">
           <h2 class="text-xs font-mono font-bold tracking-widest text-accent uppercase">INFORMATIONS GÉNÉRALES</h2>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-[9px] font-mono text-slate-500 tracking-wider mb-2">NOM DISPENSER</label>
@@ -111,7 +111,7 @@
         <!-- Security and Identity linking section requested -->
         <div class="bg-slate-900/40 border border-slate-800/85 p-6 rounded-2xl backdrop-blur-xl shadow-xl space-y-6">
           <div>
-            <h2 class="text-xs font-mono font-bold tracking-widest text-[#00FF9C] uppercase mb-1">SÉCURITÉ & AUTHENTIFICATION</h2>
+            <h2 class="text-xs font-mono font-bold tracking-widest text-[#00FF9C] uppercase mb-1">SÉCURITÉ &amp; AUTHENTIFICATION</h2>
             <p class="text-xs text-slate-400 leading-relaxed font-sans">
               Gérez les méthodes d'accès reliées à votre identifiant unique TradeVault.
             </p>
@@ -121,7 +121,7 @@
           <div class="p-5 bg-slate-950/70 border border-slate-800/70 rounded-xl space-y-4 relative overflow-hidden">
             <div class="flex items-center justify-between gap-4 border-b border-slate-900 pb-3">
               <div class="flex items-center gap-2">
-                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" focusable="false">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
