@@ -92,6 +92,7 @@ DROP POLICY IF EXISTS "Les utilisateurs modifient leurs propres infos" ON public
 CREATE POLICY "Les utilisateurs modifient leurs propres infos" ON public.users FOR UPDATE USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs profils" ON public.profiles;
+DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs profils" ON profiles;
 CREATE POLICY "Les utilisateurs gèrent leurs profils" ON public.profiles FOR ALL USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Les utilisateurs gèrent leurs comptes" ON public.accounts;
