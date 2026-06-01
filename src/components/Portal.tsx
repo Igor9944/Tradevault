@@ -377,6 +377,7 @@ export default function Portal({
   // Forms state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   const [regUsername, setRegUsername] = useState('');
@@ -530,9 +531,11 @@ export default function Portal({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginLoading(true);
     const identifier = loginEmail.trim().toLowerCase();
     if (!identifier || !loginPassword) {
       displayToast('Veuillez remplir tous les champs', 'error');
+      setLoginLoading(false);
       return;
     }
 
@@ -552,6 +555,7 @@ export default function Portal({
       };
       onLoginSuccess(adminAcc);
       displayToast('Connexion Admin réussie !', 'success');
+      setLoginLoading(false);
       return;
     }
 
@@ -560,14 +564,17 @@ export default function Portal({
       if (res.success && res.user) {
         if (res.user.status === 'pending') {
           displayToast('Votre inscription est en attente de validation.', 'info');
+          setLoginLoading(false);
           return;
         }
         if (res.user.status === 'rejected') {
           displayToast('Votre inscription a été rejetée.', 'error');
+          setLoginLoading(false);
           return;
         }
         onLoginSuccess(res.user);
         displayToast('Connexion réussie via Supabase ! Code pro validé.', 'success');
+        setLoginLoading(false);
         return;
       } else {
         const matchedUser = users.find(u => 
@@ -579,26 +586,24 @@ export default function Portal({
           if (matchedUser.password === loginPassword) {
             if (matchedUser.status === 'pending') {
               displayToast('Inscription en attente de vérification.', 'info');
-              return;
-            }
-            if (matchedUser.status === 'rejected') {
+            } else if (matchedUser.status === 'rejected') {
               displayToast('Cette inscription a été rejetée.', 'error');
-              return;
+            } else {
+              onLoginSuccess(matchedUser);
+              displayToast('Connexion réussie (Fallback Local) !', 'success');
             }
-            onLoginSuccess(matchedUser);
-            displayToast('Connexion réussie (Fallback Local) !', 'success');
-            return;
           } else {
             displayToast('Mot de passe incorrect.', 'error');
-            return;
           }
+        } else {
+          displayToast(res.error || 'Identifiants incorrects ou compte introuvable.', 'error');
         }
-        
-        displayToast(res.error || 'Identifiants incorrects ou compte introuvable.', 'error');
+        setLoginLoading(false);
       }
     } catch (err: any) {
       console.error(err);
       displayToast("Erreur de connexion.", 'error');
+      setLoginLoading(false);
     }
   };
 
@@ -1062,9 +1067,10 @@ export default function Portal({
 
                   <button
                     type="submit"
-                    className="w-full py-4 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6"
+                    disabled={loginLoading}
+                    className="w-full py-4 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6 disabled:opacity-50"
                   >
-                    IDENTIFIER MON COMPTE <ArrowRight size={13} />
+                    {loginLoading ? "CHARGEMENT..." : <>IDENTIFIER MON COMPTE <ArrowRight size={13} /></>}
                   </button>
                 </form>
 
