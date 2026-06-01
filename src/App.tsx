@@ -653,8 +653,10 @@ export default function App() {
 
     setPaymentRequests(prev => [...prev, newRequest]);
     
-    setCurrentScreen('app');
-    setActiveTab('dashboard');
+    // We update the user status to pending so the checkout component handlePending logic takes over
+    setCurrentUser(prev => prev ? { ...prev, status: 'pending' } : null);
+    setCurrentScreen('login_portal');
+    
     customAlert("Paiement Transmis", `Preuve de versement USDT transmise avec succès !\n\nVos accès Premium seront mis à jour (prolongation de 30 jours) dès validation manuelle.`);
 
     import('./utils/notificationService').then(({ sendPushNotification }) => {
