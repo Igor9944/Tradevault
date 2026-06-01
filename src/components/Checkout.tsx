@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Check, Upload, ArrowRight, ShieldCheck, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { registerPayment } from '../utils/supabaseSync';
 import { User } from '../types';
 import { UsdtTrc20Icon, UsdtBep20Icon } from './Portal';
 
@@ -130,7 +131,13 @@ export default function Checkout({
       console.warn("Database sync dynamic import failed:", e);
     }
 
-        // 3. Trigger edge functions email
+        try {
+      await registerPayment(user.id, subscriptionPrice, publicUrl);
+    } catch (e) {
+      console.warn("Payment registration failed:", e);
+    }
+
+    // 3. Trigger edge functions email
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";

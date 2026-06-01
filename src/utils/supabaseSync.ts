@@ -577,31 +577,37 @@ export async function deleteChallengeFromSupabase(challengeId: string): Promise<
 }
 
 export async function savePaymentToSupabase(userId: string, payment: PaymentRequest): Promise<void> {
-  const safeUserId = ensureUUID(userId);
   const safeId = ensureUUID(payment.id);
   const row = {
-    id: safeId,
-    user_id: safeUserId,
-    amount: payment.amount,
-    proof_file_url: payment.proofScreenshot,
-    network: payment.network,
     status: payment.status
   };
 
   try {
-    await supabase.from('payments').upsert(row);
+    await supabase.from('payments').update(row).eq('id', safeId);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] savePaymentToSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("savePayment", { row });
-      } catch (proxyErr) {
-        console.error("Proxy savePayment failed:", proxyErr);
-      }
-    } else {
-      console.error("savePaymentToSupabase error:", err);
+    console.error("savePaymentToSupabase update error:", err);
+  }
+}
+
+export async function registerPayment(userId: string, amount: number, proofUrl: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('payments')
+      .insert([{
+        user_id: ensureUUID(userId),
+        amount: amount,
+        proof_url: proofUrl,
+        status: 'pending'
+      }]);
+
+    if (error) {
+      console.error("Erreur paiement :", error.message);
+      return false;
     }
+    return true;
+  } catch (err) {
+    console.error("Erreur paiement exception :", err);
+    return false;
   }
 }
 

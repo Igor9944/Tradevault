@@ -451,7 +451,9 @@ export default function App() {
                 setCurrentUser(res.user);
                 
                 // Navigate screen
-                setCurrentScreen(res.user.paid ? 'app' : 'checkout');
+                // Ensure the user must be paid AND approved to enter the dashboard
+                const canAccessApp = res.user.paid && res.user.status === 'approved';
+                setCurrentScreen(canAccessApp ? 'app' : 'checkout');
                 
                 (window as any).showCustomAlert?.('Succès', 'Connexion Google réussie !');
               } else {
@@ -655,7 +657,7 @@ export default function App() {
     
     // We update the user status to pending so the checkout component handlePending logic takes over
     setCurrentUser(prev => prev ? { ...prev, status: 'pending' } : null);
-    setCurrentScreen('login_portal');
+    setCurrentScreen('checkout');
     
     customAlert("Paiement Transmis", `Preuve de versement USDT transmise avec succès !\n\nVos accès Premium seront mis à jour (prolongation de 30 jours) dès validation manuelle.`);
 
@@ -669,7 +671,9 @@ export default function App() {
   };
 
   const handleCheckoutCancel = () => {
-    setCurrentScreen('app');
+    sessionStorage.removeItem('tv_current_user');
+    setCurrentUser(null);
+    setCurrentScreen('login_portal');
   };
 
   // Switch accounts list
@@ -984,16 +988,6 @@ export default function App() {
                       ))}
                     </select>
                     {/* Add account button removed as per user request */}
-                    {accounts.length > 1 && selectedAccountId !== 'personal' && selectedAccountId !== 'ftmo-100k' && (
-                      <button
-                        type="button"
-                        onClick={() => { customConfirm('Supprimer Portefeuille', 'Supprimer ce portefeuille et toutes ses données associées ?', () => handleDeleteAccount(selectedAccountId)); }}
-                        className="w-7 h-7 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 flex items-center justify-center rounded-lg shadow shrink-0 text-xs font-bold"
-                        title="Supprimer le portefeuille actif"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    )}
                   </div>
                 </div>
               )}

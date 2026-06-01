@@ -27,7 +27,7 @@ Vous pouvez copier et coller ces codes directement dans votre console **Supabase
   <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; text-align: center; font-weight: 800; letter-spacing: -0.5px;">Bienvenue dans l'Élite du Trading ! ⚡</h2>
   
   <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 24px;">
-    Merci d'avoir initié votre inscription sur TradeVault Pro. Pour valider définitivement votre compte trader et débloquer vos accès, veuillez confirmer votre adresse e-mail.
+    Bienvenue {{user_name}}, merci d'avoir initié votre inscription sur TradeVault Pro. Pour valider définitivement votre compte trader et débloquer vos accès, veuillez confirmer votre adresse e-mail.
   </p>
 
   <!-- Bouton d'action -->
