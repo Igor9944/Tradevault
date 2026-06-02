@@ -180,27 +180,23 @@ export async function signUpWithSupabase(
 
     return { success: true, user: newUser };
   } catch (clientErr: any) {
-    const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] signUpWithSupabase failed. Routing through Server Proxy...");
-      try {
-        const res = await invokeProxy("signUp", {
-          email,
-          password: regPassword,
-          username: regUsername,
-          country: regCountry,
-          paymentScreenshot,
-          selectedNetwork,
-          subscriptionPrice,
-          regAvatar
-        });
-        return res;
-      } catch (proxyErr: any) {
-        return { success: false, error: proxyErr.message || String(proxyErr) };
-      }
+    console.warn("[CLIENT_ROUTING] signUpWithSupabase client call failed. Routing through Server Proxy...", clientErr);
+    try {
+      const res = await invokeProxy("signUp", {
+        email,
+        password: regPassword,
+        username: regUsername,
+        country: regCountry,
+        paymentScreenshot,
+        selectedNetwork,
+        subscriptionPrice,
+        regAvatar
+      });
+      return res;
+    } catch (proxyErr: any) {
+      console.error("Proxy signUp failed:", proxyErr);
+      return { success: false, error: proxyErr.message || String(proxyErr) };
     }
-    console.error("SignUpWithSupabase error:", clientErr);
-    return { success: false, error: clientErr.message || String(clientErr) };
   }
 }
 
@@ -259,18 +255,14 @@ export async function signInWithSupabase(
 
     return { success: true, user };
   } catch (clientErr: any) {
-    const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] signInWithSupabase failed. Routing through Server Proxy...");
-      try {
-        const res = await invokeProxy("signIn", { email, password: passwordInput });
-        return res;
-      } catch (proxyErr: any) {
-        return { success: false, error: proxyErr.message || String(proxyErr) };
-      }
+    console.warn("[CLIENT_ROUTING] signInWithSupabase client call failed. Routing through Server Proxy...", clientErr);
+    try {
+      const res = await invokeProxy("signIn", { email, password: passwordInput });
+      return res;
+    } catch (proxyErr: any) {
+      console.error("Proxy signIn failed:", proxyErr);
+      return { success: false, error: proxyErr.message || String(proxyErr) };
     }
-    console.error("SignInWithSupabase exception:", clientErr);
-    return { success: false, error: clientErr.message || String(clientErr) };
   }
 }
 
@@ -305,16 +297,11 @@ export async function syncUserProfile(user: User): Promise<void> {
       console.warn("Profiles table double sync failed (ignored):", profErr);
     }
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] syncUserProfile failed. Routing through Server Proxy...");
-      try {
-        await invokeProxy("syncUserProfile", { profile });
-      } catch (proxyErr) {
-        console.error("Proxy syncUserProfile failed:", proxyErr);
-      }
-    } else {
-      console.error("syncUserProfile failed:", err);
+    console.warn("[CLIENT_ROUTING] syncUserProfile client call failed. Routing through Server Proxy...", err);
+    try {
+      await invokeProxy("syncUserProfile", { profile });
+    } catch (proxyErr) {
+      console.error("Proxy syncUserProfile failed:", proxyErr);
     }
   }
 }
@@ -346,9 +333,8 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       challengesRaw = cData || [];
       paymentsRaw = pData || [];
     } catch (clientErr: any) {
-      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-      if (isNetworkError) {
-        console.warn("[CLIENT_BLOCKED] Direct Supabase load failed. Routing to Server Proxy...");
+      console.warn("[CLIENT_ROUTING] Direct Supabase load failed. Routing to Server Proxy...", clientErr);
+      try {
         const res = await invokeProxy("loadUserData", { userId: safeUserId });
         if (res.success && res.data) {
           accountsRaw = res.data.accountsRaw || [];
@@ -356,7 +342,8 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
           challengesRaw = res.data.challengesRaw || [];
           paymentsRaw = res.data.paymentsRaw || [];
         }
-      } else {
+      } catch (proxyErr) {
+        console.error("Proxy loadUserData failed:", proxyErr);
         throw clientErr;
       }
     }
@@ -485,16 +472,11 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
   try {
     await supabase.from('accounts').upsert(row);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] saveAccountToSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("saveAccount", { row });
-      } catch (proxyErr) {
-        console.error("Proxy saveAccount failed:", proxyErr);
-      }
-    } else {
-      console.error("saveAccountToSupabase error:", err);
+    console.warn("[CLIENT_ROUTING] saveAccountToSupabase client call failed. Routing through proxy...", err);
+    try {
+      await invokeProxy("saveAccount", { row });
+    } catch (proxyErr) {
+      console.error("Proxy saveAccount failed:", proxyErr);
     }
   }
 }
@@ -505,16 +487,11 @@ export async function deleteAccountFromSupabase(accountId: string): Promise<void
   try {
     await supabase.from('accounts').delete().eq('id', safeId);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] deleteAccountFromSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("deleteAccount", { userId, accountId: safeId });
-      } catch (proxyErr) {
-        console.error("Proxy deleteAccount failed:", proxyErr);
-      }
-    } else {
-      console.error("deleteAccountFromSupabase error:", err);
+    console.warn("[CLIENT_ROUTING] deleteAccountFromSupabase client call failed. Routing through proxy...", err);
+    try {
+      await invokeProxy("deleteAccount", { userId, accountId: safeId });
+    } catch (proxyErr) {
+      console.error("Proxy deleteAccount failed:", proxyErr);
     }
   }
 }
@@ -539,16 +516,11 @@ export async function saveTradeToSupabase(userId: string, trade: Trade): Promise
   try {
     await supabase.from('trades').upsert(row);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] saveTradeToSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("saveTrade", { row });
-      } catch (proxyErr) {
-        console.error("Proxy saveTrade failed:", proxyErr);
-      }
-    } else {
-      console.error("saveTradeToSupabase error:", err);
+    console.warn("[CLIENT_ROUTING] saveTradeToSupabase client call failed. Routing through proxy...", err);
+    try {
+      await invokeProxy("saveTrade", { row });
+    } catch (proxyErr) {
+      console.error("Proxy saveTrade failed:", proxyErr);
     }
   }
 }
@@ -559,16 +531,11 @@ export async function deleteTradeFromSupabase(tradeId: string): Promise<void> {
   try {
     await supabase.from('trades').delete().eq('id', safeId);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] deleteTradeFromSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("deleteTrade", { userId, tradeId: safeId });
-      } catch (proxyErr) {
-        console.error("Proxy deleteTrade failed:", proxyErr);
-      }
-    } else {
-      console.error("deleteTradeFromSupabase error:", err);
+    console.warn("[CLIENT_ROUTING] deleteTradeFromSupabase client call failed. Routing through proxy...", err);
+    try {
+      await invokeProxy("deleteTrade", { userId, tradeId: safeId });
+    } catch (proxyErr) {
+      console.error("Proxy deleteTrade failed:", proxyErr);
     }
   }
 }
@@ -591,16 +558,11 @@ export async function saveChallengeToSupabase(userId: string, challenge: Challen
   try {
     await supabase.from('challenges').upsert(row);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] saveChallengeToSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("saveChallenge", { row });
-      } catch (proxyErr) {
-        console.error("Proxy saveChallenge failed:", proxyErr);
-      }
-    } else {
-      console.error("saveChallengeToSupabase error:", err);
+    console.warn("[CLIENT_ROUTING] saveChallengeToSupabase client call failed. Routing through proxy...", err);
+    try {
+      await invokeProxy("saveChallenge", { row });
+    } catch (proxyErr) {
+      console.error("Proxy saveChallenge failed:", proxyErr);
     }
   }
 }
@@ -611,16 +573,11 @@ export async function deleteChallengeFromSupabase(challengeId: string): Promise<
   try {
     await supabase.from('challenges').delete().eq('id', safeId);
   } catch (err: any) {
-    const isNetworkError = err.message?.includes('fetch') || String(err).includes('fetch') || err.name === 'TypeError';
-    if (isNetworkError) {
-      console.warn("[CLIENT_BLOCKED] deleteChallengeFromSupabase failed. Routing through proxy...");
-      try {
-        await invokeProxy("deleteChallenge", { userId, challengeId: safeId });
-      } catch (proxyErr) {
-        console.error("Proxy deleteChallenge failed:", proxyErr);
-      }
-    } else {
-      console.error("deleteChallengeFromSupabase error:", err);
+    console.warn("[CLIENT_ROUTING] deleteChallengeFromSupabase client call failed. Routing through proxy...", err);
+    try {
+      await invokeProxy("deleteChallenge", { userId, challengeId: safeId });
+    } catch (proxyErr) {
+      console.error("Proxy deleteChallenge failed:", proxyErr);
     }
   }
 }
@@ -677,14 +634,14 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
       }
       data = directData || [];
     } catch (clientErr: any) {
-      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-      if (isNetworkError) {
-        console.warn("[CLIENT_BLOCKED] adminLoadAllUsersFromSupabase failed. Routing through proxy...");
+      console.warn("[CLIENT_ROUTING] adminLoadAllUsersFromSupabase client call failed. Routing through proxy...", clientErr);
+      try {
         const res = await invokeProxy("adminLoadAllUsers", {});
         if (res.success && res.data) {
           data = res.data;
         }
-      } else {
+      } catch (proxyErr) {
+        console.error("Proxy adminLoadAllUsers failed:", proxyErr);
         throw clientErr;
       }
     }
@@ -716,12 +673,12 @@ export async function adminDeleteUserFromSupabase(userId: string): Promise<boole
       const { error } = await supabase.from('users').delete().eq('id', safeId);
       if (error) throw error;
     } catch (clientErr: any) {
-      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-      if (isNetworkError) {
-        console.warn("[CLIENT_BLOCKED] adminDeleteUserFromSupabase failed. Routing through proxy...");
+      console.warn("[CLIENT_ROUTING] adminDeleteUserFromSupabase client call failed. Routing through proxy...", clientErr);
+      try {
         const res = await invokeProxy("adminDeleteUser", { userId: safeId });
         return res.success;
-      } else {
+      } catch (proxyErr) {
+        console.error("Proxy adminDeleteUser failed:", proxyErr);
         throw clientErr;
       }
     }
@@ -750,12 +707,12 @@ export async function adminUpdateUserFromSupabase(
       const { error } = await supabase.from('users').update(row).eq('id', safeId);
       if (error) throw error;
     } catch (clientErr: any) {
-      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-      if (isNetworkError) {
-        console.warn("[CLIENT_BLOCKED] adminUpdateUserFromSupabase failed. Routing through proxy...");
+      console.warn("[CLIENT_ROUTING] adminUpdateUserFromSupabase client call failed. Routing through proxy...", clientErr);
+      try {
         const res = await invokeProxy("adminUpdateUser", { userId: safeId, ...row });
         return res.success;
-      } else {
+      } catch (proxyErr) {
+        console.error("Proxy adminUpdateUser failed:", proxyErr);
         throw clientErr;
       }
     }
@@ -789,14 +746,14 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
       }
       payments = directData || [];
     } catch (clientErr: any) {
-      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
-      if (isNetworkError) {
-        console.warn("[CLIENT_BLOCKED] adminLoadAllPaymentsFromSupabase failed. Routing through proxy...");
+      console.warn("[CLIENT_ROUTING] adminLoadAllPaymentsFromSupabase client call failed. Routing through proxy...", clientErr);
+      try {
         const res = await invokeProxy("adminLoadAllPayments", {});
         if (res.success && res.data) {
           payments = res.data;
         }
-      } else {
+      } catch (proxyErr) {
+        console.error("Proxy adminLoadAllPayments failed:", proxyErr);
         throw clientErr;
       }
     }
