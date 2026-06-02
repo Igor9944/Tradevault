@@ -10,6 +10,8 @@ export interface User {
   paymentScreenshot?: string; // Base64 representation
   status: 'pending' | 'approved' | 'rejected';
   avatar?: string; // Base64 representation of profile photo
+  googleLinked?: boolean;
+  googleEmail?: string;
 }
 
 export interface Trade {
