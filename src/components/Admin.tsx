@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Users, Check, X, ShieldAlert, Award, Image as ImageIcon, Copy, ArrowRight, Mail } from 'lucide-react';
+import { Settings, Users, Check, X, ShieldAlert, Award, Image as ImageIcon, Copy, ArrowRight, Mail, Trash2, Edit } from 'lucide-react';
 import { User, PaymentRequest } from '../types';
 import { DefaultLogoAvatar } from './Logo';
 import { customAlert, customConfirm } from '../utils/customDialog';
@@ -19,6 +19,8 @@ interface AdminProps {
   onApproveRenewal?: (payId: string) => void;
   onRejectRenewal?: (payId: string) => void;
   onCheckCronRenewals?: () => void;
+  onDeleteUser?: (userId: string) => void;
+  onEditUser?: (userId: string, updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }) => void;
 }
 
 export default function Admin({ 
@@ -35,7 +37,9 @@ export default function Admin({
   paymentRequests = [],
   onApproveRenewal = () => {},
   onRejectRenewal = () => {},
-  onCheckCronRenewals = () => {}
+  onCheckCronRenewals = () => {},
+  onDeleteUser = () => {},
+  onEditUser = () => {}
 }: AdminProps) {
   const [emailsInput, setEmailsInput] = useState(adminEmails);
   const [trcInput, setTrcInput] = useState(adminWalletTRC20);
@@ -43,6 +47,37 @@ export default function Admin({
   const [priceInput, setPriceInput] = useState(subscriptionPrice.toString());
   const [periodInput, setPeriodInput] = useState(subscriptionPeriod.toString());
   const [activeImage, setActiveImage] = useState<string | null>(null);
+
+  // States for inline profile edit
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserStatus, setEditUserStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
+
+  const startEditing = (user: User) => {
+    setEditingUserId(user.id);
+    setEditUserName(user.username || '');
+    setEditUserEmail(user.email || '');
+    setEditUserStatus(user.status || 'pending');
+  };
+
+  const cancelEditing = () => {
+    setEditingUserId(null);
+  };
+
+  const saveEditedUser = (userId: string) => {
+    if (!editUserName.trim() || !editUserEmail.trim()) {
+      customAlert("Erreur", "Le nom d'utilisateur et l'e-mail ne peuvent pas être vides.");
+      return;
+    }
+    onEditUser(userId, {
+      username: editUserName.trim(),
+      email: editUserEmail.trim(),
+      status: editUserStatus
+    });
+    setEditingUserId(null);
+    customAlert("Success", "Profil mis à jour avec succès !");
+  };
 
   const pendingUsers = users.filter(u => u.status === 'pending');
 
@@ -412,12 +447,14 @@ export default function Admin({
                 <th className="p-3">Date d'Inscription</th>
                 <th className="p-3">Abonnement</th>
                 <th className="p-3 text-center">Activité en Direct</th>
+                <th className="p-3 text-center">Actions Administrateur</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/20">
               {users.map((trader) => {
                 // Let's make approved users online, plus the main admin is always online!
                 const isOnline = trader.email === 'admin@tradevault.com' || trader.status === 'approved';
+                const isEditing = trader.id === editingUserId;
                 return (
                   <tr key={trader.id} className="hover:bg-slate-900/30 text-slate-300">
                     <td className="p-3 whitespace-nowrap">
@@ -427,26 +464,60 @@ export default function Admin({
                         ) : (
                           <DefaultLogoAvatar className="w-7 h-7" />
                         )}
-                        <span className="font-bold text-white">{trader.username}</span>
-                        {trader.email === 'admin@tradevault.com' && (
-                          <span className="text-[8.5px] font-bold text-[#00FF9C] bg-[#00FF9C]/10 px-1.5 py-0.5 rounded border border-[#00FF9C]/20 uppercase tracking-widest">Admin</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editUserName}
+                            onChange={(e) => setEditUserName(e.target.value)}
+                            className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[#00FF9C]"
+                          />
+                        ) : (
+                          <>
+                            <span className="font-bold text-white">{trader.username}</span>
+                            {trader.email === 'admin@tradevault.com' && (
+                              <span className="text-[8.5px] font-bold text-[#00FF9C] bg-[#00FF9C]/10 px-1.5 py-0.5 rounded border border-[#00FF9C]/20 uppercase tracking-widest">Admin</span>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
-                    <td className="p-3 text-slate-400 whitespace-nowrap">{trader.email}</td>
+                    <td className="p-3 text-slate-400 whitespace-nowrap">
+                      {isEditing ? (
+                        <input
+                          type="email"
+                          value={editUserEmail}
+                          onChange={(e) => setEditUserEmail(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[#00FF9C] w-48"
+                        />
+                      ) : (
+                        trader.email
+                      )}
+                    </td>
                     <td className="p-3 whitespace-nowrap text-slate-500">
                       {new Date(trader.createdAt).toLocaleDateString()}
                     </td>
                     <td className="p-3 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider ${
-                        trader.status === 'approved' 
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : trader.status === 'pending'
-                          ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
-                      }`}>
-                        {trader.status === 'approved' ? 'Premium Actif' : trader.status === 'pending' ? 'Validation' : 'Bloqué'}
-                      </span>
+                      {isEditing ? (
+                        <select
+                          value={editUserStatus}
+                          onChange={(e) => setEditUserStatus(e.target.value as any)}
+                          className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[#00FF9C]"
+                        >
+                          <option value="pending">Validation</option>
+                          <option value="approved">Premium Actif</option>
+                          <option value="rejected">Bloqué</option>
+                        </select>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider ${
+                          trader.status === 'approved' 
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : trader.status === 'pending'
+                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                            : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
+                        }`}>
+                          {trader.status === 'approved' ? 'Premium Actif' : trader.status === 'pending' ? 'Validation' : 'Bloqué'}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 whitespace-nowrap text-center">
                       <div className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/60 border border-indigo-950/40">
@@ -465,6 +536,53 @@ export default function Admin({
                           </>
                         )}
                       </div>
+                    </td>
+                    <td className="p-3 whitespace-nowrap text-center">
+                      {trader.email === 'admin@tradevault.com' ? (
+                        <span className="text-[10px] text-slate-500 italic font-sans">Compte Système</span>
+                      ) : isEditing ? (
+                        <div className="flex justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => saveEditedUser(trader.id)}
+                            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded text-[10px] font-bold uppercase cursor-pointer"
+                          >
+                            Sauver
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditing}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded text-[10px] cursor-pointer"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => startEditing(trader)}
+                            className="px-2.5 py-1 text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                          >
+                            <Edit size={11} /> Éditer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              customConfirm(
+                                "Supprimer Trader",
+                                `Êtes-vous absolument sûr de vouloir supprimer le profil de "${trader.username}" ? Toutes ses données historiques associées seront purgées.`,
+                                () => {
+                                  onDeleteUser(trader.id);
+                                }
+                              );
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-450 border border-rose-500/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                          >
+                            <Trash2 size={11} /> Supprimer
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

@@ -1,6 +1,45 @@
 import { supabase } from '../lib/supabase';
 import { User, Trade, Account, Challenge, PaymentRequest } from '../types';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+let isSupabaseOnline: boolean | null = null;
+
+/**
+ * Fast client-side connection pre-flight check to see if we can reach Supabase.
+ * Returns false immediately if credentials are empty, and caches negative connection responses
+ * to avoid console noise or delays.
+ */
+export async function checkSupabaseConnection(): Promise<boolean> {
+  if (isSupabaseOnline === false) return false;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    isSupabaseOnline = false;
+    return false;
+  }
+  if (isSupabaseOnline === true) return true;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5s timeout
+    const res = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'GET',
+      headers: { 'apikey': supabaseAnonKey },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok || res.status === 401 || res.status === 400 || res.status === 404) {
+      isSupabaseOnline = true;
+      return true;
+    }
+    isSupabaseOnline = false;
+    return false;
+  } catch (err) {
+    isSupabaseOnline = false;
+    return false;
+  }
+}
+
 // Deterministic UUID validator & mapper to prevent Postgres insert errors
 export function ensureUUID(id: string): string {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -44,7 +83,7 @@ async function invokeProxy(action: string, args: any): Promise<any> {
 
 // Helper to resolve currently logged-in user ID
 function getCurrentUserId(): string {
-  const savedUser = sessionStorage.getItem('tv_current_user');
+  const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
   if (savedUser) {
     try {
       const u = JSON.parse(savedUser);
@@ -72,6 +111,11 @@ export async function signUpWithSupabase(
   const email = regEmail.trim().toLowerCase();
 
   try {
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) {
+      throw new TypeError("Failed to fetch");
+    }
+
     // 1. Try direct client database call
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -170,6 +214,11 @@ export async function signInWithSupabase(
   const email = emailInput.trim().toLowerCase();
 
   try {
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) {
+      throw new TypeError("Failed to fetch");
+    }
+
     // 1. Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -654,6 +703,66 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
   } catch (err) {
     console.error("adminLoadAllUsersFromSupabase error:", err);
     return [];
+  }
+}
+
+/**
+ * Admin action to delete a user profile
+ */
+export async function adminDeleteUserFromSupabase(userId: string): Promise<boolean> {
+  const safeId = ensureUUID(userId);
+  try {
+    try {
+      const { error } = await supabase.from('users').delete().eq('id', safeId);
+      if (error) throw error;
+    } catch (clientErr: any) {
+      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+      if (isNetworkError) {
+        console.warn("[CLIENT_BLOCKED] adminDeleteUserFromSupabase failed. Routing through proxy...");
+        const res = await invokeProxy("adminDeleteUser", { userId: safeId });
+        return res.success;
+      } else {
+        throw clientErr;
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error("adminDeleteUserFromSupabase error:", err);
+    return false;
+  }
+}
+
+/**
+ * Admin action to update a user profile
+ */
+export async function adminUpdateUserFromSupabase(
+  userId: string, 
+  updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }
+): Promise<boolean> {
+  const safeId = ensureUUID(userId);
+  const row = {
+    username: updatedFields.username,
+    email: updatedFields.email,
+    status: updatedFields.status
+  };
+  try {
+    try {
+      const { error } = await supabase.from('users').update(row).eq('id', safeId);
+      if (error) throw error;
+    } catch (clientErr: any) {
+      const isNetworkError = clientErr.message?.includes('fetch') || String(clientErr).includes('fetch') || clientErr.name === 'TypeError';
+      if (isNetworkError) {
+        console.warn("[CLIENT_BLOCKED] adminUpdateUserFromSupabase failed. Routing through proxy...");
+        const res = await invokeProxy("adminUpdateUser", { userId: safeId, ...row });
+        return res.success;
+      } else {
+        throw clientErr;
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error("adminUpdateUserFromSupabase error:", err);
+    return false;
   }
 }
 

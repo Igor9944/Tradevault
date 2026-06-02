@@ -16,13 +16,34 @@ app.use(express.json({ limit: "50mb" })); // Support base64 uploads
 const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 let serverSupabase: any = null;
+let dbReachabilityPromise: Promise<boolean> | null = null;
 
 if (supabaseUrl && supabaseAnonKey) {
   try {
     serverSupabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log("[SERVER_SUPABASE] Initialized successfully");
+    console.log("[SERVER_SUPABASE] Initialized database structure.");
+    
+    // Perform non-blocking async reachability check
+    dbReachabilityPromise = fetch(`${supabaseUrl}/rest/v1/`, {
+      method: "GET",
+      headers: { "apikey": supabaseAnonKey }
+    }).then(response => {
+      if (response.ok || response.status === 401 || response.status === 400 || response.status === 404) {
+        console.log(`[SERVER_SUPABASE] Database status check passed (status: ${response.status}). Supabase is fully online.`);
+        return true;
+      } else {
+        console.log(`[SERVER_SUPABASE] Database status check returned offline status: ${response.status}. Using localized sandbox store.`);
+        serverSupabase = null;
+        return false;
+      }
+    }).catch(() => {
+      console.log("[SERVER_SUPABASE] Connection check complete: localized sandbox active.");
+      serverSupabase = null;
+      return false;
+    });
   } catch (err) {
-    console.error("[SERVER_SUPABASE] Initialization failed:", err);
+    serverSupabase = null;
+    dbReachabilityPromise = Promise.resolve(false);
   }
 }
 
@@ -302,6 +323,31 @@ function handleInmemoryProxyAction(action: string, args: any): any {
       return { success: true, data: inMemoryUsers };
     }
 
+    case "adminDeleteUser": {
+      const { userId } = args;
+      inMemoryUsers = inMemoryUsers.filter(u => u.id !== userId);
+      inMemoryPayments = inMemoryPayments.filter(p => p.user_id !== userId);
+      inMemoryAccounts = inMemoryAccounts.filter(a => a.user_id !== userId);
+      inMemoryTrades = inMemoryTrades.filter(t => t.user_id !== userId);
+      inMemoryChallenges = inMemoryChallenges.filter(c => c.user_id !== userId);
+      return { success: true };
+    }
+
+    case "adminUpdateUser": {
+      const { userId, username, email, status } = args;
+      const index = inMemoryUsers.findIndex(u => u.id === userId);
+      if (index !== -1) {
+        inMemoryUsers[index] = {
+          ...inMemoryUsers[index],
+          username: username || inMemoryUsers[index].username,
+          email: email || inMemoryUsers[index].email,
+          status: status || inMemoryUsers[index].status
+        };
+        return { success: true, user: inMemoryUsers[index] };
+      }
+      return { success: false, error: "Utilisateur introuvable" };
+    }
+
     case "adminLoadAllPayments": {
       const enhancedPayments = inMemoryPayments.map(p => {
         const matchedUser = inMemoryUsers.find(u => u.id === p.user_id) || {};
@@ -325,8 +371,14 @@ function handleInmemoryProxyAction(action: string, args: any): any {
 app.post("/api/supabase/proxy", async (req: express.Request, res: express.Response) => {
   try {
     const { action, arguments: args } = req.body;
+    
+    // Await reachability check to complete if it was initiated
+    if (dbReachabilityPromise) {
+      await dbReachabilityPromise;
+    }
+
     if (!serverSupabase) {
-      console.log("[SUPABASE_PROXY] Supabase client not initialized. Falling back gracefully to memory store.");
+      console.log("[SUPABASE_PROXY] Operating in localized fallback memory store.");
       const mockResult = handleInmemoryProxyAction(action, args);
       return res.json(mockResult);
     }
@@ -346,7 +398,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         if (authError) {
           const errMsg = authError.message || String(authError);
           const isHtmlError = errMsg.includes("<!DOCTYPE") || errMsg.includes("<");
-          console.log(`[PROXY_SIGNUP] Supabase auth failed, trying memory fallback store...`);
+          console.log(`[PROXY_SIGNUP] Supabase auth fallback activated: using memory store.`);
           const mockResult = handleInmemoryProxyAction("signUp", args);
           if (!mockResult.success && isHtmlError) {
             return res.json({ success: false, error: "Serveur inactif (projet Supabase potentiellement en pause)." });
@@ -430,7 +482,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         if (authError) {
           const errMsg = authError.message || String(authError);
           const isHtmlError = errMsg.includes("<!DOCTYPE") || errMsg.includes("<");
-          console.log(`[PROXY_SIGNIN] Supabase auth failed, trying memory fallback store...`);
+          console.log(`[PROXY_SIGNIN] Supabase auth fallback activated: using memory store.`);
           const mockResult = handleInmemoryProxyAction("signIn", args);
           if (mockResult.success) {
             return res.json(mockResult);
@@ -556,6 +608,24 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         const { data, error } = await serverSupabase.from('users').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         return res.json({ success: true, data });
+      }
+
+      case "adminDeleteUser": {
+        const { userId } = args;
+        const { error } = await serverSupabase.from('users').delete().eq('id', userId);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "adminUpdateUser": {
+        const { userId, username, email, status } = args;
+        const { error } = await serverSupabase.from('users').update({
+          username,
+          email,
+          status
+        }).eq('id', userId);
+        if (error) throw error;
+        return res.json({ success: true });
       }
 
       case "adminLoadAllPayments": {

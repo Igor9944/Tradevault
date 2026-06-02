@@ -46,6 +46,8 @@ import {
   savePaymentToSupabase,
   adminLoadAllUsersFromSupabase,
   adminLoadAllPaymentsFromSupabase,
+  adminDeleteUserFromSupabase,
+  adminUpdateUserFromSupabase,
   ensureUUID,
   generateUUID,
   handleSupabaseSession
@@ -80,6 +82,7 @@ export default function App() {
       localStorage.setItem('tv_payment_requests', JSON.stringify([]));
       localStorage.setItem('tv_selected_account_id', 'personal');
       sessionStorage.removeItem('tv_current_user');
+      localStorage.removeItem('tv_current_user');
       localStorage.setItem('tv_reset_to_zero_v3', 'true');
       return DEFAULT_USERS;
     }
@@ -103,7 +106,7 @@ export default function App() {
 
   // Current session navigation states
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = sessionStorage.getItem('tv_current_user');
+    const saved = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     return saved ? JSON.parse(saved) : null;
   });
 
@@ -142,7 +145,7 @@ export default function App() {
   }, []);
 
   const [trades, setTrades] = useState<Trade[]>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user');
+    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
       const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
@@ -161,7 +164,7 @@ export default function App() {
   });
 
   const [challenges, setChallenges] = useState<Challenge[]>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user');
+    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
       const saved = localStorage.getItem(`tv_challenges_${u.id}`);
@@ -184,7 +187,7 @@ export default function App() {
   });
 
   const [accounts, setAccounts] = useState<Account[]>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user');
+    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
       const saved = localStorage.getItem(`tv_accounts_${u.id}`);
@@ -237,7 +240,7 @@ export default function App() {
     if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.hash.includes('type=recovery') || window.location.href.includes('reset-password'))) {
       return 'reset-password';
     }
-    const userSaved = sessionStorage.getItem('tv_current_user');
+    const userSaved = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
     return user.paid ? 'app' : 'checkout';
@@ -246,7 +249,7 @@ export default function App() {
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user');
+    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
       const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
@@ -510,8 +513,10 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       sessionStorage.setItem('tv_current_user', JSON.stringify(currentUser));
+      localStorage.setItem('tv_current_user', JSON.stringify(currentUser));
     } else {
       sessionStorage.removeItem('tv_current_user');
+      localStorage.removeItem('tv_current_user');
     }
   }, [currentUser]);
 
@@ -672,6 +677,7 @@ export default function App() {
 
   const handleCheckoutCancel = () => {
     sessionStorage.removeItem('tv_current_user');
+    localStorage.removeItem('tv_current_user');
     setCurrentUser(null);
     setCurrentScreen('login_portal');
   };
@@ -861,6 +867,28 @@ export default function App() {
     });
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    const success = await adminDeleteUserFromSupabase(userId);
+    if (success) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setPaymentRequests(prev => prev.filter(p => p.userId !== userId));
+    } else {
+      customAlert("Erreur", "La suppression de l'utilisateur a échoué.");
+    }
+  };
+
+  const handleEditUser = async (
+    userId: string, 
+    updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }
+  ) => {
+    const success = await adminUpdateUserFromSupabase(userId, updatedFields);
+    if (success) {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updatedFields } : u));
+    } else {
+      customAlert("Erreur", "La modification du profil a échoué.");
+    }
+  };
+
   // Add account helper
   const handleAddAccount = (e: React.FormEvent) => {
     e.preventDefault();
@@ -912,7 +940,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-black text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
@@ -1147,6 +1175,7 @@ export default function App() {
                   setCurrentUser(null);
                   setCurrentScreen('login_portal');
                   sessionStorage.removeItem('tv_current_user');
+                  localStorage.removeItem('tv_current_user');
                 }}
                 className="w-full py-2 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/20 rounded-xl text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
               >
@@ -1250,6 +1279,8 @@ export default function App() {
                 onApproveRenewal={handleApproveRenewal}
                 onRejectRenewal={handleRejectRenewal}
                 onCheckCronRenewals={handleCheckCronRenewals}
+                onDeleteUser={handleDeleteUser}
+                onEditUser={handleEditUser}
               />
             )}
 
