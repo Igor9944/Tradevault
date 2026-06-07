@@ -55,6 +55,8 @@ import {
 } from './utils/supabaseSync';
 import { supabase } from './lib/supabase';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 // Subcomponents
 import CustomEffects from './components/CustomEffects';
 import Portal from './components/Portal';
@@ -986,7 +988,8 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-black text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
@@ -1795,6 +1798,7 @@ export default function App() {
       {/* Render PREMIUM trailing custom cursor, interactive 3D card tilts, scroll reveals and count stats */}
       <CustomEffects />
 
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
