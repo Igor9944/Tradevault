@@ -2,11 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from './translations';
 
 export type Lang = 'fr';
+export type Theme = 'light' | 'dark';
 
 interface ThemeLanguageContextType {
   lang: Lang;
   toggleLang: () => void;
   setLang: (lang: Lang) => void;
+  theme: Theme;
+  toggleTheme: () => void;
   t: (key: string) => string;
 }
 
@@ -14,9 +17,16 @@ const ThemeLanguageContext = createContext<ThemeLanguageContextType | undefined>
 
 export const ThemeLanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const lang: Lang = 'fr';
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  useEffect(() => {
+    document.documentElement.className = theme;
+  }, [theme]);
 
   const toggleLang = () => {};
   const setLang = (newLang: Lang) => {};
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const t = (key: string): string => {
     return translations['fr'][key] || key;
@@ -27,6 +37,8 @@ export const ThemeLanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       lang,
       toggleLang,
       setLang,
+      theme,
+      toggleTheme,
       t
     }}>
       {children}

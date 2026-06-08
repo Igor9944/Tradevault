@@ -169,28 +169,28 @@ export default function Checkout({
   // If user is already pending or has just submitted, show pending state dashboard
   if (user.status === 'pending' || submissionCompleted) {
     return (
-      <div className="min-h-screen bg-slate-950 py-12 px-4 flex flex-col items-center justify-center font-sans relative">
+      <div className="min-h-screen bg-[#050505] py-12 px-4 flex flex-col items-center justify-center font-sans relative">
         <div className="grid-bg animate-pulse"></div>
-        <div className="max-w-xl w-full rounded-2xl border border-amber-500/20 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl space-y-6 text-center shadow-[0_0_50px_rgba(245,158,11,0.08)]">
+        <div className="max-w-xl w-full rounded-2xl border border-amber-500/20 bg-[#0a0a0a]/40 p-6 md:p-8 backdrop-blur-xl space-y-6 text-center shadow-[0_0_50px_rgba(245,158,11,0.08)]">
           <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 font-bold mx-auto text-2xl animate-spin-slow">
             ⌛
           </div>
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-white uppercase font-mono tracking-widest text-[#FFB01F]">En attente d'approbation</h2>
-            <p className="text-slate-400 text-xs font-sans">
+            <p className="text-neutral-300 text-xs font-sans">
               Votre demande d'activation est en cours de traitement par l'équipe administrative de TradeVault.
             </p>
           </div>
 
           <div className="bg-black/50 p-5 rounded-2xl border border-zinc-800/60 text-left space-y-3">
             <span className="text-[10px] text-[#00FF9C] font-mono uppercase tracking-widest font-black block">Traders Audit Info</span>
-            <div className="text-[11px] space-y-2 font-mono text-slate-300">
+            <div className="text-[11px] space-y-2 font-mono text-neutral-300">
               <div className="flex justify-between border-b border-zinc-900 pb-1.5">
-                <span className="text-slate-450">Nom / Pseudo :</span>
+                <span className="text-neutral-300">Nom / Pseudo :</span>
                 <span className="text-white font-bold">{user.username}</span>
               </div>
               <div className="flex justify-between border-b border-zinc-900 pb-1.5">
-                <span className="text-slate-450">Adresse E-mail :</span>
+                <span className="text-neutral-450">Adresse E-mail :</span>
                 <span className="text-white font-bold break-all">{user.email}</span>
               </div>
               <div className="flex justify-between pb-0.5">

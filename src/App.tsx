@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AccountSelector from './components/AccountSelector';
 import { motion } from 'motion/react';
 import { useThemeLang } from './utils/themeLanguageContext';
 import { 
@@ -23,7 +24,9 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Trash2
+  Trash2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { User, Trade, Challenge, Account, PaymentRequest } from './types';
 import { 
@@ -73,7 +76,7 @@ import ResetPassword from './components/ResetPassword';
 
 
 export default function App() {
-  const { lang, toggleLang, t } = useThemeLang();
+  const { lang, toggleLang, t, theme, toggleTheme } = useThemeLang();
   // Load initial persistent lists or fallback to seeded mock data
   const [users, setUsers] = useState<User[]>(() => {
     // One-time hard reset to give the user a completely brand-new slate with only the admin account
@@ -113,6 +116,28 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    }
+  };
+
   // Expose global showCustomAlert and showCustomConfirm for window-level actions
   useEffect(() => {
     (window as any).showCustomAlert = (title: string, message: string) => {
@@ -151,7 +176,7 @@ export default function App() {
     const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
+      const isAdmin = u.email === 'tradonyx@vault.com' || u.username === 'tradonyx';
       const saved = localStorage.getItem(`tv_trades_${u.id}`);
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
@@ -579,7 +604,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      const isAdmin = currentUser.email === 'admin@tradevault.com' || currentUser.username === 'admin';
+      const isAdmin = currentUser.email === 'tradonyx@vault.com' || currentUser.username === 'tradonyx';
 
       if (isAdmin) {
         // Administrative view: Load users & payments from remote database
@@ -656,7 +681,7 @@ export default function App() {
     setCurrentUser(user);
     if (user.paid) {
       setCurrentScreen('app');
-      if (user.email === 'admin@tradevault.com' || user.username === 'admin') {
+      if (user.email === 'tradonyx@vault.com' || user.username === 'tradonyx') {
         setActiveTab('admin');
       } else {
         setActiveTab('dashboard');
@@ -671,8 +696,7 @@ export default function App() {
     setUsers(prev => [...prev, newUser]);
 
     // REQUIREMENT 2: Simulating sending triggered alert emails to Admin
-    console.log(`%c[SYS_DAEMON_ALERT_MAIL] : E-mail d'alerte envoyé avec succès à la liste d'Admin : "${adminEmails}"`, "color: #ff9f1c; font-weight: bold;");
-    console.log(`%c[SYS_RECORD_NEW_TRADER] : Détails Trader : ${newUser.username} (${newUser.email}) - En attente de validation manuelle.`, "color: #6366f1;");
+
   };
 
   const handleResetPasswordSuccess = (email: string, newPass: string) => {
@@ -691,7 +715,7 @@ export default function App() {
   const handleCheckoutSuccess = (proofBase64: string, network: 'TRC20' | 'BEP20') => {
     if (!currentUser) return;
     
-    console.log(`%c[SYS_PAYMENT_PROOF_SENT] : Preuve de paiement de ${currentUser.username} envoyée à l'admin pour renouvellement anticipé.`, "color: #ff9f1c; font-weight: bold;");
+
     
     const paymentId = 'pay_' + Date.now();
     const newRequest: PaymentRequest = {
@@ -774,7 +798,15 @@ export default function App() {
   };
 
   const handleDeleteAccount = (id: string) => {
-    console.log("Deleting account with ID:", id);
+
+    
+    // Check if account can be deleted
+    const accountToDelete = accounts.find(a => a.id === id);
+    if (accountToDelete && (accountToDelete.type === 'personal' || accountToDelete.name.toLowerCase().includes('challenge'))) {
+      customAlert("Action Non Autorisée", "Ce type de compte (personnel ou challenge) ne peut pas être supprimé.");
+      return;
+    }
+
     if (id === ensureUUID('personal') || id === ensureUUID('ftmo-100k') || id === 'personal' || id === 'ftmo-100k') {
       customAlert("Action Non Autorisée", "La suppression du compte personnel et du compte FTMO par défaut n'est pas autorisée.");
       return;
@@ -908,7 +940,7 @@ export default function App() {
     })
     .then(res => res.json())
     .then(data => {
-      console.log('Daily checker (Cron) trigger success:', data);
+
     })
     .catch(err => {
       console.error('Failed to execute simulated cron check:', err);
@@ -923,6 +955,22 @@ export default function App() {
     } else {
       customAlert("Erreur", "La suppression de l'utilisateur a échoué.");
     }
+  };
+
+  const handleDeleteAllUsersExceptAdmin = async () => {
+    const adminUser = users.find(u => u.email === 'tradonyx@vault.com' || u.username === 'tradonyx');
+    if (!adminUser) {
+      customAlert("Erreur", "Administrateur non trouvé.");
+      return;
+    }
+    const otherUsers = users.filter(u => u.id !== adminUser.id);
+    
+    for (const u of otherUsers) {
+      await adminDeleteUserFromSupabase(u.id);
+    }
+    setUsers([adminUser]);
+    setPaymentRequests([]);
+    customAlert("Success", `Tous les autres utilisateurs supprimés (${otherUsers.length}).`);
   };
 
   const handleEditUser = async (
@@ -983,13 +1031,14 @@ export default function App() {
 
   // Check if current user is of Admin role
   const isAdmin = currentUser && (
-    adminEmails.toLowerCase().split(',').map(e => e.trim()).includes(currentUser.email.toLowerCase()) || 
-    currentUser.email === 'admin@tradevault.com'
+    (adminEmails || '').toLowerCase().split(',').map(e => e.trim()).includes(currentUser.email?.toLowerCase() || '') || 
+    currentUser.email === 'tradonyx@vault.com' ||
+    currentUser.username === 'tradonyx'
   );
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-black text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
@@ -1039,31 +1088,28 @@ export default function App() {
           <BackgroundVideo />
           
           {/* Navigation Sidebar panel */}
-          <aside className="w-full lg:w-64 bg-slate-950/80 backdrop-blur-xl border-r border-[#1e293b]/70 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-screen shrink-0 relative z-30">
+          <aside className="w-full lg:w-64 bg-white dark:bg-[#050505]/80 backdrop-blur-xl border-r border-neutral-200 dark:border-zinc-800 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-screen shrink-0 relative z-30">
             <div className="space-y-6">
               
               {/* Brand Logo and Name */}
-              <div className="flex items-center px-1 border-b border-zinc-800 pb-4">
+              <div className="flex items-center px-1 border-b border-neutral-200 dark:border-zinc-800 pb-4">
                 <div>
-                  <h2 className="text-xl font-black font-display tracking-tight text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
-                  <span className="text-[9px] text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
+                  <h2 className="text-xl font-black font-display tracking-tight text-neutral-900 dark:text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
+                  <span className="text-[9px] text-neutral-500 dark:text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
                 </div>
               </div>
 
               {/* ACCOUNT SWITCHER SELECTOR */}
               {!isAdmin && (
-                <div className="bg-slate-900/60 p-3 rounded-xl border border-indigo-950/40 space-y-2">
-                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">PORTEFEUILLE ACTIF</span>
+                <div className="bg-[#0a0a0a]/60 p-3 rounded-xl border border-indigo-950/40 space-y-2">
+                  <span className="text-[9px] text-neutral-300 font-bold uppercase tracking-wider block">PORTEFEUILLE ACTIF</span>
                   <div className="flex gap-1.5 items-center">
-                    <select
-                      value={selectedAccountId}
-                      onChange={(e) => setSelectedAccountId(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-[#1e293b] min-w-0 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold truncate"
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>{acc.name}</option>
-                      ))}
-                    </select>
+                    <AccountSelector 
+                      accounts={accounts}
+                      selectedAccountId={selectedAccountId}
+                      onSelect={setSelectedAccountId}
+                      onDelete={handleDeleteAccount}
+                    />
                     {/* Add account button removed as per user request */}
                   </div>
                 </div>
@@ -1080,7 +1126,7 @@ export default function App() {
                         <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isNearingExpiry ? 'text-rose-400' : 'text-indigo-400'}`}>
                           Accès PRO {isNearingExpiry && '⚠️'}
                         </span>
-                        <span className="text-[10px] text-slate-300 font-medium font-sans">
+                        <span className="text-[10px] text-neutral-300 font-medium font-sans">
                           Jours restants : <strong className={`font-mono text-xs ml-1 ${isNearingExpiry ? 'text-rose-400' : 'text-white'}`}>
                             {daysLeft}
                           </strong> / 90
@@ -1120,7 +1166,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('dashboard')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-slate-900 transition-all font-semibold ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-neutral-900 transition-all font-semibold ${
                         activeTab === 'dashboard' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
                       }`}
                     >
@@ -1130,7 +1176,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('journal')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-slate-900 transition-all font-semibold ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-neutral-900 transition-all font-semibold ${
                         activeTab === 'journal' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
                       }`}
                     >
@@ -1188,6 +1234,14 @@ export default function App() {
 
             <div className="pt-6 border-t border-slate-900 mt-6 md:mt-0 space-y-4">
               
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-center gap-2.5 px-3 py-2 rounded-lg bg-slate-900 text-neutral-300 hover:text-white transition-all text-xs font-semibold"
+              >
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                {theme === 'dark' ? 'Mode Lumineux' : 'Mode Sombre'}
+              </button>
+
               {/* Active user tag detail */}
               <div 
                 onClick={openProfileModal}
@@ -1215,6 +1269,16 @@ export default function App() {
                 {/* Visual click-to-edit indicator */}
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></span>
               </div>
+
+              {deferredPrompt && (
+                <button
+                  type="button"
+                  onClick={handleInstallClick}
+                  className="w-full py-2 bg-[#00FF9C]/10 hover:bg-[#00FF9C]/20 border border-[#00FF9C]/30 rounded-xl text-[#00FF9C] font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Sparkles size={14} /> INSTALLER L'APPLICATION
+                </button>
+              )}
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -1329,6 +1393,7 @@ export default function App() {
                 onRejectRenewal={handleRejectRenewal}
                 onCheckCronRenewals={handleCheckCronRenewals}
                 onDeleteUser={handleDeleteUser}
+                onDeleteAllUsersExceptAdmin={handleDeleteAllUsersExceptAdmin}
                 onEditUser={handleEditUser}
               />
             )}
@@ -1530,7 +1595,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-450 font-bold uppercase tracking-wide block">Nom de trader *</label>
+                <label className="text-[10px] text-neutral-300 font-bold uppercase tracking-wide block">Nom de trader *</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <UserIcon size={14} />
@@ -1562,7 +1627,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-450 font-bold uppercase tracking-wide block">Ancien Mot de Passe</label>
+                <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide block">Ancien Mot de Passe</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <Lock size={14} />
@@ -1717,7 +1782,7 @@ export default function App() {
       {/* WELCOME POPUP MODAL */}
       {showWelcomeModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-[#1e293b] rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col items-center text-center">
+          <div className="bg-slate-900 border border-[white/10] rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col items-center text-center">
             
             <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center mb-5 shrink-0 border-4 border-slate-900 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
               <span className="text-2xl animate-bounce">🚀</span>

@@ -103,7 +103,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5 text-left">
               <div className="space-y-1">
-                <p className="text-xs text-slate-400 font-mono text-center leading-relaxed pb-3">
+                <p className="text-xs text-neutral-300 font-mono text-center leading-relaxed pb-3">
                   Veuillez spécifier votre nouveau mot de passe de membre pour reprendre l'accès aux graphiques et trackers TradeVault.
                 </p>
               </div>

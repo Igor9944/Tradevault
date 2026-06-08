@@ -67,7 +67,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
           <Award className="text-indigo-400 shrink-0" size={20} />
           <div>
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">{t('propfirm_challenges_tracker')}</h3>
-            <p className="text-[10px] text-slate-400">{t('propfirm_challenges_tracker_desc')}</p>
+            <p className="text-[10px] text-neutral-300">{t('propfirm_challenges_tracker_desc')}</p>
           </div>
         </div>
 
@@ -121,14 +121,14 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                 <div className="flex justify-between items-start border-b border-indigo-900/10 pb-3">
                   <div className="space-y-0.5">
                     <h4 className="text-sm font-black font-mono text-white capitalize">{ch.name}</h4>
-                    <span className="text-[10px] text-slate-500 block font-mono">Date d'initialisation : {new Date(ch.createdAt).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-neutral-300 block font-mono">Date d'initialisation : {new Date(ch.createdAt).toLocaleDateString()}</span>
                   </div>
 
                   {ch.id !== 'ftmo-100k-challenge' && (
                     <button
                       type="button"
                       onClick={() => { customConfirm('Supprimer Challenge', 'Supprimer ce challenge ?', () => onDeleteChallenge(ch.id)); }}
-                      className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-slate-900 transition-all"
+                      className="text-neutral-400 hover:text-rose-400 p-1 rounded-lg hover:bg-[#0a0a0a] transition-all"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -137,7 +137,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
 
                 {/* Account stats matrix block */}
                 <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs">
-                  <div className="p-2 border border-slate-900 bg-slate-950/20 rounded-xl">
+                  <div className="p-2 border border-neutral-900 bg-slate-950/20 rounded-xl">
                     <span className="text-[9px] text-slate-500 block uppercase">CAPITAL</span>
                     <span className="font-bold text-white">${ch.capital.toLocaleString()}</span>
                   </div>

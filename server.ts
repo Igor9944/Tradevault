@@ -21,7 +21,6 @@ let dbReachabilityPromise: Promise<boolean> | null = null;
 if (supabaseUrl && supabaseAnonKey) {
   try {
     serverSupabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log("[SERVER_SUPABASE] Initialized database structure.");
     
     // Perform non-blocking async reachability check
     dbReachabilityPromise = fetch(`${supabaseUrl}/rest/v1/`, {
@@ -29,15 +28,12 @@ if (supabaseUrl && supabaseAnonKey) {
       headers: { "apikey": supabaseAnonKey }
     }).then(response => {
       if (response.ok || response.status === 401 || response.status === 400 || response.status === 404) {
-        console.log(`[SERVER_SUPABASE] Database status check passed (status: ${response.status}). Supabase is fully online.`);
         return true;
       } else {
-        console.log(`[SERVER_SUPABASE] Database status check returned offline status: ${response.status}. Using localized sandbox store.`);
         serverSupabase = null;
         return false;
       }
     }).catch(() => {
-      console.log("[SERVER_SUPABASE] Connection check complete: localized sandbox active.");
       serverSupabase = null;
       return false;
     });
@@ -120,7 +116,6 @@ let inMemoryChallenges: any[] = [];
 
 // Helper function to resolve actions using the local store
 function handleInmemoryProxyAction(action: string, args: any): any {
-  console.log(`[SUPABASE_MOCK_STORE] Executing fallback action: ${action}`);
   switch (action) {
     case "signUp": {
       const { email, username, country, paymentScreenshot, selectedNetwork, subscriptionPrice, regAvatar } = args;
@@ -378,12 +373,9 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
     }
 
     if (!serverSupabase) {
-      console.log("[SUPABASE_PROXY] Operating in localized fallback memory store.");
       const mockResult = handleInmemoryProxyAction(action, args);
       return res.json(mockResult);
     }
-
-    console.log(`[SUPABASE_PROXY] Executing server-side action: ${action}`);
 
     switch (action) {
       case "signUp": {
@@ -398,7 +390,6 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         if (authError) {
           const errMsg = authError.message || String(authError);
           const isHtmlError = errMsg.includes("<!DOCTYPE") || errMsg.includes("<");
-          console.log(`[PROXY_SIGNUP] Supabase auth fallback activated: using memory store.`);
           const mockResult = handleInmemoryProxyAction("signUp", args);
           if (!mockResult.success && isHtmlError) {
             return res.json({ success: false, error: "Serveur inactif (projet Supabase potentiellement en pause)." });
@@ -482,7 +473,6 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         if (authError) {
           const errMsg = authError.message || String(authError);
           const isHtmlError = errMsg.includes("<!DOCTYPE") || errMsg.includes("<");
-          console.log(`[PROXY_SIGNIN] Supabase auth fallback activated: using memory store.`);
           const mockResult = handleInmemoryProxyAction("signIn", args);
           if (mockResult.success) {
             return res.json(mockResult);
@@ -612,6 +602,10 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "adminDeleteUser": {
         const { userId } = args;
+        await serverSupabase.from('payments').delete().eq('user_id', userId);
+        await serverSupabase.from('trades').delete().eq('user_id', userId);
+        await serverSupabase.from('challenges').delete().eq('user_id', userId);
+        await serverSupabase.from('accounts').delete().eq('user_id', userId);
         const { error } = await serverSupabase.from('users').delete().eq('id', userId);
         if (error) throw error;
         return res.json({ success: true });
@@ -647,12 +641,10 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         return res.status(400).json({ error: `Unknown proxy action: ${action}` });
     }
   } catch (err: any) {
-    console.log(`[SUPABASE_PROXY_FALLBACK] Routing action '${req.body?.action}' gracefully to in-memory fallback store.`);
     try {
       const mockResult = handleInmemoryProxyAction(req.body?.action, req.body?.arguments);
       return res.json(mockResult);
     } catch (fallbackErr: any) {
-      console.log(`[SUPABASE_PROXY_FALLBACK] Memory fallback fallback run finished for action: ${req.body?.action}`);
       return res.status(500).json({ success: false, error: fallbackErr.message || String(fallbackErr) });
     }
   }
@@ -660,6 +652,23 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
 // In-memory OTP storage for password resets
 const otpStorage = new Map<string, { code: string; expires: number }>();
+
+// Log buffer for admin panel
+const logBuffer: { timestamp: string, message: string }[] = [];
+const MAX_LOGS = 50;
+
+function addLog(message: string) {
+  const logEntry = { timestamp: new Date().toISOString(), message };
+  logBuffer.unshift(logEntry);
+  if (logBuffer.length > MAX_LOGS) logBuffer.pop();
+  console.log(`[LOG] ${message}`);
+}
+
+app.get("/api/admin/logs", (req, res) => {
+  res.json({ success: true, logs: logBuffer });
+});
+
+// Replace console.log calls as needed or just use addLog
 
 // Endpoint: request a 7-digit OTP password reset code
 app.post("/api/auth/forgot-password-otp", async (req, res) => {
@@ -704,12 +713,6 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
       expires: Date.now() + 15 * 60 * 1000
     });
 
-    console.log(`\n\n==================================================================`);
-    console.log(`[SECURE_OTP_DELIVERY] OTP Code generated for: ${cleanEmail}`);
-    console.log(`[SECURE_OTP_DELIVERY] OTP Code is: 【 ${code} 】`);
-    console.log(`[SECURE_OTP_DELIVERY] Access via your SMTP/Gmail provider.`);
-    console.log(`==================================================================\n\n`);
-
     return res.json({
       success: true,
       message: "Un code OTP a été généré avec succès. Son acheminement s'effectue en arrière-plan."
@@ -749,10 +752,8 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
     const userToUpdate = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
     if (userToUpdate) {
       userToUpdate.password = newPassword;
-      console.log(`[LOCAL_PW_RESET] Local password updated for: ${cleanEmail}`);
     }
 
-    console.log(`[OTP_SUCCESS] Password update approved for email: ${cleanEmail}`);
     return res.json({ success: true, message: "Mot de passe réinitialisé de manière sécurisée !" });
   } catch (err: any) {
     console.error("Reset password OTP verification error:", err);
@@ -766,9 +767,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
       const { username, email, amount, network } = req.body;
       const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
 
-      console.log(`[API_SIGNUP] Nouveau trader inscrit: ${username} (${email}). En attente d'approbation.`);
-      console.log(`[SECURE_EMAIL_LOG] To: ${targetAdmins.join(', ')} | Subject: [TradeVault Pro] Nouvelle Inscription en attente - ${username}`);
-
       res.status(200).json({ success: true, simulated: true });
     } catch (e) {
       console.error("Signup notification error:", e);
@@ -780,9 +778,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   app.post("/api/notify/approve", async (req, res) => {
     try {
       const { email, username, subscriptionPeriod } = req.body;
-
-      console.log(`[API_APPROVE] Inscription approuvée pour: ${username} (${email}). Période validée: ${subscriptionPeriod || "3"} mois.`);
-      console.log(`[SECURE_EMAIL_LOG] To: ${email} | Subject: Félicitations - Accès TradeVault Pro Validé !`);
 
       res.status(200).json({ success: true, simulated: true });
     } catch (e) {
@@ -797,9 +792,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
       const { username, email, amount, network, paymentId } = req.body;
       const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
 
-      console.log(`[API_RENEW_REQ] Demande de renouvellement anticipé par ${username} (${email}). Réf: ${paymentId}. Montant: $${amount} via ${network}.`);
-      console.log(`[SECURE_EMAIL_LOG] To: ${targetAdmins.join(', ')} | Subject: [TradeVault Pro] Demande de Renouvellement Anticipé - ${username}`);
-
       res.status(200).json({ success: true, simulated: true });
     } catch (e) {
       console.error("Renewal request send error:", e);
@@ -811,9 +803,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   app.post("/api/notify/renewal-approve", async (req, res) => {
     try {
       const { email, username } = req.body;
-
-      console.log(`[API_RENEW_APP] Renouvellement d'abonnement approuvé pour: ${username} (${email}).`);
-      console.log(`[SECURE_EMAIL_LOG] To: ${email} | Subject: Confirmation - Votre renouvellement d'abonnement est validé !`);
 
       res.status(200).json({ success: true, simulated: true });
     } catch (e) {
@@ -829,15 +818,9 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
  
       if (payload.table === "users" && payload.type === "INSERT") {
         const newUser = payload.record;
-        if (newUser && newUser.email) {
-          console.log(`[WEBHOOK_USER_INSERT] Nouveau compte inséré en table: ${newUser.email}`);
-        }
       } else if (payload.table === "payments" && payload.type === "UPDATE") {
         const newRecord = payload.record;
         const oldRecord = payload.old_record;
-        if (newRecord.status === "approved" && oldRecord.status !== "approved") {
-          console.log(`[WEBHOOK_PAYMENT_APPROVED] Paiement validé pour l'utilisateur ID: ${newRecord.user_id}`);
-        }
       }
  
       res.status(200).json({ success: true });
@@ -858,8 +841,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
       target7days.setDate(now.getDate() + 7);
 
       const warnedUsers: string[] = [];
-
-      console.log(`[CRON_CHECK] Lancement du check quotidien de renouvellement d'accès pour ${list.length} traders...`);
       
       for (const u of list) {
         if (u.paidUntil) {
@@ -869,7 +850,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
           
           if (diffDays === 7 && u.email) {
             warnedUsers.push(u.username);
-            console.log(`[CRON_ALERT] L'abonnement de ${u.username} (${u.email}) expire dans 7 jours. Relance planifiée simulée.`);
           }
         }
       }
@@ -904,8 +884,6 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
 
   if (!process.env.NETLIFY) {
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log("Supabase Webhook URL: [APP_URL]/api/webhooks/supabase");
     });
   }
 }

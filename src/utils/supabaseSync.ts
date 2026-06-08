@@ -156,8 +156,9 @@ export async function signUpWithSupabase(
         id: generateUUID(),
         user_id: userId,
         amount: subscriptionPrice,
-        proof_file_url: paymentScreenshot,
+        proof_url: paymentScreenshot,
         network: selectedNetwork,
+        crypto: selectedNetwork,
         status: 'pending'
       });
 
@@ -670,6 +671,12 @@ export async function adminDeleteUserFromSupabase(userId: string): Promise<boole
   const safeId = ensureUUID(userId);
   try {
     try {
+      // Manually cascade deletes
+      await supabase.from('payments').delete().eq('user_id', safeId);
+      await supabase.from('trades').delete().eq('user_id', safeId);
+      await supabase.from('challenges').delete().eq('user_id', safeId);
+      await supabase.from('accounts').delete().eq('user_id', safeId);
+
       const { error } = await supabase.from('users').delete().eq('id', safeId);
       if (error) throw error;
     } catch (clientErr: any) {
@@ -767,7 +774,7 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
         email: u.email || 'trader@example.com',
         amount: p.amount ? Number(p.amount) : 30,
         network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-        proofScreenshot: p.proof_file_url || '',
+        proofScreenshot: p.proof_url || p.proof_file_url || '',
         status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
         createdAt: p.payment_date || new Date().toISOString()
       };

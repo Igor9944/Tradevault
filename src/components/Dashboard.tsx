@@ -99,11 +99,11 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         {/* Total P&L Card */}
         <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60 shadow-md">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('net_total_pnl')}</span>
+            <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('net_total_pnl')}</span>
             <div className={`text-2xl font-extrabold font-mono ${totalPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
               {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
             </div>
-            <span className="text-[10px] text-slate-500 block font-mono">{t('total_trades')}: {trades.length}</span>
+            <span className="text-[10px] text-neutral-300 block font-mono">{t('total_trades')}: {trades.length}</span>
           </div>
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${totalPnl >= 0 ? 'bg-[#00FF9C]/10 text-[#00FF9C]' : 'bg-red-500/10 text-red-400'}`}>
             <DollarSign size={20} />
@@ -113,11 +113,11 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         {/* Winrate Card */}
         <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('winrate')}</span>
+            <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('winrate')}</span>
             <div className="text-2xl font-extrabold font-mono text-[#00FF9C]">
               {winrate.toFixed(1)}%
             </div>
-            <span className="text-[10px] text-slate-500 block font-mono">
+            <span className="text-[10px] text-neutral-400 block font-mono">
               {wins.length} W - {losses.length} L
             </span>
           </div>
@@ -129,7 +129,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         {/* Average Risk/Reward Card */}
         <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('avg_risk_reward')}</span>
+            <span className="text-xs text-neutral-400 font-bold uppercase tracking-wider block">{t('avg_risk_reward')}</span>
             <div className="text-2xl font-extrabold font-mono text-amber-500">
               {avgRRObj}
             </div>
@@ -214,7 +214,12 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
           </div>
 
           {equityData.length > 0 ? (
-            <div className="h-72 w-full">
+            <motion.div 
+              initial={{ width: 0 }} 
+              animate={{ width: "100%" }} 
+              transition={{ duration: 1.5, ease: "easeInOut" }}
+              className="h-72 w-full"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={equityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
@@ -231,10 +236,20 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
                     labelStyle={{ color: '#94a3b8', fontSize: '11px', fontFamily: 'monospace' }}
                     itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
                   />
-                  <Area type="monotone" dataKey="Pnl" name={t('cum_balance_legend')} stroke="#00FF9C" strokeWidth={2} fillOpacity={1} fill="url(#colorPnl)" />
+                  <Area 
+                    type="monotone" 
+                    dataKey="Pnl" 
+                    name={t('cum_balance_legend')} 
+                    stroke="#00FF9C" 
+                    strokeWidth={2} 
+                    fillOpacity={1} 
+                    fill="url(#colorPnl)"
+                    animationDuration={2000}
+                    animationEasing="ease-in-out"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
-            </div>
+            </motion.div>
           ) : (
             <div className="h-72 w-full flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[#080808]/20 rounded-xl gap-2">
               <BadgeInfo size={32} className="text-slate-600 animate-pulse" />

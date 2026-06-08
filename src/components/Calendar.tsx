@@ -65,16 +65,16 @@ export default function Calendar({ trades }: CalendarProps) {
           <CalendarIcon className="text-indigo-400" size={20} />
           <div>
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">Calendrier des Performances</h3>
-            <p className="text-[10px] text-slate-400">Cliquez sur un jour coloré pour auditer l'historique complet de vos sessions de trading.</p>
+            <p className="text-[10px] text-neutral-300">Cliquez sur un jour coloré pour auditer l'historique complet de vos sessions de trading.</p>
           </div>
         </div>
 
         {/* Date Month Selector Nav */}
-        <div className="flex bg-slate-950 px-2 py-1 border border-slate-900 rounded-xl items-center gap-3">
+        <div className="flex bg-[#050505] px-2 py-1 border border-white/5 rounded-xl items-center gap-3">
           <button 
             type="button" 
             onClick={handlePrevMonth}
-            className="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
+            className="w-7 h-7 rounded-lg bg-[#0a0a0a] hover:bg-neutral-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
           >
             <ChevronLeft size={16} />
           </button>

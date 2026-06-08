@@ -166,9 +166,9 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     <div className="space-y-6">
       
       {/* Search and Filters Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-slate-900/40 p-4 rounded-2xl border border-indigo-950/40 relative">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#0a0a0a]/40 p-4 rounded-2xl border border-indigo-950/40 relative">
         <div className="md:col-span-4 relative">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-300">
             <Search size={16} />
           </span>
           <input
@@ -176,7 +176,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('search_pair_placeholder')}
-            className="w-full pl-9 pr-4 py-2 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
+            className="w-full pl-9 pr-4 py-2 bg-[#050505]/50 border border-white/10 rounded-xl text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
           />
         </div>
 
@@ -216,15 +216,13 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
       {/* Trades Grid Container */}
       {sortedFiltered.length > 0 ? (
-        <motion.div 
-          layout
+        <div 
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
         >
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="sync">
             {sortedFiltered.map((t) => (
               <motion.div 
                 key={t.id}
-                layout
                 initial={{ opacity: 0, y: 35, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -25, scale: 0.95 }}
@@ -317,7 +315,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   </button>
                   <button
                     type="button"
-                    onClick={() => { customConfirm('Supprimer Trade', 'Supprimer ce trade ?', () => onDeleteTrade(t.id)); }}
+                    onClick={() => { (window as any).showCustomConfirm('Confirmation de suppression', 'Êtes-vous sûr de vouloir supprimer définitivement ce trade ? Cette action est irréversible.', () => onDeleteTrade(t.id)); }}
                     className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all"
                   >
                     <Trash2 size={13} />
@@ -327,7 +325,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
               </motion.div>
             ))}
           </AnimatePresence>
-        </motion.div>
+        </div>
       ) : (
         <div className="text-center py-20 bg-slate-900/10 border border-dashed border-slate-900 rounded-3xl space-y-2">
           <FileText size={44} className="mx-auto text-slate-600 animate-bounce" />

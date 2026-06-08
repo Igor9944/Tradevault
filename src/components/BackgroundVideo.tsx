@@ -13,14 +13,14 @@ export const BackgroundVideo: React.FC = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-full h-full z-[-1] overflow-hidden pointer-events-none opacity-25 select-none bg-slate-950">
+    <div className="fixed inset-0 w-full h-full z-[-1] overflow-hidden pointer-events-none opacity-25 select-none bg-[#050505]">
       <video
         ref={videoRef}
         autoPlay
         loop
         muted
         playsInline
-        className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover scale-[1.05]"
+        className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -tranneutral-x-1/2 -tranneutral-y-1/2 object-cover scale-[1.05]"
       >
         {/* Support several standard file paths from public directory */}
         <source src="/background.mp4" type="video/mp4" />
@@ -33,7 +33,7 @@ export const BackgroundVideo: React.FC = () => {
         <source src="https://assets.mixkit.co/videos/preview/mixkit-financial-ticker-stock-results-screen-34440-large.mp4" type="video/mp4" />
       </video>
       {/* Visual overlay gradient mapping to preserve text contrast with dark theme */}
-      <div className="absolute inset-0 bg-radial-gradient from-transparent to-slate-950/80 pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-gradient from-transparent to-neutral-950/80 pointer-events-none" />
     </div>
   );
 };

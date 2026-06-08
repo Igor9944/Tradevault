@@ -93,10 +93,89 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
     URL.revokeObjectURL(url);
   };
 
+  const handleExportCSV = () => {
+    if (trades.length === 0) {
+      customAlert("Exportation", "Aucun trade à exporter.");
+      return;
+    }
+    
+    const headers = ["Date", "Paire", "Sens", "Lots", "Entrée", "Sortie", "P&L", "Setup", "Notes"];
+    const csvRows = [headers.join(",")];
+    
+    trades.forEach(t => {
+      const row = [
+        t.date, 
+        t.pair, 
+        t.side, 
+        t.lots, 
+        t.entry || "", 
+        t.exit || "", 
+        t.pnl, 
+        t.setup ? `"${t.setup.replace(/"/g, '""')}"` : "", 
+        t.notes ? `"${t.notes.replace(/"/g, '""')}"` : ""
+      ];
+      csvRows.push(row.join(","));
+    });
+    
+    const blob = new Blob([csvRows.join("\n")], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `trades_${activeAccount.id}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
+      
+      if (file.name.endsWith('.csv')) {
+        reader.onload = (event) => {
+          try {
+            const text = event.target?.result as string;
+            if (!text) return;
+            const rows = text.split('\n').filter(r => r.trim().length > 0);
+            if (rows.length < 2) throw new Error("Fichier vide ou sans données utiles");
+            
+            const importedTrades: Trade[] = [];
+            for (let i = 1; i < rows.length; i++) {
+              // Basic CSV split ignoring quotes for now for simplified import
+              const cols = rows[i].split(',');
+              if (cols.length >= 7) {
+                importedTrades.push({
+                  id: `csv-${Date.now()}-${i}`,
+                  accountId: activeAccount.id,
+                  date: cols[0],
+                  pair: cols[1],
+                  side: cols[2].toUpperCase().includes('SELL') ? 'SELL' : 'BUY',
+                  lots: parseFloat(cols[3]) || 0.01,
+                  entry: parseFloat(cols[4]) || 0,
+                  exit: parseFloat(cols[5]) || 0,
+                  pnl: parseFloat(cols[6]) || 0,
+                  setup: cols[7] ? cols[7].replace(/""/g, '"').replace(/^"|"$/g, '') : '',
+                  mindset: '',
+                  notes: cols[8] ? cols[8].replace(/""/g, '"').replace(/^"|"$/g, '') : '',
+                  fees: 0,
+                  createdAt: new Date().toISOString()
+                });
+              }
+            }
+            if (importedTrades.length > 0) {
+              onImportTrades(importedTrades);
+              customAlert('Importation CSV', `${importedTrades.length} trades importés avec succès !`);
+            } else {
+              customAlert('Importation CSV', 'Aucun format de trade valide trouvé.');
+            }
+          } catch (err: any) {
+            customAlert('Erreur', 'Impossible de décoder le fichier CSV.');
+          }
+        };
+        reader.readAsText(file);
+        return;
+      }
+
       reader.onload = (event) => {
         try {
           if (event.target?.result) {
@@ -162,12 +241,12 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
         </h3>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-center">
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
-            <span className="text-[10px] text-slate-500 block uppercase mb-1">PROFIT FACTOR</span>
+          <div className="bg-[#050505]/40 p-4 border border-white/5 rounded-xl">
+            <span className="text-[10px] text-neutral-300 block uppercase mb-1">PROFIT FACTOR</span>
             <span className="text-xl font-black text-white">{profitFactor}</span>
           </div>
 
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505]/40 p-4 border border-neutral-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Gain Moyen</span>
             <span className="text-xl font-black text-emerald-400">+${avgWin.toFixed(2)}</span>
           </div>
@@ -227,11 +306,11 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                     <stop offset="95%" stopColor="#dc2626" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="white/10" vertical={false} />
                 <XAxis dataKey="name" stroke="#64748b" fontSize={9} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '12px' }}
+                  contentStyle={{ backgroundColor: '#020617', borderColor: 'white/10', borderRadius: '12px' }}
                   labelStyle={{ color: '#94a3b8', fontSize: '10px' }}
                   itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                   cursor={{ fill: 'rgba(51, 65, 85, 0.2)' }}
@@ -308,6 +387,14 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
               className="py-1.5 px-3 rounded-xl border border-indigo-900/30 text-indigo-300 hover:bg-indigo-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
             >
               <ArrowDownToLine size={13} /> Export JSON
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="py-1.5 px-3 rounded-xl border border-indigo-900/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
+            >
+              <ArrowDownToLine size={13} /> Export CSV
             </button>
 
             <div className="relative">

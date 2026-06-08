@@ -166,19 +166,19 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
             </h3>
           </div>
 
-          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+          <p className="text-xs text-neutral-300 mb-6 leading-relaxed">
             Activez ou désactivez les canaux d'alertes instantanées de TradeVault. Vous pouvez simuler des messages système grâce au module de test.
           </p>
 
           <div className="space-y-4">
             
             {/* Preferences 1: Payments */}
-            <div className="flex items-center justify-between p-4 bg-slate-950/40 border border-[#1e293b]/50 rounded-xl hover:border-indigo-500/20 transition-all">
+            <div className="flex items-center justify-between p-4 bg-[#050505]/40 border border-[white/10]/50 rounded-xl hover:border-indigo-500/20 transition-all">
               <div className="space-y-1 pr-4">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 font-mono uppercase">
                   <DollarSign size={14} className="text-emerald-400" /> Confirmations d'Accès & Inscription
                 </span>
-                <p className="text-[11px] text-slate-500 leading-normal">
+                <p className="text-[11px] text-neutral-300 leading-normal">
                   Alertes instantanées après activation de votre paiement unique à $10.
                 </p>
               </div>
@@ -188,17 +188,17 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
                 type="button"
                 onClick={() => handleTogglePreference('payments')}
                 className={`w-11 h-6 rounded-full p-0.5 transition-all outline-none ${
-                  preferences.payments ? 'bg-indigo-600' : 'bg-slate-800'
+                  preferences.payments ? 'bg-indigo-600' : 'bg-neutral-800'
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-all ${
-                  preferences.payments ? 'translate-x-5' : 'translate-x-0'
+                  preferences.payments ? 'tranneutral-x-5' : 'translate-x-0'
                 }`} />
               </button>
             </div>
 
             {/* Preferences 2: Trading Alerts */}
-            <div className="flex items-center justify-between p-4 bg-slate-950/40 border border-[#1e293b]/50 rounded-xl hover:border-indigo-500/20 transition-all">
+            <div className="flex items-center justify-between p-4 bg-slate-950/40 border border-[white/10]/50 rounded-xl hover:border-indigo-500/20 transition-all">
               <div className="space-y-1 pr-4">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 font-mono uppercase">
                   <TrendingUp size={14} className="text-indigo-400" /> Alertes de Trading (Breakouts & Drawdowns)

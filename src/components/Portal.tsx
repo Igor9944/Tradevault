@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, Line, ResponsiveContainer } from 'recharts';
 import { useThemeLang } from '../utils/themeLanguageContext';
 import { 
   Mail, 
@@ -263,8 +263,8 @@ function TradingDevicesSimulator() {
             </div>
           </div>
         </div>
-        <div className="absolute bottom-[23px] left-1/2 transform -translate-x-1/2 w-8 h-6 bg-gradient-to-b from-white/10 to-transparent z-0"></div>
-        <div className="absolute bottom-[16px] left-1/2 transform -translate-x-1/2 w-14 h-1 bg-white/15 z-0 rounded-sm"></div>
+        <div className="absolute bottom-[23px] left-1/2 transform -tranneutral-x-1/2 w-8 h-6 bg-gradient-to-b from-white/10 to-transparent z-0"></div>
+        <div className="absolute bottom-[16px] left-1/2 transform -tranneutral-x-1/2 w-14 h-1 bg-white/15 z-0 rounded-sm"></div>
       </div>
     </div>
   );
@@ -293,54 +293,62 @@ export const UsdtBep20Icon = () => (
 );
 
 const LiveHeroChart = () => {
-  const [data, setData] = useState<{ time: number; price: number }[]>([]);
+  const [data, setData] = useState<{ time: number; price: number }[]>(
+    Array.from({ length: 70 }, (_, i) => ({ time: i, price: 50 + Math.random() * 20 - 10 }))
+  );
 
   useEffect(() => {
-    // Generate initial flat-ish data
-    const initialData = [];
-    let price = 1.0;
-    for (let i = 0; i < 50; i++) {
-      initialData.push({ time: i, price });
-    }
-    setData(initialData);
-
+    let t = 70;
     const interval = setInterval(() => {
       setData((prev) => {
         const lastPrice = prev[prev.length - 1].price;
-        // Random walk
-        const change = (Math.random() - 0.48) * 0.05;
-        const newPrice = Math.max(0.1, lastPrice + change);
-        const newData = [...prev.slice(1), { time: prev[prev.length - 1].time + 1, price: newPrice }];
+        const change = (Math.random() - 0.5) * 8; // Random walk amplitude
+        const newPrice = Math.max(10, Math.min(90, lastPrice + change));
+        
+        const newData = [...prev.slice(1), { time: t++, price: newPrice }];
         return newData;
       });
-    }, 80);
+    }, 70);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="absolute top-[50%] -translate-y-1/2 left-[50%] -translate-x-1/2 w-[100vw] h-48 md:h-72 z-0 overflow-hidden pointer-events-none fade-in opacity-80">
-      {/* Edge gradient masks to fade the trace smoothly instead of hard cuts */}
+    <div className="absolute top-[50%] -translate-y-1/2 left-[50%] -translate-x-1/2 w-[100vw] h-48 md:h-72 z-0 overflow-hidden pointer-events-none fade-in opacity-90">
+      {/* Subtle edge gradient masks */}
       <div className="absolute inset-y-0 left-0 w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none"></div>
       <div className="absolute inset-y-0 right-0 w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
-      <div className="absolute inset-x-0 bottom-0 h-24 z-10 bg-gradient-to-t from-black to-transparent pointer-events-none"></div>
       
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="heroLiveColor" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.6}/>
+              <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.2}/>
               <stop offset="95%" stopColor="#00FF9C" stopOpacity={0}/>
             </linearGradient>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
           </defs>
           <Area 
             type="monotone" 
             dataKey="price" 
             stroke="#00FF9C" 
-            strokeWidth={3} 
+            strokeWidth={2} 
             fillOpacity={1} 
             fill="url(#heroLiveColor)" 
             isAnimationActive={false} 
+            filter="url(#glow)"
+          />
+          <Line
+            type="monotone"
+            dataKey="price"
+            stroke="#ffffff"
+            strokeWidth={1}
+            dot={false}
+            isAnimationActive={false}
+            filter="url(#glow)"
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -509,14 +517,14 @@ export default function Portal({
       return;
     }
 
-    const isAdminPass = loginPassword === 'adminadmin' || loginPassword === 'admin';
-    const isAdminUser = identifier === 'admin@tradevault.com' || identifier === 'admin';
+    const isAdminPass = loginPassword === 'otradnyx@2027';
+    const isAdminUser = identifier === 'tradonyx@vault.com';
 
     if (isAdminUser && isAdminPass) {
       const adminAcc: User = {
         id: 'admin',
-        username: 'admin',
-        email: 'admin@tradevault.com',
+        username: 'tradonyx',
+        email: 'tradonyx@vault.com',
         country: 'FR',
         paid: true,
         paidUntil: null,
@@ -836,9 +844,9 @@ export default function Portal({
 
         {/* Live price ticker container at very bottom of hero */}
         <div className="w-screen border-t border-b border-white/5 py-3.5 bg-black overflow-hidden relative select-none">
-          <div className="animate-ticker text-[10px] font-mono tracking-wider font-medium text-white/50 gap-16 uppercase">
+          <div className="animate-ticker text-[10px] font-mono tracking-wider font-medium text-white/50 uppercase">
             {/* Double copies for seamless endless loop scroll */}
-            <div className="flex items-center gap-16 pr-16 shrink-0">
+            <div className="flex items-center gap-16 shrink-0 pr-16">
               <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#00FF9C]">$88,432.20 (+4.25%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">ETH / USDT</strong> <span className="text-rose-400">$3,450.15 (-1.12%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#00FF9C]">$182.40 (+12.40%)</span></span>
@@ -846,7 +854,7 @@ export default function Portal({
               <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#00FF9C]">$612.80 (+0.85%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#00FF9C]">$0.145 (+3.12%)</span></span>
             </div>
-            <div className="flex items-center gap-16 shrink-0">
+            <div className="flex items-center gap-16 shrink-0 pr-16">
               <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#00FF9C]">$88,432.20 (+4.25%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">ETH / USDT</strong> <span className="text-rose-400">$3,450.15 (-1.12%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#00FF9C]">$182.40 (+12.40%)</span></span>

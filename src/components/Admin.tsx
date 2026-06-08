@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Users, Check, X, ShieldAlert, Award, Image as ImageIcon, Copy, ArrowRight, Mail, Trash2, Edit } from 'lucide-react';
 import { User, PaymentRequest } from '../types';
 import { DefaultLogoAvatar } from './Logo';
@@ -20,6 +20,7 @@ interface AdminProps {
   onRejectRenewal?: (payId: string) => void;
   onCheckCronRenewals?: () => void;
   onDeleteUser?: (userId: string) => void;
+  onDeleteAllUsersExceptAdmin?: () => void;
   onEditUser?: (userId: string, updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }) => void;
 }
 
@@ -39,6 +40,7 @@ export default function Admin({
   onRejectRenewal = () => {},
   onCheckCronRenewals = () => {},
   onDeleteUser = () => {},
+  onDeleteAllUsersExceptAdmin = () => {},
   onEditUser = () => {}
 }: AdminProps) {
   const [emailsInput, setEmailsInput] = useState(adminEmails);
@@ -47,6 +49,18 @@ export default function Admin({
   const [priceInput, setPriceInput] = useState(subscriptionPrice.toString());
   const [periodInput, setPeriodInput] = useState(subscriptionPeriod.toString());
   const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [logs, setLogs] = useState<{ timestamp: string, message: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/logs')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setLogs(data.logs);
+        }
+      })
+      .catch(err => console.error("Failed to fetch logs:", err));
+  }, []);
 
   // States for inline profile edit
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -109,7 +123,7 @@ export default function Admin({
 
           <form onSubmit={handleSaveEmails} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs text-slate-300 font-bold font-mono uppercase block">
+              <label className="text-xs text-neutral-300 font-bold font-mono uppercase block">
                 E-mails Admin Notifiés d'Inscription (Virgule séparateur)
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -118,7 +132,7 @@ export default function Admin({
                   value={emailsInput}
                   onChange={(e) => setEmailsInput(e.target.value)}
                   placeholder="admin@tradevault.com, support@tradevault.com"
-                  className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#00FF9C]"
+                  className="flex-1 px-4 py-2.5 bg-[#050505] border border-white/5 rounded-xl text-xs text-white placeholder-neutral-500 font-mono focus:outline-none focus:border-[#00FF9C]"
                 />
                 <button
                   type="submit"
@@ -127,7 +141,7 @@ export default function Admin({
                   Mettre à jour
                 </button>
               </div>
-              <span className="text-[10px] text-slate-500 block font-sans">
+              <span className="text-[10px] text-neutral-500 block font-sans">
                 * Dès qu'un nouvel utilisateur s'inscrit, une alerte est transmise virtuellement à cette liste pour audit.
               </span>
             </div>
@@ -206,6 +220,23 @@ export default function Admin({
           </form>
         </div>
 
+      </div>
+
+      {/* SYSTEM LOGS VIEWER */}
+      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
+        <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
+          <span>📜</span> Journaux Système (Logs)
+        </h3>
+        <div className="bg-[#050505] p-4 rounded-xl border border-zinc-900 h-64 overflow-y-auto font-mono text-[10px] space-y-1">
+          {logs.length > 0 ? logs.map((log, i) => (
+            <div key={i} className="flex gap-3">
+              <span className="text-slate-600 shrink-0">{new Date(log.timestamp).toLocaleTimeString()}</span>
+              <span className="text-slate-300">{log.message}</span>
+            </div>
+          )) : (
+            <span className="text-slate-600 italic">Aucun log récent.</span>
+          )}
+        </div>
       </div>
 
       {/* NOTIFICATION LOG SIMULATOR */}
@@ -426,14 +457,28 @@ export default function Admin({
             </p>
           </div>
           
-          <div className="flex gap-4 text-[10px] uppercase font-mono font-black text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-zinc-800/50">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-emerald-400">{users.filter(u => u.status === 'approved').length} En Ligne</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-              <span>{users.filter(u => u.status !== 'approved').length} Hors Ligne</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                customConfirm(
+                  "Supprimer tous les utilisateurs",
+                  "Êtes-vous absolument sûr de vouloir supprimer tous les utilisateurs non-admins ? Cette action est irréversible.",
+                  onDeleteAllUsersExceptAdmin
+                );
+              }}
+              className="px-3 py-1.5 bg-red-950/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 font-mono font-bold text-[10px] uppercase rounded-lg flex items-center gap-1.5 transition-colors"
+            >
+              <Trash2 size={12} /> Purger Utilisateurs (Sauf Admin)
+            </button>
+            <div className="flex gap-4 text-[10px] uppercase font-mono font-black text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-zinc-800/50">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-emerald-400">{users.filter(u => u.status === 'approved').length} En Ligne</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-600"></span>
+                <span>{users.filter(u => u.status !== 'approved').length} Hors Ligne</span>
+              </div>
             </div>
           </div>
         </div>
@@ -460,7 +505,7 @@ export default function Admin({
                     <td className="p-3 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
                         {trader.avatar ? (
-                          <img src={trader.avatar} alt={trader.username} className="w-7 h-7 rounded-full object-cover border border-[#1e293b]" referrerPolicy="no-referrer" />
+                          <img src={trader.avatar} alt={trader.username} className="w-7 h-7 rounded-full object-cover border border-[white/10]" referrerPolicy="no-referrer" />
                         ) : (
                           <DefaultLogoAvatar className="w-7 h-7" />
                         )}
