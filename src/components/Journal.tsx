@@ -163,10 +163,10 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   const sortedFiltered = [...filteredTrades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
       
       {/* Search and Filters Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#0a0a0a]/40 p-4 rounded-2xl border border-indigo-950/40 relative">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#080808] p-4 rounded-2xl border border-zinc-900 relative">
         <div className="md:col-span-4 relative">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-300">
             <Search size={16} />
@@ -176,7 +176,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('search_pair_placeholder')}
-            className="w-full pl-9 pr-4 py-2 bg-[#050505]/50 border border-white/10 rounded-xl text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
+            className="w-full pl-9 pr-4 py-2 bg-[#050505] border border-zinc-900 rounded-xl text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
           />
         </div>
 
@@ -184,7 +184,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           <select
             value={setupFilter}
             onChange={(e) => setSetupFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+            className="w-full px-3 py-2 bg-[#050505] border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
           >
             <option value="">{t('all_setups')}</option>
             {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -195,7 +195,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           <select
             value={pnlFilter}
             onChange={(e) => setPnlFilter(e.target.value as any)}
-            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+            className="w-full px-3 py-2 bg-[#050505] border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
           >
             <option value="all">{t('all_results')}</option>
             <option value="win">{t('only_gains')}</option>
@@ -207,7 +207,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           <button
             type="button"
             onClick={handleOpenNew}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg shadow-indigo-600/20"
+            className="w-full py-2 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg shadow-[#00FF9C]/10"
           >
             <Plus size={14} /> {t('add_trade')}
           </button>
@@ -227,7 +227,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -25, scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 350, damping: 26 }}
-                className="glass-panel rounded-2xl border border-zinc-800/60 overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#00FF9C]/40 transition-all duration-300 p-4 space-y-4"
+                className="bg-[#080808] rounded-2xl border border-zinc-900 overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#00FF9C]/40 transition-all duration-300 p-4 space-y-4"
               >
                 
                 {/* Card top */}
@@ -373,7 +373,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     type="datetime-local"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
                     required
                   />
                 </div>
@@ -385,7 +385,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={pair}
                     onChange={(e) => setPair(e.target.value)}
                     placeholder="EUR/USD, BTC/USDT, GOLD"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
                     required
                   />
                 </div>
@@ -395,7 +395,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] text-slate-300 font-semibold font-mono block">DIRECTION (*)</label>
-                  <div className="flex bg-slate-900 p-1 border border-slate-800 rounded-xl">
+                  <div className="flex bg-black p-1 border border-zinc-900 rounded-xl">
                     <button
                       type="button"
                       onClick={() => setSide('BUY')}
@@ -425,7 +425,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={entry}
                     onChange={(e) => setEntry(e.target.value)}
                     placeholder="1.08250"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
                   />
                 </div>
 
@@ -437,7 +437,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={exit}
                     onChange={(e) => setExit(e.target.value)}
                     placeholder="1.08500"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
                   />
                 </div>
               </div>
@@ -452,7 +452,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={lots}
                     onChange={(e) => setLots(e.target.value)}
                     placeholder="1.00 lot"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
                   />
                 </div>
 
@@ -464,7 +464,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={fees}
                     onChange={(e) => setFees(e.target.value)}
                     placeholder="7.50"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
                   />
                 </div>
 
@@ -476,7 +476,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={pnl}
                     onChange={(e) => setPnl(e.target.value)}
                     placeholder="Ex: +150 ou -40"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-zinc-800 text-white placeholder-zinc-650 text-xs font-bold focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 text-white placeholder-zinc-650 text-xs font-bold focus:outline-none focus:border-[#00FF9C] font-mono"
                     required
                   />
                 </div>
@@ -489,7 +489,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   <select
                     value={setup}
                     onChange={(e) => setSetup(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
                   >
                     {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -500,7 +500,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   <select
                     value={mindset}
                     onChange={(e) => setMindset(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
+                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
                   >
                     {MINDSETS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -515,12 +515,12 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
                   placeholder="Expliquez la structure du marché et la raison de votre entrée / sortie..."
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-[#00FF9C] leading-relaxed font-sans"
+                  className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] leading-relaxed font-sans"
                 />
               </div>
 
               {/* Interactive screenshot drag are file */}
-              <div className="space-y-1 bg-slate-950/20 p-4 border border-zinc-900 rounded-xl">
+              <div className="space-y-1 bg-black p-4 border border-zinc-900 rounded-xl">
                 <label className="text-[11px] text-slate-300 font-bold font-mono uppercase block mb-1">Capture d'écran de Graphique (Optionnel)</label>
                 <div className="relative border border-dashed border-zinc-800 hover:border-[#00FF9C]/50 rounded-lg p-3 text-center transition-all cursor-pointer">
                   <input

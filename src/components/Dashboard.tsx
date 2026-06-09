@@ -86,7 +86,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
       
       {/* 4 PRIMARY KPIS */}
       <motion.div 
@@ -97,7 +97,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
       >
         
         {/* Total P&L Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60 shadow-md">
+        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900 shadow-md">
           <div className="space-y-1">
             <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('net_total_pnl')}</span>
             <div className={`text-2xl font-extrabold font-mono ${totalPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
@@ -111,7 +111,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         </motion.div>
 
         {/* Winrate Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
+        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900">
           <div className="space-y-1">
             <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('winrate')}</span>
             <div className="text-2xl font-extrabold font-mono text-[#00FF9C]">
@@ -127,7 +127,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         </motion.div>
 
         {/* Average Risk/Reward Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
+        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900">
           <div className="space-y-1">
             <span className="text-xs text-neutral-400 font-bold uppercase tracking-wider block">{t('avg_risk_reward')}</span>
             <div className="text-2xl font-extrabold font-mono text-amber-500">
@@ -141,7 +141,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         </motion.div>
 
         {/* Max Drawdown Card */}
-        <motion.div variants={cardVariants} className="glass-panel rounded-2xl p-6 flex items-center justify-between border border-zinc-800/60">
+        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900">
           <div className="space-y-1">
             <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('max_drawdown')}</span>
             <div className="text-2xl font-extrabold font-mono text-rose-500">
@@ -158,7 +158,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
 
 
       {/* TODAY RECAP PANELS */}
-      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">
         <div className="flex items-center justify-between mb-4 border-b border-zinc-800/30 pb-4">
           <div className="flex items-center gap-2">
             <Calendar className="text-[#00FF9C]" size={18} />
@@ -168,28 +168,28 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('daily_pnl')}</span>
             <div className={`text-base font-bold font-mono ${todayPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
               {todayPnl >= 0 ? '+' : ''}${todayPnl.toFixed(2)}
             </div>
           </div>
 
-          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('today_trades')}</span>
             <div className="text-base font-bold font-mono text-[#00FF9C]">
               {todayTrades.length}
             </div>
           </div>
 
-          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('winrate')}</span>
             <div className="text-base font-bold font-mono text-[#00FF9C]">
               {todayWinrate.toFixed(1)}%
             </div>
           </div>
 
-          <div className="bg-[#080808]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('best_trade')}</span>
             <div className="text-base font-bold font-mono text-[#00FF9C]">
               {todayBest > 0 ? `+${todayBest.toFixed(2)}` : '$0.00'}
@@ -202,7 +202,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Cumulative Equity curve (Recharts Areas) */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-6 border border-zinc-800/60">
+        <div className="lg:col-span-2 bg-[#080808] rounded-2xl p-6 border border-zinc-900">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-0.5">
               <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">{t('equity_curve_title')}</h4>
@@ -259,7 +259,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
         </div>
 
         {/* Win / Loss Split Pie Chart */}
-        <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 flex flex-col justify-between">
+        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">{t('win_loss_split_title')}</h4>

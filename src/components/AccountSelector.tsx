@@ -35,7 +35,7 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
     <div className="relative" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-[#050505] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold truncate"
+        className="w-full flex items-center justify-between bg-black border border-zinc-900 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#00FF9C] font-semibold truncate"
       >
         <span className="truncate">{selectedAccount?.name || 'Sélectionner...'}</span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -47,7 +47,7 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
-            className="absolute z-50 w-full mt-1 bg-[#0a0a0a] border border-white/10 rounded-lg shadow-xl overflow-hidden"
+            className="absolute z-50 w-full mt-1 bg-[#080808] border border-zinc-900 rounded-lg shadow-xl overflow-hidden"
           >
             {accounts.map((acc) => (
               <motion.div
@@ -57,13 +57,13 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center justify-between px-2 py-2 hover:bg-white/5 cursor-pointer"
+                className="flex items-center justify-between px-2 py-2 hover:bg-[#0c0c0c] cursor-pointer"
                 onClick={() => {
                   onSelect(acc.id);
                   setIsOpen(false);
                 }}
               >
-                <span className={`text-xs ${selectedAccountId === acc.id ? 'text-indigo-400 font-bold' : 'text-neutral-300'}`}>
+                <span className={`text-xs ${selectedAccountId === acc.id ? 'text-[#00FF9C] font-bold' : 'text-neutral-300'}`}>
                   {acc.name}
                 </span>
                 {onDelete && (

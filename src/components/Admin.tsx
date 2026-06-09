@@ -110,13 +110,13 @@ export default function Admin({
   };
 
   return (
-    <div className="space-y-6 animate-scale-in">
+    <div className="space-y-6 animate-scale-in bg-black min-h-screen p-6 text-slate-200">
 
       {/* Grid containing Admin configuration details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* ADMIN SETUP FORM CARD */}
-        <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60">
+        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">
           <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-zinc-800/40 pb-3 flex items-center gap-1.5">
             <Settings size={16} className="text-[#00FF9C]" /> Configuration de l'Espace Administrateur
           </h3>
@@ -149,7 +149,7 @@ export default function Admin({
         </div>
 
         {/* ADMIN CRYPTO & PRICING COORDINATES FORM CARD */}
-        <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60">
+        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">
           <h3 className="text-sm font-black font-mono tracking-widest text-amber-400 uppercase mb-4 border-b border-zinc-800/40 pb-3 flex items-center gap-1.5">
             <span>🪙</span> Coordonnées Portefeuille & Tarification
           </h3>
@@ -223,7 +223,7 @@ export default function Admin({
       </div>
 
       {/* SYSTEM LOGS VIEWER */}
-      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-4">
         <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
           <span>📜</span> Journaux Système (Logs)
         </h3>
@@ -268,7 +268,7 @@ export default function Admin({
       </div>
 
       {/* EARLY RENEWALS PURE TABLE */}
-      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-4">
         <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
           <span>⚡</span> Demandes de Renouvellement Anticipé (+30 jours) ({paymentRequests.filter(r => r.status === 'pending').length} en attente)
         </h3>
@@ -365,7 +365,7 @@ export default function Admin({
       </div>
 
       {/* PENDING REGISTRATIONS PURE TABLE */}
-      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-4">
         <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
           <Users size={16} className="text-[#00FF9C]" /> Inscriptions et Preuves de Paiements à Valider ({pendingUsers.length})
         </h3>
@@ -446,7 +446,7 @@ export default function Admin({
       </div>
 
       {/* ALL USERS LIST & ONLINE STATUS */}
-      <div className="glass-panel rounded-2xl p-6 border border-zinc-800/60 space-y-4">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
@@ -565,7 +565,7 @@ export default function Admin({
                       )}
                     </td>
                     <td className="p-3 whitespace-nowrap text-center">
-                      <div className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/60 border border-indigo-950/40">
+                      <div className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/60 border border-zinc-800">
                         {isOnline ? (
                           <>
                             <span className="relative flex h-1.5 w-1.5">
@@ -607,7 +607,7 @@ export default function Admin({
                           <button
                             type="button"
                             onClick={() => startEditing(trader)}
-                            className="px-2.5 py-1 text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-[#00FF9C]/10 hover:bg-[#00FF9C]/20 text-[#00FF9C] border border-[#00FF9C]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                           >
                             <Edit size={11} /> Éditer
                           </button>

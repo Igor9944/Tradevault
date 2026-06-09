@@ -62,17 +62,303 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Subcomponents
 import CustomEffects from './components/CustomEffects';
-import Portal from './components/Portal';
-import Checkout from './components/Checkout';
 import Dashboard from './components/Dashboard';
-import Journal from './components/Journal';
-import Calendar from './components/Calendar';
-import Stats from './components/Stats';
 import { BackgroundVideo } from './components/BackgroundVideo';
-import Challenges from './components/Challenges';
-import Admin from './components/Admin';
 import Logo, { DefaultLogoAvatar } from './components/Logo';
-import ResetPassword from './components/ResetPassword';
+
+// Lazy loaded components for maximum initial page speed and optimized bundle chunk splitting
+const Portal = React.lazy(() => import('./components/Portal'));
+const Checkout = React.lazy(() => import('./components/Checkout'));
+const Journal = React.lazy(() => import('./components/Journal'));
+const Calendar = React.lazy(() => import('./components/Calendar'));
+const Stats = React.lazy(() => import('./components/Stats'));
+const Challenges = React.lazy(() => import('./components/Challenges'));
+const Admin = React.lazy(() => import('./components/Admin'));
+const ResetPassword = React.lazy(() => import('./components/ResetPassword'));
+
+// Sleek loading fallback for major screens or portals with TradeVault aesthetic
+function SleekNeonLoader() {
+  return (
+    <div className="min-h-screen bg-black flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="relative z-10 flex flex-col items-center space-y-5">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border border-[#00FF9C]/10 animate-ping absolute inset-0"></div>
+          <div className="w-16 h-16 rounded-full border-t-2 border-r-2 border-b border-[#00FF9C]/30 border-t-[#00FF9C] border-r-[#00FF9C] animate-spin"></div>
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-sm font-black font-display tracking-tight text-white uppercase">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
+          <div className="text-[10px] uppercase tracking-widest text-[#00FF9C] font-mono animate-pulse">
+            Chiffrement sécurisé en cours...
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Sleek loading skeleton for active main pane tabs inside Workspace
+function TabLoaderSkeleton() {
+  return (
+    <div className="w-full space-y-6 animate-pulse p-4">
+      <div className="flex justify-between items-center bg-[#080808] border border-zinc-900 rounded-2xl p-6">
+        <div className="space-y-2">
+          <div className="h-4 w-36 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-56 bg-zinc-900/60 rounded"></div>
+        </div>
+        <div className="h-8 w-24 bg-zinc-900 rounded-xl"></div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="h-32 bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-3">
+          <div className="h-3 w-16 bg-zinc-900 rounded flex items-center justify-center"></div>
+          <div className="h-6 w-28 bg-zinc-900 rounded"></div>
+        </div>
+        <div className="h-32 bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-3">
+          <div className="h-3 w-16 bg-zinc-900 rounded"></div>
+          <div className="h-6 w-28 bg-zinc-900 rounded"></div>
+        </div>
+        <div className="h-32 bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-3">
+          <div className="h-3 w-16 bg-zinc-900 rounded"></div>
+          <div className="h-6 w-28 bg-zinc-900 rounded"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Specific skeleton for the Admin tab loader
+function AdminLoaderSkeleton() {
+  return (
+    <div className="w-full space-y-6 animate-pulse p-4">
+      {/* Admin Header */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-48 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-72 bg-zinc-900/60 rounded"></div>
+        </div>
+        <div className="h-8 w-32 bg-zinc-900 rounded-xl"></div>
+      </div>
+      {/* Admin Status metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 bg-[#080808] border border-zinc-900 rounded-2xl p-4 space-y-3">
+            <div className="h-3 w-16 bg-zinc-900 rounded"></div>
+            <div className="h-6 w-24 bg-zinc-900 rounded"></div>
+          </div>
+        ))}
+      </div>
+      {/* Users / Subscriptions list table */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-4">
+        <div className="h-4 w-32 bg-zinc-900 rounded mb-2"></div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex justify-between items-center border-b border-white/5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-zinc-900"></div>
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-24 bg-zinc-900 rounded"></div>
+                  <div className="h-2.5 w-32 bg-zinc-900/60 rounded"></div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="h-6 w-16 bg-zinc-900 rounded"></div>
+                <div className="h-6 w-8 bg-zinc-900 rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Specific skeleton for the Stats tab loader
+function StatsLoaderSkeleton() {
+  return (
+    <div className="w-full space-y-6 animate-pulse p-4">
+      {/* Header */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-40 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-64 bg-zinc-900/60 rounded"></div>
+        </div>
+        <div className="h-8 w-24 bg-zinc-900 rounded-xl"></div>
+      </div>
+      {/* Stats Cards (4) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 bg-[#080808] border border-zinc-900 rounded-2xl p-4 space-y-3">
+            <div className="h-3 w-16 bg-zinc-900 rounded"></div>
+            <div className="h-6 w-20 bg-zinc-900 rounded"></div>
+          </div>
+        ))}
+      </div>
+      {/* Graph Area / advanced metrics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-[#080808] border border-zinc-900 rounded-2xl p-6 h-80 flex flex-col justify-between">
+          <div className="h-4 w-32 bg-zinc-900 rounded"></div>
+          {/* Mock Area Chart pulse effect */}
+          <div className="flex-1 flex items-end gap-2 border-b border-l border-zinc-900/40 p-2 mt-4">
+            {[35, 60, 45, 80, 55, 90, 70, 40, 85].map((height, index) => (
+              <div 
+                key={index} 
+                className="flex-1 bg-gradient-to-t from-[#00FF9C]/10 to-[#00FF9C]/30 rounded-t"
+                style={{ height: `${height}%` }}
+              ></div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 h-80 space-y-4">
+          <div className="h-4 w-28 bg-zinc-900 rounded"></div>
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2">
+                <div className="h-3 w-16 bg-zinc-900 rounded"></div>
+                <div className="h-3 w-12 bg-zinc-900 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Specific skeleton for the Calendar tab loader
+function CalendarLoaderSkeleton() {
+  return (
+    <div className="w-full space-y-6 animate-pulse p-4">
+      {/* Calendar Header */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-52 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-80 bg-zinc-900/60 rounded"></div>
+        </div>
+      </div>
+      {/* Calendar Grid wrapper */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-4">
+        {/* Month Selector bar */}
+        <div className="flex justify-between items-center border-b border-white/5 pb-4">
+          <div className="h-6 w-32 bg-zinc-900 rounded"></div>
+          <div className="flex gap-2">
+            <div className="h-8 w-8 bg-zinc-900 rounded-xl"></div>
+            <div className="h-8 w-8 bg-zinc-900 rounded-xl"></div>
+          </div>
+        </div>
+        {/* Days of week header */}
+        <div className="grid grid-cols-7 gap-1 text-center py-2">
+          {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, idx) => (
+            <div key={idx} className="h-3 w-8 bg-zinc-900 rounded mx-auto"></div>
+          ))}
+        </div>
+        {/* Days grid 7x5 */}
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} className="aspect-square bg-[#0c0c0c]/40 border border-zinc-900/50 rounded-xl flex items-center justify-center p-1">
+              <div className="h-3 w-3 bg-zinc-900 rounded mb-1"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Specific skeleton for the Challenges tab loader
+function ChallengesLoaderSkeleton() {
+  return (
+    <div className="w-full space-y-6 animate-pulse p-4">
+      {/* Challenges Header */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-48 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-72 bg-zinc-900/60 rounded"></div>
+        </div>
+        <div className="h-9 w-36 bg-[#00FF9C]/20 border border-[#00FF9C]/10 rounded-xl"></div>
+      </div>
+      {/* Active Challenge Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-4">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <div className="h-4 w-40 bg-zinc-900 rounded"></div>
+                <div className="h-3 w-24 bg-zinc-900/60 rounded"></div>
+              </div>
+              <div className="h-5 w-20 bg-zinc-900 rounded-full"></div>
+            </div>
+            {/* Grid metrics details */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl space-y-2">
+                <div className="h-2.5 w-12 bg-zinc-900 rounded"></div>
+                <div className="h-4 w-16 bg-zinc-900 rounded"></div>
+              </div>
+              <div className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl space-y-2">
+                <div className="h-2.5 w-12 bg-zinc-900 rounded"></div>
+                <div className="h-4 w-16 bg-zinc-900 rounded"></div>
+              </div>
+            </div>
+            {/* Target Slider indicator and rules list */}
+            <div className="space-y-2 pt-2">
+              <div className="flex justify-between text-[10px]">
+                <div className="h-3 w-28 bg-zinc-900 rounded"></div>
+                <div className="h-3 w-12 bg-zinc-900 rounded"></div>
+              </div>
+              <div className="h-2 bg-zinc-950 border border-zinc-900 rounded-full"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Specific skeleton for the Journal tab loader
+function JournalLoaderSkeleton() {
+  return (
+    <div className="w-full space-y-6 animate-pulse p-4">
+      {/* Journal Header */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-40 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-80 bg-zinc-900/60 rounded"></div>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-9 w-24 bg-zinc-900 rounded-xl"></div>
+          <div className="h-9 w-32 bg-[#00FF9C]/20 border border-[#00FF9C]/10 rounded-xl"></div>
+        </div>
+      </div>
+      {/* Journal entries placeholder */}
+      <div className="bg-[#080808] border border-zinc-900 rounded-2xl p-6 space-y-4">
+        <div className="flex justify-between items-center mb-2">
+          <div className="h-4 w-28 bg-zinc-900 rounded"></div>
+          <div className="h-6 w-36 bg-zinc-900 rounded-lg"></div>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-4 bg-[#0c0c0c]/40 border border-[#080808]/50 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-16 bg-zinc-900 rounded flex items-center justify-center"></div>
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-16 bg-zinc-900 rounded"></div>
+                  <div className="h-2.5 w-24 bg-zinc-900/60 rounded"></div>
+                </div>
+              </div>
+              <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                <div className="space-y-1.5 text-right flex-1 select-none">
+                  <div className="h-3 w-12 bg-zinc-900 rounded ms-auto"></div>
+                  <div className="h-2.5 w-16 bg-zinc-900/60 rounded ms-auto"></div>
+                </div>
+                <div className="h-6 w-12 bg-zinc-900 rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 export default function App() {
@@ -238,7 +524,7 @@ export default function App() {
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return localStorage.getItem('tv_admin_emails') || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
+    return localStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
@@ -1042,42 +1328,48 @@ export default function App() {
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
-        <Portal 
-          onLoginSuccess={handleLoginSuccess} 
-          users={users} 
-          onRegisterPending={handleRegisterPending} 
-          adminWalletTRC20={adminWalletTRC20}
-          adminWalletBEP20={adminWalletBEP20}
-          subscriptionPrice={subscriptionPrice}
-          subscriptionPeriod={subscriptionPeriod}
-          adminEmails={adminEmails}
-          onResetPasswordSuccess={handleResetPasswordSuccess}
-        />
+        <React.Suspense fallback={<SleekNeonLoader />}>
+          <Portal 
+            onLoginSuccess={handleLoginSuccess} 
+            users={users} 
+            onRegisterPending={handleRegisterPending} 
+            adminWalletTRC20={adminWalletTRC20}
+            adminWalletBEP20={adminWalletBEP20}
+            subscriptionPrice={subscriptionPrice}
+            subscriptionPeriod={subscriptionPeriod}
+            adminEmails={adminEmails}
+            onResetPasswordSuccess={handleResetPasswordSuccess}
+          />
+        </React.Suspense>
       )}
 
       {/* 1.5. RESET PASSWORD SCREEN */}
       {currentScreen === 'reset-password' && (
-        <ResetPassword 
-          onBackToLogin={() => {
-            setCurrentScreen('login_portal');
-            if (typeof window !== 'undefined') {
-              window.history.pushState('', document.title, '/');
-            }
-          }}
-        />
+        <React.Suspense fallback={<SleekNeonLoader />}>
+          <ResetPassword 
+            onBackToLogin={() => {
+              setCurrentScreen('login_portal');
+              if (typeof window !== 'undefined') {
+                window.history.pushState('', document.title, '/');
+              }
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* 2. CHECKOUT SCREEN */}
       {currentScreen === 'checkout' && currentUser && (
-        <Checkout 
-          user={currentUser} 
-          onPaymentSuccess={handleCheckoutSuccess} 
-          onCancel={handleCheckoutCancel} 
-          adminWalletTRC20={adminWalletTRC20}
-          adminWalletBEP20={adminWalletBEP20}
-          subscriptionPrice={subscriptionPrice}
-          subscriptionPeriod={subscriptionPeriod}
-        />
+        <React.Suspense fallback={<SleekNeonLoader />}>
+          <Checkout 
+            user={currentUser} 
+            onPaymentSuccess={handleCheckoutSuccess} 
+            onCancel={handleCheckoutCancel} 
+            adminWalletTRC20={adminWalletTRC20}
+            adminWalletBEP20={adminWalletBEP20}
+            subscriptionPrice={subscriptionPrice}
+            subscriptionPeriod={subscriptionPeriod}
+          />
+        </React.Suspense>
       )}
 
       {/* 3. APPLICATION WORKSPACE SCREEN */}
@@ -1101,7 +1393,7 @@ export default function App() {
 
               {/* ACCOUNT SWITCHER SELECTOR */}
               {!isAdmin && (
-                <div className="bg-[#0a0a0a]/60 p-3 rounded-xl border border-indigo-950/40 space-y-2">
+                <div className="bg-[#0a0a0a]/60 p-3 rounded-xl border border-zinc-900 space-y-2">
                   <span className="text-[9px] text-neutral-300 font-bold uppercase tracking-wider block">PORTEFEUILLE ACTIF</span>
                   <div className="flex gap-1.5 items-center">
                     <AccountSelector 
@@ -1120,10 +1412,10 @@ export default function App() {
                 const daysLeft = Math.max(0, Math.ceil((new Date(currentUser.paidUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24)));
                 const isNearingExpiry = daysLeft <= 7;
                 return (
-                  <div className={`${isNearingExpiry ? 'bg-rose-900/20 border-rose-500/40 text-rose-300' : 'bg-indigo-900/20 border-indigo-500/20 text-indigo-300'} border p-3 rounded-xl flex flex-col gap-2`}>
+                  <div className={`${isNearingExpiry ? 'bg-rose-900/20 border-rose-500/40 text-rose-300' : 'bg-[#00FF9C]/5 border-[#00FF9C]/20 text-[#00FF9C]'} border p-3 rounded-xl flex flex-col gap-2`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isNearingExpiry ? 'text-rose-400' : 'text-indigo-400'}`}>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isNearingExpiry ? 'text-rose-400' : 'text-[#00FF9C]'}`}>
                           Accès PRO {isNearingExpiry && '⚠️'}
                         </span>
                         <span className="text-[10px] text-neutral-300 font-medium font-sans">
@@ -1132,7 +1424,7 @@ export default function App() {
                           </strong> / 90
                         </span>
                       </div>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border shadow-inner overflow-hidden shrink-0 ${isNearingExpiry ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border shadow-inner overflow-hidden shrink-0 ${isNearingExpiry ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' : 'bg-[#00FF9C]/10 border-[#00FF9C]/30 text-[#00FF9C]'}`}>
                          <span className="text-[10px] font-black font-mono">
                           {daysLeft}
                          </span>
@@ -1149,7 +1441,7 @@ export default function App() {
                       className={`w-full py-1.5 mt-1 border rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors ${
                         isNearingExpiry 
                           ? 'bg-rose-600/30 hover:bg-rose-600/50 border-rose-500/30 text-rose-300'
-                          : 'bg-indigo-600/30 hover:bg-indigo-600/50 border-indigo-500/30 text-indigo-300'
+                          : 'bg-[#00FF9C]/10 hover:bg-[#00FF9C]/20 border-[#00FF9C]/30 text-[#00FF9C]'
                       }`}
                     >
                       Renouvellement Anticipé
@@ -1166,8 +1458,8 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('dashboard')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-neutral-900 transition-all font-semibold ${
-                        activeTab === 'dashboard' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
+                        activeTab === 'dashboard' ? 'bg-[#00FF9C]/10 border-[#00FF9C]/20 text-[#00FF9C] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-neutral-900'
                       }`}
                     >
                       <Grid size={15} /> Dashboard
@@ -1176,8 +1468,8 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('journal')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-neutral-900 transition-all font-semibold ${
-                        activeTab === 'journal' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
+                        activeTab === 'journal' ? 'bg-[#00FF9C]/10 border-[#00FF9C]/20 text-[#00FF9C] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-neutral-900'
                       }`}
                     >
                       <FileText size={15} /> Journal Trading
@@ -1186,8 +1478,8 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('calendar')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-slate-900 transition-all font-semibold ${
-                        activeTab === 'calendar' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
+                        activeTab === 'calendar' ? 'bg-[#00FF9C]/10 border-[#00FF9C]/20 text-[#00FF9C] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-slate-900'
                       }`}
                     >
                       <CalendarIcon size={15} /> Calendrier Mensuel
@@ -1196,8 +1488,8 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('stats')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-slate-900 transition-all font-semibold ${
-                        activeTab === 'stats' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
+                        activeTab === 'stats' ? 'bg-[#00FF9C]/10 border-[#00FF9C]/20 text-[#00FF9C] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-slate-900'
                       }`}
                     >
                       <TrendingUp size={15} /> Statistiques
@@ -1206,8 +1498,8 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setActiveTab('challenges')}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-slate-900 transition-all font-semibold ${
-                          activeTab === 'challenges' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : ''
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
+                          activeTab === 'challenges' ? 'bg-[#00FF9C]/10 border-[#00FF9C]/20 text-[#00FF9C] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-slate-900'
                         }`}
                       >
                         <Award size={15} /> Tracker Propfirm
@@ -1221,8 +1513,8 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setActiveTab('admin')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-slate-900 transition-all font-semibold border border-indigo-900/40 mt-6 ${
-                      activeTab === 'admin' ? 'bg-indigo-600 text-white hover:bg-indigo-600 shadow' : 'bg-indigo-950/20'
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border font-semibold mt-6 ${
+                      activeTab === 'admin' ? 'bg-[#00FF9C]/10 border-[#00FF9C]/20 text-[#00FF9C] shadow' : 'border-transparent text-[#94a3b8] bg-zinc-950/20'
                     }`}
                   >
                     🛡️ Espace Admin
@@ -1245,21 +1537,21 @@ export default function App() {
               {/* Active user tag detail */}
               <div 
                 onClick={openProfileModal}
-                className="flex gap-2.5 items-center px-2 py-1.5 rounded-xl hover:bg-slate-900/60 border border-transparent hover:border-indigo-950/20 active:scale-[0.98] transition-all cursor-pointer group"
+                className="flex gap-2.5 items-center px-2 py-1.5 rounded-xl hover:bg-slate-900/60 border border-transparent hover:border-[#00FF9C]/10 active:scale-[0.98] transition-all cursor-pointer group"
                 title="Modifier mon profil"
               >
                 {currentUser.avatar ? (
                   <img 
                     src={currentUser.avatar} 
                     alt={currentUser.username} 
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/30 group-hover:ring-indigo-500/60 transition-all shrink-0"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-[#00FF9C]/25 group-hover:ring-[#00FF9C]/50 transition-all shrink-0"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <DefaultLogoAvatar className="w-8 h-8 ring-2 ring-indigo-500/30 group-hover:ring-indigo-500/60 transition-all" />
+                  <DefaultLogoAvatar className="w-8 h-8 ring-2 ring-[#00FF9C]/25 group-hover:ring-[#00FF9C]/50 transition-all" />
                 )}
                 <div className="overflow-hidden flex-1">
-                  <span className="text-xs font-bold text-white block leading-none truncate mb-1 group-hover:text-indigo-400 transition-colors">
+                  <span className="text-xs font-bold text-white block leading-none truncate mb-1 group-hover:text-[#00FF9C] transition-colors">
                     {currentUser.username || 'Utilisateur'}
                   </span>
                   <span className="text-[9px] text-[#475569] block font-mono truncate leading-none">
@@ -1267,7 +1559,7 @@ export default function App() {
                   </span>
                 </div>
                 {/* Visual click-to-edit indicator */}
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] opacity-0 group-hover:opacity-100 transition-opacity"></span>
               </div>
 
               {deferredPrompt && (
@@ -1335,67 +1627,77 @@ export default function App() {
             )}
 
             {activeTab === 'journal' && (
-              <Journal 
-                trades={activeAccountTrades} 
-                onAddTrade={handleAddTrade} 
-                onEditTrade={handleEditTrade} 
-                onDeleteTrade={handleDeleteTrade} 
-                activeAccount={activeAccount} 
-              />
+              <React.Suspense fallback={<JournalLoaderSkeleton />}>
+                <Journal 
+                  trades={activeAccountTrades} 
+                  onAddTrade={handleAddTrade} 
+                  onEditTrade={handleEditTrade} 
+                  onDeleteTrade={handleDeleteTrade} 
+                  activeAccount={activeAccount} 
+                />
+              </React.Suspense>
             )}
 
             {activeTab === 'calendar' && (
-              <Calendar trades={activeAccountTrades} />
+              <React.Suspense fallback={<CalendarLoaderSkeleton />}>
+                <Calendar trades={activeAccountTrades} />
+              </React.Suspense>
             )}
 
             {activeTab === 'stats' && (
-              <Stats 
-                trades={activeAccountTrades} 
-                onImportTrades={(imported) => setTrades(imported)} 
-                onResetTrades={() => setTrades(prev => prev.filter(t => t.accountId !== selectedAccountId))} 
-                activeAccount={activeAccount} 
-              />
+              <React.Suspense fallback={<StatsLoaderSkeleton />}>
+                <Stats 
+                  trades={activeAccountTrades} 
+                  onImportTrades={(imported) => setTrades(imported)} 
+                  onResetTrades={() => setTrades(prev => prev.filter(t => t.accountId !== selectedAccountId))} 
+                  activeAccount={activeAccount} 
+                />
+              </React.Suspense>
             )}
 
             {activeTab === 'challenges' && (
-              <Challenges 
-                challenges={challenges} 
-                trades={activeAccountTrades} 
-                onAddChallenge={handleAddChallenge} 
-                onDeleteChallenge={handleDeleteChallenge} 
-                activeAccount={activeAccount} 
-              />
+              <React.Suspense fallback={<ChallengesLoaderSkeleton />}>
+                <Challenges 
+                  challenges={challenges} 
+                  trades={activeAccountTrades} 
+                  onAddChallenge={handleAddChallenge} 
+                  onDeleteChallenge={handleDeleteChallenge} 
+                  activeAccount={activeAccount} 
+                />
+              </React.Suspense>
             )}
 
             {activeTab === 'admin' && isAdmin && (
-              <Admin 
-                users={users} 
-                onApproveUser={handleApproveUser} 
-                onRejectUser={handleRejectUser} 
-                onUpdateAdminEmails={setAdminEmails} 
-                adminEmails={adminEmails} 
-                adminWalletTRC20={adminWalletTRC20}
-                adminWalletBEP20={adminWalletBEP20}
-                subscriptionPrice={subscriptionPrice}
-                subscriptionPeriod={subscriptionPeriod}
-                onUpdateAdminParams={(trc, bep, price, period) => {
-                  setAdminWalletTRC20(trc);
-                  localStorage.setItem('tv_admin_wallet_trc20', trc);
-                  setAdminWalletBEP20(bep);
-                  localStorage.setItem('tv_admin_wallet_bep20', bep);
-                  setSubscriptionPrice(price);
-                  localStorage.setItem('tv_subscription_price', price.toString());
-                  setSubscriptionPeriod(period);
-                  localStorage.setItem('tv_subscription_period', period.toString());
-                }}
-                paymentRequests={paymentRequests}
-                onApproveRenewal={handleApproveRenewal}
-                onRejectRenewal={handleRejectRenewal}
-                onCheckCronRenewals={handleCheckCronRenewals}
-                onDeleteUser={handleDeleteUser}
-                onDeleteAllUsersExceptAdmin={handleDeleteAllUsersExceptAdmin}
-                onEditUser={handleEditUser}
-              />
+              <React.Suspense fallback={<AdminLoaderSkeleton />}>
+                <Admin 
+                  users={users} 
+                  onApproveUser={handleApproveUser} 
+                  onRejectUser={handleRejectUser} 
+                  onUpdateAdminEmails={setAdminEmails} 
+                  adminEmails={adminEmails} 
+                  adminWalletTRC20={adminWalletTRC20}
+                  adminWalletBEP20={adminWalletBEP20}
+                  subscriptionPrice={subscriptionPrice}
+                  subscriptionPeriod={subscriptionPeriod}
+                  onUpdateAdminParams={(trc, bep, price, period) => {
+                    setAdminWalletTRC20(trc);
+                    localStorage.setItem('tv_admin_wallet_trc20', trc);
+                    setAdminWalletBEP20(bep);
+                    localStorage.setItem('tv_admin_wallet_bep20', bep);
+                    setSubscriptionPrice(price);
+                    localStorage.setItem('tv_subscription_price', price.toString());
+                    setSubscriptionPeriod(period);
+                    localStorage.setItem('tv_subscription_period', period.toString());
+                  }}
+                  paymentRequests={paymentRequests}
+                  onApproveRenewal={handleApproveRenewal}
+                  onRejectRenewal={handleRejectRenewal}
+                  onCheckCronRenewals={handleCheckCronRenewals}
+                  onDeleteUser={handleDeleteUser}
+                  onDeleteAllUsersExceptAdmin={handleDeleteAllUsersExceptAdmin}
+                  onEditUser={handleEditUser}
+                />
+              </React.Suspense>
             )}
 
           </main>
@@ -1406,9 +1708,9 @@ export default function App() {
       {/* POPUP MODAL: ADD PORTFOLIO ACCOUNT */}
       {addAccountOpen && (
         <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-950 rounded-2xl border border-indigo-500/30 p-6 space-y-4">
+          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 p-6 space-y-4">
             
-            <div className="flex justify-between items-center border-b border-indigo-900/10 pb-3">
+            <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <h3 className="text-sm font-black font-mono text-white uppercase tracking-widest">Nouveau Portefeuille</h3>
               <button 
                 type="button" 
@@ -1427,7 +1729,7 @@ export default function App() {
                   value={newAccName}
                   onChange={(e) => setNewAccName(e.target.value)}
                   placeholder="Ex: FTMO Challenge 50k"
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40"
                   required
                 />
               </div>
@@ -1437,7 +1739,7 @@ export default function App() {
                 <select
                   value={newAccType}
                   onChange={(e) => setNewAccType(e.target.value as any)}
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40"
                 >
                   <option value="personal">Compte Personnel Standard</option>
                   <option value="propfirm">Challenge Evaluation Propfirm</option>
@@ -1504,7 +1806,7 @@ export default function App() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold"
+                  className="flex-1 py-2 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-colors font-mono tracking-wide"
                 >
                   Enregistrer
                 </button>
@@ -1518,11 +1820,11 @@ export default function App() {
       {/* POPUP MODAL: PROFILE EDITION */}
       {profileModalOpen && (
         <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[#0a0f24] rounded-2xl border border-indigo-500/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in">
+          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in">
             
-            <div className="flex justify-between items-center border-b border-indigo-950/40 pb-3">
+            <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
-                <span className="text-indigo-400">✨</span>
+                <span className="text-[#00FF9C]">✨</span>
                 <h3 className="text-sm font-black font-mono text-white uppercase tracking-widest">Édition du Profil</h3>
               </div>
               <button 
@@ -1540,7 +1842,7 @@ export default function App() {
               <div className="flex flex-col items-center gap-2">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Photo de Profil</span>
                 <div 
-                  className="relative group cursor-pointer w-24 h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-blue-500 via-indigo-500 to-purple-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20"
+                  className="relative group cursor-pointer w-24 h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-emerald-500 via-[#00FF9C] to-emerald-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#00FF9C]/20"
                   onClick={() => document.getElementById('profile-avatar-upload-input')?.click()}
                   title="Modifier votre photo de profil"
                 >
@@ -1563,14 +1865,14 @@ export default function App() {
                         <DefaultLogoAvatar className="w-full h-full" />
                         <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
                           <Camera size={18} className="text-white mb-0.5" />
-                          <span className="text-[8px] font-bold uppercase tracking-widest text-indigo-300">Uploader</span>
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-[#00FF9C]">Uploader</span>
                         </div>
                       </>
                     )}
                   </div>
                   
                   {/* Plus badge */}
-                  <span className="absolute bottom-1 right-1 flex h-5 w-5 rounded-full bg-indigo-600 items-center justify-center border-2 border-[#040611] text-white font-bold text-[9px]">
+                  <span className="absolute bottom-1 right-1 flex h-5 w-5 rounded-full bg-[#00FF9C] items-center justify-center border-2 border-[#040611] text-black font-bold text-[9px]">
                     +
                   </span>
                 </div>
@@ -1604,14 +1906,14 @@ export default function App() {
                     type="text"
                     value={profileUsername}
                     onChange={(e) => setProfileUsername(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-sans"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-sans"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-455 font-bold uppercase tracking-wide block">Pays / Devise région</label>
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Pays / Devise région</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <Globe size={14} />
@@ -1620,7 +1922,7 @@ export default function App() {
                     type="text"
                     value={profileCountry}
                     onChange={(e) => setProfileCountry(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
                     placeholder="Ex: FR"
                   />
                 </div>
@@ -1636,7 +1938,7 @@ export default function App() {
                     type={showProfileOldPassword ? "text" : "password"}
                     value={profileOldPassword}
                     onChange={(e) => setProfileOldPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
                     placeholder="Saisissez votre ancien mot de passe"
                   />
                   <button
@@ -1650,7 +1952,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-indigo-400 font-bold uppercase tracking-wide block">Nouveau Mot de Passe</label>
+                <label className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wide block">Nouveau Mot de Passe</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <Lock size={14} />
@@ -1659,7 +1961,7 @@ export default function App() {
                     type={showProfileNewPassword ? "text" : "password"}
                     value={profileNewPassword}
                     onChange={(e) => setProfileNewPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
                     placeholder="Nouveau mot de passe"
                   />
                   <button
@@ -1673,7 +1975,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-450 font-bold uppercase tracking-wide block">Confirmer Nouveau Mot de Passe</label>
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Confirmer Nouveau Mot de Passe</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <Lock size={14} />
@@ -1682,7 +1984,7 @@ export default function App() {
                     type={showProfileConfirmPassword ? "text" : "password"}
                     value={profileConfirmPassword}
                     onChange={(e) => setProfileConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
                     placeholder="Confirmez"
                   />
                   <button
@@ -1697,8 +1999,8 @@ export default function App() {
 
               {/* GOOGLE INTEGRATION SECTION */}
               {currentUser && (
-                <div className="pt-4 border-t border-indigo-950/40 space-y-2.5">
-                  <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">Liaison Google</span>
+                <div className="pt-4 border-t border-white/5 space-y-2.5">
+                  <span className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wider block">Liaison Google</span>
                   
                   {currentUser.googleLinked ? (
                     <div className="p-3 bg-[#00FF9C]/5 border border-[#00FF9C]/20 rounded-xl flex items-center justify-between">
@@ -1714,8 +2016,8 @@ export default function App() {
                       <span className="text-[#00FF9C] text-sm">✅</span>
                     </div>
                   ) : (
-                    <div className="p-3 bg-zinc-950/60 border border-indigo-500/10 rounded-xl space-y-2">
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                    <div className="p-3 bg-[#080808] border border-[#00FF9C]/10 rounded-xl space-y-2">
+                      <p className="text-[10px] text-slate-455 leading-relaxed font-sans">
                         Associez votre compte à Google pour pouvoir vous connecter de manière interchangeable avec votre e-mail ou via Google d'un simple clic.
                       </p>
                       
@@ -1768,7 +2070,7 @@ export default function App() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white rounded-xl text-xs font-bold transition-all"
+                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide"
                 >
                   Enregistrer
                 </button>
@@ -1784,7 +2086,7 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-[white/10] rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col items-center text-center">
             
-            <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center mb-5 shrink-0 border-4 border-slate-900 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+            <div className="w-16 h-16 rounded-full bg-[#00FF9C]/10 flex items-center justify-center mb-5 shrink-0 border-4 border-slate-900 shadow-[0_0_20px_rgba(0,255,156,0.1)]">
               <span className="text-2xl animate-bounce">🚀</span>
             </div>
 
@@ -1796,7 +2098,7 @@ export default function App() {
 
             <button
               onClick={() => setShowWelcomeModal(false)}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-505 text-white rounded-xl text-xs font-bold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98]"
+              className="w-full py-3 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-black transition-all shadow-lg hover:shadow-[#00FF9C]/10 active:scale-[0.98]"
             >
               🚀 Let's Go
             </button>
@@ -1807,13 +2109,13 @@ export default function App() {
       {/* CUSTOM DIALOG MODAL (REPLACING native window.alert/window.confirm) */}
       {dialogState.isOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-[#0b1026] border border-indigo-500/20 rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col space-y-4 shadow-2xl">
+          <div className="bg-[#080808] border border-[#00FF9C]/20 rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col space-y-4 shadow-2xl">
             
-            <div className="flex items-center gap-3 border-b border-indigo-950/40 pb-3">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
               <span className="text-xl">
                 {dialogState.isConfirm ? '❓' : '🚨'}
               </span>
-              <h3 className="text-sm font-black font-sans text-white uppercase tracking-wider">
+              <h3 className="text-sm font-black font-sans text-[#00FF9C] uppercase tracking-wider">
                 {dialogState.title}
               </h3>
             </div>
@@ -1841,7 +2143,7 @@ export default function App() {
                       if (dialogState.onConfirm) dialogState.onConfirm();
                       setDialogState(prev => ({ ...prev, isOpen: false }));
                     }}
-                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-indigo-500/10 active:scale-[0.98]"
+                    className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-[#00FF9C]/10 active:scale-[0.98]"
                   >
                     Confirmer
                   </button>
@@ -1850,7 +2152,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setDialogState(prev => ({ ...prev, isOpen: false }))}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white rounded-xl text-xs font-bold transition-all text-center shadow-md hover:shadow-indigo-500/10 active:scale-[0.98]"
+                  className="w-full py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all text-center shadow-md hover:shadow-[#00FF9C]/10 active:scale-[0.98]"
                 >
                   OK
                 </button>

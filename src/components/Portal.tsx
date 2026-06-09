@@ -376,7 +376,7 @@ export default function Portal({
   adminWalletBEP20 = '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
   subscriptionPrice = 30,
   subscriptionPeriod = 3,
-  adminEmails = 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+  adminEmails = 'tradonyx@vault.com',
   onResetPasswordSuccess
 }: PortalProps) {
   const { lang, toggleLang, t } = useThemeLang();
@@ -755,7 +755,7 @@ export default function Portal({
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative flex flex-col items-center justify-start overflow-hidden w-full">
+    <div className="min-h-screen bg-black text-slate-200 relative flex flex-col items-center justify-start overflow-hidden w-full">
       {/* Dynamic particles backdrop canvas */}
       <CanvasParticles />
 

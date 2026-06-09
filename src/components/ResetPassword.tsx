@@ -55,12 +55,12 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
   };
 
   return (
-    <div className="flex-1 min-h-screen flex items-center justify-center relative p-4 bg-[#020205]">
+    <div className="flex-1 min-h-screen flex items-center justify-center relative p-4 bg-black">
       {/* Dynamic Background visual details */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-[#080810]/95 backdrop-blur-md rounded-2xl border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden relative z-10 transition-all">
+      <div className="w-full max-w-md bg-[#080808] backdrop-blur-md rounded-2xl border border-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden relative z-10 transition-all">
         {/* Sleek top loader accent bar */}
         {loading && (
           <div className="absolute top-0 inset-x-0 h-1 bg-[#00FF9C] animate-pulse"></div>
@@ -95,7 +95,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
               <button
                 type="button"
                 onClick={onBackToLogin}
-                className="w-full py-3.5 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                className="w-full py-3.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all shadow-md active:scale-[0.98] cursor-pointer"
               >
                 RETOURNER À L'ACCÈS MEMBRE
               </button>
@@ -126,7 +126,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Minimum 8 caractères"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#04040a] border border-white/5 focus:border-[#00FF9C]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 bg-black border border-zinc-900 focus:border-[#00FF9C]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
                     required
                     disabled={loading}
                   />
@@ -152,7 +152,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Resaisir à l'identique"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#04040a] border border-white/5 focus:border-[#00FF9C]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 bg-black border border-zinc-900 focus:border-[#00FF9C]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
                     required
                     disabled={loading}
                   />
@@ -187,7 +187,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-white text-black hover:bg-[#00FF9C] hover:text-black disabled:bg-white/20 disabled:text-white/60 rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6"
+                className="w-full py-4 bg-[#00FF9C] hover:bg-[#00D180] text-black disabled:bg-zinc-900 disabled:text-zinc-600 rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6"
               >
                 {loading ? (
                   <>

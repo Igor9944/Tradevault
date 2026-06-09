@@ -64,6 +64,10 @@ export const translations: Record<string, Record<string, string>> = {
     all_accounts: "Tous les comptes",
     all_pairs: "Toutes les paires",
     all_setups: "Tous les setups",
+    search_pair_placeholder: "Rechercher une paire...",
+    all_results: "Tous les résultats",
+    only_gains: "Gains uniquement",
+    only_losses: "Pertes uniquement",
     add_trade: "Ajouter un Enregistrement Trade",
     edit_trade: "Modifier les spécifications d'un Trade",
     pair_label: "Paire",
@@ -114,6 +118,9 @@ export const translations: Record<string, Record<string, string>> = {
     import_error: "Impossible de décoder le fichier JSON.",
 
     // Propfirm Tracker
+    propfirm_challenges_tracker: "Suivi des Challenges Propfirm",
+    propfirm_challenges_tracker_desc: "Métriques de respect des règles et suivi des objectifs en temps réel",
+    new_challenge: "Nouveau Challenge",
     validation_objectives: "Suivi des Objectifs de Validation",
     select_objective: "Sélectionner l'Objectif de Simulation",
     rules_compliance: "Métriques de Respect des Règles",
@@ -261,6 +268,10 @@ export const translations: Record<string, Record<string, string>> = {
     all_accounts: "All accounts",
     all_pairs: "All pairs",
     all_setups: "All setups",
+    search_pair_placeholder: "Search for a pair...",
+    all_results: "All results",
+    only_gains: "Only wins",
+    only_losses: "Only losses",
     add_trade: "Add Trade Record",
     edit_trade: "Modify Trade Specifications",
     pair_label: "Pair",
@@ -311,6 +322,9 @@ export const translations: Record<string, Record<string, string>> = {
     import_error: "Could not decode JSON file.",
 
     // Propfirm Tracker
+    propfirm_challenges_tracker: "Propfirm Challenges Tracker",
+    propfirm_challenges_tracker_desc: "Real-time key compliance metrics & objects validation progress",
+    new_challenge: "New Challenge",
     validation_objectives: "Validation Objectives Tracking",
     select_objective: "Select Objective Simulator",
     rules_compliance: "Rules Compliance Metrics",

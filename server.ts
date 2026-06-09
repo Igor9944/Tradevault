@@ -2,9 +2,115 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import dotenv from "dotenv";
+import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
+
+// Log buffer for admin panel
+export const logBuffer: { timestamp: string, message: string }[] = [];
+const MAX_LOGS = 50;
+
+export function addLog(message: string) {
+  const logEntry = { timestamp: new Date().toISOString(), message };
+  logBuffer.unshift(logEntry);
+  if (logBuffer.length > MAX_LOGS) logBuffer.pop();
+  console.log(`[LOG] ${message}`);
+}
+
+// Helper to send emails via Resend
+export async function sendEmailViaResend(to: string, subject: string, html: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  
+  if (!apiKey) {
+    addLog(`[RESEND SIMULATION] Destinataire: ${to} | Sujet: "${subject}"`);
+    return { success: true, simulated: true };
+  }
+  
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+    const response = await resend.emails.send({
+      from: fromEmail,
+      to: [to],
+      subject: subject,
+      html: html
+    });
+    
+    if (response.error) {
+      addLog(`[RESEND ERROR] Échec d'envoi à ${to} : ${JSON.stringify(response.error)}`);
+      return { success: false, error: response.error };
+    }
+    
+    addLog(`[RESEND SUCCESS] E-mail envoyé avec succès à ${to} (ID: ${response.data?.id})`);
+    return { success: true, id: response.data?.id };
+  } catch (err: any) {
+    addLog(`[RESEND EXCEPTION] Erreur d'envoi à ${to} : ${err.message || String(err)}`);
+    return { success: false, error: err.message || String(err) };
+  }
+}
+
+export async function triggerEmailsOnSignup(username: string, email: string, paymentScreenshot: string | null, amount: number, network: string) {
+  try {
+    let htmlContent = "";
+    const pendingHtmlPath = path.join(process.cwd(), "SUPABASE_PENDING_EMAIL.html");
+    if (fs.existsSync(pendingHtmlPath)) {
+      htmlContent = fs.readFileSync(pendingHtmlPath, "utf8");
+    } else {
+      htmlContent = `<h2>Demande en cours — TradeVault</h2><p>Bonjour ${username}, votre preuve de paiement a bien été reçue !</p>`;
+    }
+
+    htmlContent = htmlContent
+      .replace(/\{\{user_name\}\}/g, username)
+      .replace(/\{\{user_email\}\}/g, email);
+
+    await sendEmailViaResend(email, "⏳ Votre demande d'inscription premium TradeVault est en cours de traitement", htmlContent);
+
+    // Notify the admin
+    const adminEmail = "tradonyx@vault.com";
+    const adminHtml = `
+      <div style="font-family: sans-serif; background-color: #0b0f19; color: #f1f5f9; padding: 30px; border-radius: 12px; border: 1px solid #1e293b;">
+        <h2 style="color: #6366f1;">🚨 Nouvelle inscription TradeVault Pro !</h2>
+        <p>Un nouveau trader s'est enregistré et a envoyé une preuve de paiement :</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <tr><td style="padding: 6px 0; color: #94a3b8; width: 80px;">Nom :</td><td style="font-weight: bold; color: #ffffff;">${username}</td></tr>
+          <tr><td style="padding: 6px 0; color: #94a3b8;">Email :</td><td style="font-weight: bold; color: #ffffff;">${email}</td></tr>
+          <tr><td style="padding: 6px 0; color: #94a3b8;">Montant :</td><td style="font-weight: bold; color: #00ff9c;">${amount} USD</td></tr>
+          <tr><td style="padding: 6px 0; color: #94a3b8;">Réseau :</td><td style="font-weight: bold; color: #ffffff;">${network}</td></tr>
+        </table>
+        ${paymentScreenshot ? `<p style="margin-top: 20px;">🖼️ **Preuve de paiement :** <a href="${paymentScreenshot}" style="color: #6366f1; font-weight: bold;">Voir la capture d'écran</a></p>` : ""}
+        <p style="margin-top: 25px; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 15px;">Rendez-vous dans votre espace d'administration TradeVault Pro pour valider ou rejeter l'accès.</p>
+      </div>
+    `;
+
+    await sendEmailViaResend(adminEmail, `🚨 Nouvelle preuve d'abonnement : ${username}`, adminHtml);
+  } catch (err) {
+    console.error("Error in triggerEmailsOnSignup:", err);
+  }
+}
+
+export async function triggerEmailOnApproval(username: string, email: string) {
+  try {
+    let htmlContent = "";
+    const welcomeHtmlPath = path.join(process.cwd(), "SUPABASE_WELCOME_EMAIL.html");
+    if (fs.existsSync(welcomeHtmlPath)) {
+      htmlContent = fs.readFileSync(welcomeHtmlPath, "utf8");
+    } else {
+      htmlContent = `<h2>Accès Premium Activé — TradeVault</h2><p>Bonjour ${username}, votre compte a été approuvé avec succès ! Bienvenue à bord.</p>`;
+    }
+
+    const platformUrl = "https://traderpr0.netlify.app";
+
+    htmlContent = htmlContent
+      .replace(/\{\{user_name\}\}/g, username)
+      .replace(/\{\{platform_url\}\}/g, platformUrl);
+
+    await sendEmailViaResend(email, "🚀 Bienvenue au TradeVault — Accès Premium Activé", htmlContent);
+  } catch (err) {
+    console.error("Error in triggerEmailOnApproval:", err);
+  }
+}
 
 export const app = express();
 const PORT = 3000;
@@ -47,7 +153,7 @@ if (supabaseUrl && supabaseAnonKey) {
 let inMemoryUsers: any[] = [
   {
     id: "user_igor",
-    email: "igorrose2003@gmail.com",
+    email: "tradonyx@vault.com",
     username: "Igor Rose",
     country: "FR",
     avatar_url: null,
@@ -58,7 +164,7 @@ let inMemoryUsers: any[] = [
   },
   {
     id: "user_toshiro",
-    email: "toshirohitsugayaonyx@gmail.com",
+    email: "tradonyx@vault.com",
     username: "Toshiro Hitsugaya",
     country: "DE",
     avatar_url: null,
@@ -152,6 +258,9 @@ function handleInmemoryProxyAction(action: string, args: any): any {
         status: "pending",
         payment_date: new Date().toISOString()
       });
+
+      // Trigger Resend email deliverability on signup
+      triggerEmailsOnSignup(username.trim(), cleanEmail, paymentScreenshot, subscriptionPrice || 30, selectedNetwork || "TRC20");
 
       return {
         success: true,
@@ -299,9 +408,13 @@ function handleInmemoryProxyAction(action: string, args: any): any {
       if (row.status === 'approved') {
         const uIdx = inMemoryUsers.findIndex(u => u.id === row.user_id);
         if (uIdx !== -1) {
-          inMemoryUsers[uIdx].status = 'approved';
-          inMemoryUsers[uIdx].paid = true;
-          inMemoryUsers[uIdx].paid_until = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+          const userObj = inMemoryUsers[uIdx];
+          userObj.status = 'approved';
+          userObj.paid = true;
+          userObj.paid_until = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+          
+          // Trigger Resend premium activation welcome email
+          triggerEmailOnApproval(userObj.username, userObj.email);
         }
       } else if (row.status === 'rejected') {
         const uIdx = inMemoryUsers.findIndex(u => u.id === row.user_id);
@@ -436,6 +549,9 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         if (paymentError) {
           console.warn("[PROXY_SIGNUP] Payment insert issue:", paymentError);
         }
+
+        // Trigger Resend email deliverability on signup
+        await triggerEmailsOnSignup(username.trim(), email, paymentScreenshot, subscriptionPrice || 30, selectedNetwork || "TRC20");
 
         return res.json({
           success: true,
@@ -591,6 +707,23 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         const { row } = args;
         const { error } = await serverSupabase.from('payments').upsert(row);
         if (error) throw error;
+
+        if (row.status === 'approved') {
+          try {
+            const { data: userProfile } = await serverSupabase
+              .from('users')
+              .select('*')
+              .eq('id', row.user_id)
+              .maybeSingle();
+
+            if (userProfile && userProfile.email) {
+              await triggerEmailOnApproval(userProfile.username || 'Trader', userProfile.email);
+            }
+          } catch (err) {
+            console.error("Failed to query user for approval email trigger:", err);
+          }
+        }
+
         return res.json({ success: true });
       }
 
@@ -653,17 +786,6 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 // In-memory OTP storage for password resets
 const otpStorage = new Map<string, { code: string; expires: number }>();
 
-// Log buffer for admin panel
-const logBuffer: { timestamp: string, message: string }[] = [];
-const MAX_LOGS = 50;
-
-function addLog(message: string) {
-  const logEntry = { timestamp: new Date().toISOString(), message };
-  logBuffer.unshift(logEntry);
-  if (logBuffer.length > MAX_LOGS) logBuffer.pop();
-  console.log(`[LOG] ${message}`);
-}
-
 app.get("/api/admin/logs", (req, res) => {
   res.json({ success: true, logs: logBuffer });
 });
@@ -713,9 +835,40 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
       expires: Date.now() + 15 * 60 * 1000
     });
 
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #1e293b; border-radius: 16px; background-color: #0b0f19; color: #f1f5f9; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <!-- En-tête -->
+        <div style="text-align: center; margin-bottom: 25px;">
+          <div style="display: inline-block; padding: 8px 16px; background-color: rgba(0, 255, 156, 0.1); border: 1px solid rgba(0, 255, 156, 0.2); border-radius: 99px;">
+            <span style="font-size: 11px; font-weight: bold; letter-spacing: 2px; color: #00ff9c; text-transform: uppercase;">CONNEXION UNIQUE</span>
+          </div>
+        </div>
+
+        <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; text-align: center; font-weight: 800; letter-spacing: -0.5px;">Accès Instantané ⚡</h2>
+        
+        <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 24px;">
+          Saisissez le code OTP à usage unique ci-dessous pour modifier votre mot de passe et récupérer vos accès de trading TradeVault Pro :
+        </p>
+
+        <!-- Bloc de Code OTP -->
+        <div style="background-color: #151c2c; border: 1.5px dashed #00ff9c; padding: 18px; border-radius: 12px; text-align: center; margin: 25px 0;">
+          <span style="font-size: 36px; font-weight: 900; letter-spacing: 6px; color: #00ff9c; font-family: 'Courier New', monospace;">${code}</span>
+          <p style="font-size: 11px; color: #64748b; margin: 8px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Saisissez ce code de vérification</p>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #1e293b; margin: 30px 0;" />
+        <p style="font-size: 11px; color: #64748b; text-align: center; margin: 0; line-height: 1.5;">
+          Ce code temporaire n'est de rigueur que pour une durée de 15 minutes.
+        </p>
+      </div>
+    `;
+
+    addLog(`[OTP_RESET] Code OTP généré pour ${cleanEmail}`);
+    await sendEmailViaResend(cleanEmail, "🔑 Code de connexion sécurisé TradeVault Pro", emailHtml);
+
     return res.json({
       success: true,
-      message: "Un code OTP a été généré avec succès. Son acheminement s'effectue en arrière-plan."
+      message: "Un code OTP a été envoyé à votre adresse e-mail avec succès."
     });
   } catch (err: any) {
     console.error("Forgot password OTP endpoint error:", err);
@@ -761,13 +914,12 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   }
 });
 
-  // 1. Trigger "Nouvel utilisateur" : Quand un utilisateur s'inscrit,  // 1. Trigger "Nouvel utilisateur" : Quand un utilisateur s'inscrit, envoie un e-mail à l'admin
+  // 1. Trigger "Nouvel utilisateur" : Quand un utilisateur s'inscrit, envoie un e-mail à l'admin
   app.post("/api/notify/signup", async (req, res) => {
     try {
       const { username, email, amount, network } = req.body;
-      const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
-
-      res.status(200).json({ success: true, simulated: true });
+      await triggerEmailsOnSignup(username, email, null, amount || 30, network || "TRC20");
+      res.status(200).json({ success: true });
     } catch (e) {
       console.error("Signup notification error:", e);
       res.status(500).json({ error: String(e) });
@@ -777,9 +929,9 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   // 2. Trigger "Admin valide" : Quand l'admin valide l'inscription
   app.post("/api/notify/approve", async (req, res) => {
     try {
-      const { email, username, subscriptionPeriod } = req.body;
-
-      res.status(200).json({ success: true, simulated: true });
+      const { email, username } = req.body;
+      await triggerEmailOnApproval(username, email);
+      res.status(200).json({ success: true });
     } catch (e) {
       console.error("Approval send error:", e);
       res.status(500).json({ error: String(e) });
@@ -790,9 +942,21 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   app.post("/api/notify/renewal-request", async (req, res) => {
     try {
       const { username, email, amount, network, paymentId } = req.body;
-      const targetAdmins = ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
-
-      res.status(200).json({ success: true, simulated: true });
+      const adminEmail = "tradonyx@vault.com";
+      const adminHtml = `
+        <div style="font-family: sans-serif; background-color: #0b0f19; color: #f1f5f9; padding: 30px; border-radius: 12px; border: 1px solid #1e293b;">
+          <h2 style="color: #00ff9c;">⌛ Demande de renouvellement reçue !</h2>
+          <p>Le trader <strong>${username}</strong> (${email}) sollicite un renouvellement d'abonnement :</p>
+          <ul>
+            <li>Montant : ${amount || 30} USD</li>
+            <li>Réseau : ${network || "TRC20"}</li>
+            <li>ID Paiement : ${paymentId || "Inconnu"}</li>
+          </ul>
+          <p>Veuillez visiter votre portail admin pour vérifier et valider.</p>
+        </div>
+      `;
+      await sendEmailViaResend(adminEmail, `⌛ Renouvellement TradeVault : ${username}`, adminHtml);
+      res.status(200).json({ success: true });
     } catch (e) {
       console.error("Renewal request send error:", e);
       res.status(500).json({ error: String(e) });
@@ -803,8 +967,20 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   app.post("/api/notify/renewal-approve", async (req, res) => {
     try {
       const { email, username } = req.body;
+      const welcomeHtmlPath = path.join(process.cwd(), "SUPABASE_WELCOME_EMAIL.html");
+      let htmlContent = "";
+      if (fs.existsSync(welcomeHtmlPath)) {
+        htmlContent = fs.readFileSync(welcomeHtmlPath, "utf8");
+      } else {
+        htmlContent = `<h2>Renouvellement Confirmé !</h2><p>Bonjour ${username}, votre accès a été prolongé !</p>`;
+      }
+      const platformUrl = "https://traderpr0.netlify.app";
+      htmlContent = htmlContent
+        .replace(/\{\{user_name\}\}/g, username)
+        .replace(/\{\{platform_url\}\}/g, platformUrl);
 
-      res.status(200).json({ success: true, simulated: true });
+      await sendEmailViaResend(email, "✅ Abonnement prolongé avec succès - TradeVault", htmlContent);
+      res.status(200).json({ success: true });
     } catch (e) {
       console.error("Renewal approval error:", e);
       res.status(500).json({ error: String(e) });
@@ -850,6 +1026,20 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
           
           if (diffDays === 7 && u.email) {
             warnedUsers.push(u.username);
+            const reminderHtml = `
+              <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #1e293b; border-radius: 16px; background-color: #0b0f19; color: #f1f5f9;">
+                <h2 style="color: #ff9f43; text-align: center;">⚡ Votre abonnement expire bientôt !</h2>
+                <p>Bonjour <strong>${u.username}</strong>,</p>
+                <p>Votre accès premium TradeVault expirera dans <strong>7 jours</strong>.</p>
+                <p>Afin d'éviter toute interruption dans le suivi de vos statistiques, challenges et métriques de trading, nous vous invitons à renouveler votre abonnement dès maintenant.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="https://traderpr0.netlify.app" style="background-color: #00ff9c; color: #0b0f19; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 8px;">Renouveler mon accès</a>
+                </div>
+                <hr style="border: none; border-top: 1px solid #1e293b;" />
+                <p style="font-size: 11px; color: #64748b; text-align: center;">TradeVault Pro — Le compagnon de trading moderne.</p>
+              </div>
+            `;
+            await sendEmailViaResend(u.email, "⚠️ Rappel : Votre abonnement TradeVault expire dans 7 jours", reminderHtml);
           }
         }
       }

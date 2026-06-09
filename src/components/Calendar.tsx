@@ -57,12 +57,12 @@ export default function Calendar({ trades }: CalendarProps) {
   const selectedDayNetPnl = selectedDayTrades.reduce((sum, t) => sum + t.pnl, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
       
       {/* Calendar Header Card */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 flex items-center justify-between">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <CalendarIcon className="text-indigo-400" size={20} />
+          <CalendarIcon className="text-[#00FF9C]" size={20} />
           <div>
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">Calendrier des Performances</h3>
             <p className="text-[10px] text-neutral-300">Cliquez sur un jour coloré pour auditer l'historique complet de vos sessions de trading.</p>
@@ -92,10 +92,10 @@ export default function Calendar({ trades }: CalendarProps) {
       </div>
 
       {/* Grid calendar */}
-      <div className="glass-panel rounded-2xl border border-indigo-900/30 p-4 font-mono select-none">
+      <div className="bg-[#080808] rounded-2xl border border-zinc-900 p-4 font-mono select-none shadow-md">
         
         {/* Weekly Header row labels */}
-        <div className="grid grid-cols-7 gap-1 border-b border-indigo-950/40 pb-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+        <div className="grid grid-cols-7 gap-1 border-b border-zinc-900 pb-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
           <span>Lun</span>
           <span>Mar</span>
           <span>Mer</span>
@@ -109,14 +109,14 @@ export default function Calendar({ trades }: CalendarProps) {
         <div className="grid grid-cols-7 gap-1.5 mt-3">
           {dayCells.map((cell, idx) => {
             if (!cell.dayNumber) {
-              return <div key={`empty-${idx}`} className="aspect-square bg-slate-950/5 border border-slate-950/20 rounded-xl"></div>;
+              return <div key={`empty-${idx}`} className="aspect-square bg-black/30 border border-zinc-900/30 rounded-xl"></div>;
             }
 
             const dayTrades = trades.filter(t => t.date.startsWith(cell.dateString));
             const dayPnl = dayTrades.reduce((sum, t) => sum + t.pnl, 0);
 
             // Determine cell background colors based on net values
-            let bgClass = 'bg-slate-900/20 border-slate-900/40 hover:border-slate-700';
+            let bgClass = 'bg-black border-zinc-900/60 hover:border-zinc-750';
             let textClass = 'text-slate-400';
             let pnlColor = 'text-slate-400';
 
@@ -144,7 +144,7 @@ export default function Calendar({ trades }: CalendarProps) {
                 onClick={() => { if (dayTrades.length > 0) setSelectedDayString(cell.dateString); }}
                 className={`aspect-square rounded-xl border p-2 flex flex-col justify-between transition-all relative ${
                   dayTrades.length > 0 ? 'cursor-pointer' : 'cursor-default'
-                } ${bgClass} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-950' : ''}`}
+                } ${bgClass} ${isSelected ? 'ring-2 ring-[#00FF9C] ring-offset-2 ring-offset-black' : ''}`}
               >
                 <span className={`text-xs block ${textClass}`}>{cell.dayNumber}</span>
                 
@@ -167,8 +167,8 @@ export default function Calendar({ trades }: CalendarProps) {
 
       {/* DETAILED DAILY BREAKDOWN PANEL ON CLICK */}
       {selectedDayString ? (
-        <div className="glass-panel rounded-2xl border border-indigo-500/30 p-6 space-y-4 animate-scale-in">
-          <div className="flex items-center justify-between border-b border-indigo-900/20 pb-4">
+        <div className="bg-[#080808] rounded-2xl border border-zinc-900 p-6 space-y-4 animate-scale-in">
+          <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
             <div className="space-y-0.5">
               <h4 className="text-sm font-black font-mono text-white tracking-widest uppercase">
                 Analyse du {new Date(selectedDayString).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -188,7 +188,7 @@ export default function Calendar({ trades }: CalendarProps) {
               const dateObj = new Date(t.date);
               const formattedTime = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               return (
-                <div key={t.id} className="p-4 rounded-xl bg-slate-950/40 border border-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                <div key={t.id} className="p-4 rounded-xl bg-black border border-zinc-900 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
                   
                   <div className="flex items-start md:items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg font-mono font-bold text-[10px] flex items-center justify-center tracking-tighter shrink-0 ${
@@ -201,7 +201,7 @@ export default function Calendar({ trades }: CalendarProps) {
                         <span className="font-extrabold text-white font-mono text-xs">{t.pair}</span>
                         <span className="font-mono text-[10px] text-slate-400">à {formattedTime}</span>
                       </div>
-                      <span className="text-[10px] text-indigo-400 block font-semibold tracking-wider uppercase">🏷️ Setup: {t.setup}</span>
+                      <span className="text-[10px] text-[#00FF9C] block font-semibold tracking-wider uppercase">🏷️ Setup: {t.setup}</span>
                     </div>
                   </div>
 
@@ -240,7 +240,7 @@ export default function Calendar({ trades }: CalendarProps) {
 
         </div>
       ) : (
-        <div className="p-4 rounded-xl border border-indigo-900/10 bg-indigo-500/5 text-indigo-400 flex gap-2 text-xs">
+        <div className="p-4 rounded-xl border border-[#00FF9C]/10 bg-[#00FF9C]/5 text-slate-350 flex gap-2 text-xs">
           <Info size={16} className="shrink-0 mt-0.5" />
           <span>Aide : Pour voir les détails, veuillez cliquer sur l'un des jours colorés du calendrier qui contient des transactions.</span>
         </div>

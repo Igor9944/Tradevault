@@ -327,7 +327,7 @@ Comme Supabase n'envoie par défaut que des e-mails d'authentification, les e-ma
 
           <p style="color:#4a6080;font-size:13px;line-height:1.6;text-align:center;margin:0;font-family:sans-serif;">
             Des questions ou besoin d'assistance ? Contactez-nous à :<br>
-            <a href="mailto:igorrose2003@gmail.com" style="color:#00c896;text-decoration:none;font-weight:bold;">igorrose2003@gmail.com</a>
+            <a href="mailto:tradonyx@vault.com" style="color:#00c896;text-decoration:none;font-weight:bold;">tradonyx@vault.com</a>
           </p>
 
         </td>
@@ -406,7 +406,7 @@ Dans Supabase, vous disposez de deux moyens simples pour configurer et envoyer c
          },
          body: JSON.stringify({
            from: 'System TradeVault <system@tradevaultpro.com>',
-           to: ['igorrose2003@gmail.com'],
+           to: ['tradonyx@vault.com'],
            subject: `🚨 Nouvelle preuve d'abonnement : ${user.name}`,
            html: `<p>Un nouveau trader s'est inscrit : <strong>${user.name}</strong> (${user.email})</p>
                   <p>Preuve jointe : <a href="${paymentProof}">${paymentProof}</a></p>`
@@ -498,7 +498,7 @@ Supabase permet de déclencher l'envoi d'e-mails à chaque fois qu'une nouvelle 
           <!-- Support Note -->
           <p style="color:#4a6080;font-size:13px;line-height:1.6;text-align:center;margin:0;font-family:sans-serif;">
             Des questions ou besoin d'assistance ? Contactez-nous à :<br>
-            <a href="mailto:igorrose2003@gmail.com" style="color:#00c896;text-decoration:none;font-weight:bold;">igorrose2003@gmail.com</a>
+            <a href="mailto:tradonyx@vault.com" style="color:#00c896;text-decoration:none;font-weight:bold;">tradonyx@vault.com</a>
           </p>
 
         </td>

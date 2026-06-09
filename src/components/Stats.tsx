@@ -232,53 +232,53 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
 
       {/* METRICS BREAKDOWN CARD MATRIX */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30">
-        <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-indigo-900/10 pb-3">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">
+        <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-zinc-900 pb-3">
           Statistiques Avancées
         </h3>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-center">
-          <div className="bg-[#050505]/40 p-4 border border-white/5 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-neutral-300 block uppercase mb-1">PROFIT FACTOR</span>
             <span className="text-xl font-black text-white">{profitFactor}</span>
           </div>
 
-          <div className="bg-[#050505]/40 p-4 border border-neutral-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Gain Moyen</span>
             <span className="text-xl font-black text-emerald-400">+${avgWin.toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Perte Moyenne</span>
             <span className="text-xl font-black text-rose-400">-${avgLoss.toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Gains Totaux</span>
             <span className="text-xl font-black text-emerald-400">+${totalWinsSum.toFixed(2)}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-center mt-4">
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Meilleur Gain</span>
             <span className="text-xl font-bold text-emerald-400">+${maxWin.toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Pire Perte</span>
             <span className="text-xl font-bold text-rose-400">-${Math.abs(maxLoss).toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Série Victorieuse Max</span>
             <span className="text-xl font-bold text-white">{longestWinStreak} Trades</span>
           </div>
 
-          <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Série Perdante Max</span>
             <span className="text-xl font-bold text-white">{longestLossStreak} Trades</span>
           </div>
@@ -289,7 +289,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* WEAKDAY NET BAR CHART */}
-        <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30">
+        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 shadow-md">
           <h4 className="text-xs font-black font-mono text-white tracking-widest uppercase mb-4">
             📈 P&L Net Cumulé par Jour de la Semaine
           </h4>
@@ -326,7 +326,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
         </div>
 
         {/* SETUP WIN vs LOSS RATIOS */}
-        <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30">
+        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 shadow-md">
           <h4 className="text-xs font-black font-mono text-white tracking-widest uppercase mb-4">
             🏷️ Taux de Succès par Concept de Stratégie Setup
           </h4>
@@ -362,8 +362,8 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
       </div>
 
       {/* GLOBAL ARCHIVE DATA TABLE WITH TRI AND DATABASE RESET / BACKUPS */}
-      <div className="glass-panel rounded-2xl p-6 border border-indigo-900/30 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-indigo-900/20 pb-4 gap-4">
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-4 shadow-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 gap-4">
           <div className="space-y-0.5">
             <h4 className="text-sm font-black font-mono text-white tracking-widest uppercase">
               Archives Globales (All Time History)
@@ -384,7 +384,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
             <button
               type="button"
               onClick={handleExport}
-              className="py-1.5 px-3 rounded-xl border border-indigo-900/30 text-indigo-300 hover:bg-indigo-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
+              className="py-1.5 px-3 rounded-xl border border-white/5 text-slate-300 hover:bg-white/5 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
             >
               <ArrowDownToLine size={13} /> Export JSON
             </button>
@@ -392,7 +392,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
             <button
               type="button"
               onClick={handleExportCSV}
-              className="py-1.5 px-3 rounded-xl border border-indigo-900/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
+              className="py-1.5 px-3 rounded-xl border border-white/5 text-emerald-300 hover:bg-emerald-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
             >
               <ArrowDownToLine size={13} /> Export CSV
             </button>
@@ -406,7 +406,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
               />
               <button
                 type="button"
-                className="py-1.5 px-3 rounded-xl border border-indigo-900/30 text-indigo-300 hover:bg-indigo-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
+                className="py-1.5 px-3 rounded-xl border border-white/5 text-slate-300 hover:bg-white/5 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
               >
                 <ArrowUpToLine size={13} /> Import JSON
               </button>
@@ -427,32 +427,32 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
         </div>
 
         {/* Dense Table markup with sorts */}
-        <div className="overflow-x-auto border border-indigo-950/60 rounded-xl bg-slate-950/30">
+        <div className="overflow-x-auto border border-zinc-900 rounded-xl bg-slate-950/30">
           <table className="w-full text-left border-collapse font-mono text-[11px]">
             <thead>
-              <tr className="bg-slate-950 border-b border-indigo-950/50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                <th onClick={() => toggleSort('date')} className="p-3 cursor-pointer hover:text-indigo-400">
+              <tr className="bg-slate-950 border-b border-zinc-900 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                <th onClick={() => toggleSort('date')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
                   <div className="flex items-center gap-1">Date {sortField === 'date' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
-                <th onClick={() => toggleSort('pair')} className="p-3 cursor-pointer hover:text-indigo-400">
+                <th onClick={() => toggleSort('pair')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
                   <div className="flex items-center gap-1">Paire {sortField === 'pair' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
-                <th onClick={() => toggleSort('side')} className="p-3 cursor-pointer hover:text-indigo-400">
+                <th onClick={() => toggleSort('side')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
                   <div className="flex items-center gap-1">Sens {sortField === 'side' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
                 <th className="p-3">Entrée</th>
                 <th className="p-3">Sortie</th>
                 <th className="p-3">Lots</th>
-                <th onClick={() => toggleSort('pnl')} className="p-3 cursor-pointer hover:text-indigo-400">
+                <th onClick={() => toggleSort('pnl')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
                   <div className="flex items-center gap-1">P&L Net {sortField === 'pnl' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
-                <th onClick={() => toggleSort('setup')} className="p-3 cursor-pointer hover:text-indigo-400">
+                <th onClick={() => toggleSort('setup')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
                   <div className="flex items-center gap-1">Setup / Strat {sortField === 'setup' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
                 <th className="p-3">Observations notes</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-indigo-950/20">
+            <tbody className="divide-y divide-zinc-900">
               {sortedAllTime.length > 0 ? (
                 sortedAllTime.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-900/40 text-slate-300">
@@ -467,7 +467,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                     <td className={`p-3 font-extrabold whitespace-nowrap ${t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
                     </td>
-                    <td className="p-3 whitespace-nowrap text-indigo-300">{t.setup}</td>
+                    <td className="p-3 whitespace-nowrap text-[#00FF9C]">{t.setup}</td>
                     <td className="p-3 text-slate-400 max-w-[200px] truncate italic" title={t.notes}>
                       {t.notes || '—'}
                     </td>

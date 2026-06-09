@@ -204,3 +204,14 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
+
+/* Glassmorphism panel styling used throughout the app */
+.glass-panel {
+  background: rgba(8, 8, 8, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem; /* 16px */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
