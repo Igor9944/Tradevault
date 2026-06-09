@@ -263,8 +263,8 @@ function TradingDevicesSimulator() {
             </div>
           </div>
         </div>
-        <div className="absolute bottom-[23px] left-1/2 transform -tranneutral-x-1/2 w-8 h-6 bg-gradient-to-b from-white/10 to-transparent z-0"></div>
-        <div className="absolute bottom-[16px] left-1/2 transform -tranneutral-x-1/2 w-14 h-1 bg-white/15 z-0 rounded-sm"></div>
+        <div className="absolute bottom-[23px] left-1/2 transform -translate-x-1/2 w-8 h-6 bg-gradient-to-b from-white/10 to-transparent z-0"></div>
+        <div className="absolute bottom-[16px] left-1/2 transform -translate-x-1/2 w-14 h-1 bg-white/15 z-0 rounded-sm"></div>
       </div>
     </div>
   );

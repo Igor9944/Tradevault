@@ -20,7 +20,7 @@ export const BackgroundVideo: React.FC = () => {
         loop
         muted
         playsInline
-        className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -tranneutral-x-1/2 -tranneutral-y-1/2 object-cover scale-[1.05]"
+        className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover scale-[1.05]"
       >
         {/* Support several standard file paths from public directory */}
         <source src="/background.mp4" type="video/mp4" />

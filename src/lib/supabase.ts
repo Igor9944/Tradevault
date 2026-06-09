@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const dummyUrl = "https://placeholder-project.supabase.co";
+const dummyKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE1Nzg4OTk2MDAsImV4cCI6MTg5NDQ1OTYwMH0.placeholder";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || dummyUrl;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || dummyKey;
 
 let isSupabaseOnline: boolean | null = null;
 
@@ -25,7 +28,7 @@ const customSupabaseFetch = async (input: RequestInfo | URL, init?: RequestInit)
   }
 };
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (supabaseUrl === dummyUrl || supabaseAnonKey === dummyKey) {
   isSupabaseOnline = false;
   console.warn("⚠️ [TradeVault Pro] Warning: Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are missing. Running in local fallback mode.");
 }
