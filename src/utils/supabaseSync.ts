@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { User, Trade, Account, Challenge, PaymentRequest } from '../types';
+import { safeLocalStorage, safeSessionStorage } from './safeStorage';
 
 const dummyUrl = "https://placeholder-project.supabase.co";
 const dummyKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE1Nzg4OTk2MDAsImV4cCI6MTg5NDQ1OTYwMH0.placeholder";
@@ -86,7 +87,7 @@ async function invokeProxy(action: string, args: any): Promise<any> {
 
 // Helper to resolve currently logged-in user ID
 function getCurrentUserId(): string {
-  const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+  const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
   if (savedUser) {
     try {
       const u = JSON.parse(savedUser);

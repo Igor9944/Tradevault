@@ -1,4 +1,5 @@
 import { AppNotification, NotificationPreference } from '../types';
+import { safeLocalStorage } from './safeStorage';
 
 const PREFS_KEY = 'tv_notification_preferences';
 const LOGS_KEY = 'tv_notification_logs';
@@ -30,7 +31,7 @@ const INITIAL_LOGS: AppNotification[] = [
 ];
 
 export function getPreferences(): NotificationPreference {
-  const saved = localStorage.getItem(PREFS_KEY);
+  const saved = safeLocalStorage.getItem(PREFS_KEY);
   if (!saved) return DEFAULT_PREFS;
   try {
     return { ...DEFAULT_PREFS, ...JSON.parse(saved) };
@@ -40,11 +41,11 @@ export function getPreferences(): NotificationPreference {
 }
 
 export function savePreferences(prefs: NotificationPreference) {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  safeLocalStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
 export function getNotifications(): AppNotification[] {
-  const saved = localStorage.getItem(LOGS_KEY);
+  const saved = safeLocalStorage.getItem(LOGS_KEY);
   if (!saved) return INITIAL_LOGS;
   try {
     return JSON.parse(saved);
@@ -54,7 +55,7 @@ export function getNotifications(): AppNotification[] {
 }
 
 export function saveNotifications(logs: AppNotification[]) {
-  localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+  safeLocalStorage.setItem(LOGS_KEY, JSON.stringify(logs));
 }
 
 // Push notification sender

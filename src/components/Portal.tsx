@@ -341,15 +341,6 @@ const LiveHeroChart = () => {
             isAnimationActive={false} 
             filter="url(#glow)"
           />
-          <Line
-            type="monotone"
-            dataKey="price"
-            stroke="#ffffff"
-            strokeWidth={1}
-            dot={false}
-            isAnimationActive={false}
-            filter="url(#glow)"
-          />
         </AreaChart>
       </ResponsiveContainer>
     </div>

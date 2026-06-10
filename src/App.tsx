@@ -29,6 +29,7 @@ import {
   Moon
 } from 'lucide-react';
 import { User, Trade, Challenge, Account, PaymentRequest } from './types';
+import { safeLocalStorage, safeSessionStorage } from './utils/safeStorage';
 import { 
   DEFAULT_USERS, 
   DEFAULT_TRADES, 
@@ -79,7 +80,7 @@ const ResetPassword = React.lazy(() => import('./components/ResetPassword'));
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
   return (
-    <div className="min-h-screen bg-black flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-black flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
       <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="relative z-10 flex flex-col items-center space-y-5">
@@ -366,19 +367,19 @@ export default function App() {
   // Load initial persistent lists or fallback to seeded mock data
   const [users, setUsers] = useState<User[]>(() => {
     // One-time hard reset to give the user a completely brand-new slate with only the admin account
-    if (!localStorage.getItem('tv_reset_to_zero_v3')) {
-      localStorage.setItem('tv_users', JSON.stringify(DEFAULT_USERS));
-      localStorage.setItem('tv_trades', JSON.stringify(DEFAULT_TRADES));
-      localStorage.setItem('tv_challenges', JSON.stringify(DEFAULT_CHALLENGES));
-      localStorage.setItem('tv_accounts', JSON.stringify(DEFAULT_ACCOUNTS));
-      localStorage.setItem('tv_payment_requests', JSON.stringify([]));
-      localStorage.setItem('tv_selected_account_id', 'personal');
-      sessionStorage.removeItem('tv_current_user');
-      localStorage.removeItem('tv_current_user');
-      localStorage.setItem('tv_reset_to_zero_v3', 'true');
+    if (!safeLocalStorage.getItem('tv_reset_to_zero_v3')) {
+      safeLocalStorage.setItem('tv_users', JSON.stringify(DEFAULT_USERS));
+      safeLocalStorage.setItem('tv_trades', JSON.stringify(DEFAULT_TRADES));
+      safeLocalStorage.setItem('tv_challenges', JSON.stringify(DEFAULT_CHALLENGES));
+      safeLocalStorage.setItem('tv_accounts', JSON.stringify(DEFAULT_ACCOUNTS));
+      safeLocalStorage.setItem('tv_payment_requests', JSON.stringify([]));
+      safeLocalStorage.setItem('tv_selected_account_id', 'personal');
+      safeSessionStorage.removeItem('tv_current_user');
+      safeLocalStorage.removeItem('tv_current_user');
+      safeLocalStorage.setItem('tv_reset_to_zero_v3', 'true');
       return DEFAULT_USERS;
     }
-    const saved = localStorage.getItem('tv_users');
+    const saved = safeLocalStorage.getItem('tv_users');
     return saved ? JSON.parse(saved) : DEFAULT_USERS;
   });
 
@@ -398,7 +399,7 @@ export default function App() {
 
   // Current session navigation states
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+    const saved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     return saved ? JSON.parse(saved) : null;
   });
 
@@ -459,11 +460,11 @@ export default function App() {
   }, []);
 
   const [trades, setTrades] = useState<Trade[]>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+    const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
       const isAdmin = u.email === 'tradonyx@vault.com' || u.username === 'tradonyx';
-      const saved = localStorage.getItem(`tv_trades_${u.id}`);
+      const saved = safeLocalStorage.getItem(`tv_trades_${u.id}`);
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
         if (!isAdmin && parsed.some(t => t.id === 't1' || t.id === 't2' || t.id === 't3')) {
@@ -473,15 +474,15 @@ export default function App() {
       }
       return [];
     }
-    const saved = localStorage.getItem('tv_trades');
+    const saved = safeLocalStorage.getItem('tv_trades');
     return saved ? JSON.parse(saved) : DEFAULT_TRADES;
   });
 
   const [challenges, setChallenges] = useState<Challenge[]>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+    const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const saved = localStorage.getItem(`tv_challenges_${u.id}`);
+      const saved = safeLocalStorage.getItem(`tv_challenges_${u.id}`);
       if (saved) return JSON.parse(saved);
       return [
         {
@@ -496,15 +497,15 @@ export default function App() {
         }
       ];
     }
-    const saved = localStorage.getItem('tv_challenges');
+    const saved = safeLocalStorage.getItem('tv_challenges');
     return saved ? JSON.parse(saved) : DEFAULT_CHALLENGES;
   });
 
   const [accounts, setAccounts] = useState<Account[]>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+    const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const saved = localStorage.getItem(`tv_accounts_${u.id}`);
+      const saved = safeLocalStorage.getItem(`tv_accounts_${u.id}`);
       if (saved) {
         return JSON.parse(saved);
       }
@@ -513,10 +514,10 @@ export default function App() {
         { id: 'personal', name: 'Compte Personnel', type: 'personal' },
         { id: 'ftmo-100k', name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
       ];
-      localStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
+      safeLocalStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
       return freshAccounts;
     }
-    const saved = localStorage.getItem('tv_accounts');
+    const saved = safeLocalStorage.getItem('tv_accounts');
     return saved ? JSON.parse(saved) : [
       { id: 'personal', name: 'Compte Personnel', type: 'personal' },
       { id: 'ftmo-100k', name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
@@ -524,29 +525,29 @@ export default function App() {
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return localStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com';
+    return safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
-    return localStorage.getItem('tv_admin_wallet_trc20') || 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV';
+    return safeLocalStorage.getItem('tv_admin_wallet_trc20') || 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV';
   });
 
   const [adminWalletBEP20, setAdminWalletBEP20] = useState<string>(() => {
-    return localStorage.getItem('tv_admin_wallet_bep20') || '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0';
+    return safeLocalStorage.getItem('tv_admin_wallet_bep20') || '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0';
   });
 
   const [subscriptionPrice, setSubscriptionPrice] = useState<number>(() => {
-    const saved = localStorage.getItem('tv_subscription_price');
+    const saved = safeLocalStorage.getItem('tv_subscription_price');
     return saved ? parseFloat(saved) : 30;
   });
 
   const [subscriptionPeriod, setSubscriptionPeriod] = useState<number>(() => {
-    const saved = localStorage.getItem('tv_subscription_period');
+    const saved = safeLocalStorage.getItem('tv_subscription_period');
     return saved ? parseInt(saved, 10) : 3;
   });
 
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>(() => {
-    const saved = localStorage.getItem('tv_payment_requests');
+    const saved = safeLocalStorage.getItem('tv_payment_requests');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -554,7 +555,7 @@ export default function App() {
     if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.hash.includes('type=recovery') || window.location.href.includes('reset-password'))) {
       return 'reset-password';
     }
-    const userSaved = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+    const userSaved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
     return user.paid ? 'app' : 'checkout';
@@ -563,18 +564,18 @@ export default function App() {
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
-    const savedUser = sessionStorage.getItem('tv_current_user') || localStorage.getItem('tv_current_user');
+    const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
       const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
-      const saved = localStorage.getItem(`tv_selected_account_id_${u.id}`);
+      const saved = safeLocalStorage.getItem(`tv_selected_account_id_${u.id}`);
       if (saved) {
         if (!isAdmin && saved === 'ftmo-100k') return 'personal';
         return saved;
       }
       return 'personal';
     }
-    const saved = localStorage.getItem('tv_selected_account_id');
+    const saved = safeLocalStorage.getItem('tv_selected_account_id');
     return saved || 'personal';
   });
 
@@ -837,53 +838,53 @@ export default function App() {
 
   // Trigger LocalStorage sync on change
   useEffect(() => {
-    localStorage.setItem('tv_users', JSON.stringify(users));
+    safeLocalStorage.setItem('tv_users', JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(trades));
+      safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(trades));
     }
-    localStorage.setItem('tv_trades', JSON.stringify(trades));
+    safeLocalStorage.setItem('tv_trades', JSON.stringify(trades));
   }, [trades]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(`tv_challenges_${currentUser.id}`, JSON.stringify(challenges));
+      safeLocalStorage.setItem(`tv_challenges_${currentUser.id}`, JSON.stringify(challenges));
     }
-    localStorage.setItem('tv_challenges', JSON.stringify(challenges));
+    safeLocalStorage.setItem('tv_challenges', JSON.stringify(challenges));
   }, [challenges]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(`tv_accounts_${currentUser.id}`, JSON.stringify(accounts));
+      safeLocalStorage.setItem(`tv_accounts_${currentUser.id}`, JSON.stringify(accounts));
     }
-    localStorage.setItem('tv_accounts', JSON.stringify(accounts));
+    safeLocalStorage.setItem('tv_accounts', JSON.stringify(accounts));
   }, [accounts]);
 
   useEffect(() => {
-    localStorage.setItem('tv_admin_emails', adminEmails);
+    safeLocalStorage.setItem('tv_admin_emails', adminEmails);
   }, [adminEmails]);
 
   useEffect(() => {
-    localStorage.setItem('tv_payment_requests', JSON.stringify(paymentRequests));
+    safeLocalStorage.setItem('tv_payment_requests', JSON.stringify(paymentRequests));
   }, [paymentRequests]);
 
   useEffect(() => {
     if (currentUser) {
-      sessionStorage.setItem('tv_current_user', JSON.stringify(currentUser));
-      localStorage.setItem('tv_current_user', JSON.stringify(currentUser));
+      safeSessionStorage.setItem('tv_current_user', JSON.stringify(currentUser));
+      safeLocalStorage.setItem('tv_current_user', JSON.stringify(currentUser));
     } else {
-      sessionStorage.removeItem('tv_current_user');
-      localStorage.removeItem('tv_current_user');
+      safeSessionStorage.removeItem('tv_current_user');
+      safeLocalStorage.removeItem('tv_current_user');
     }
   }, [currentUser]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(`tv_selected_account_id_${currentUser.id}`, selectedAccountId);
+      safeLocalStorage.setItem(`tv_selected_account_id_${currentUser.id}`, selectedAccountId);
     }
-    localStorage.setItem('tv_selected_account_id', selectedAccountId);
+    safeLocalStorage.setItem('tv_selected_account_id', selectedAccountId);
   }, [selectedAccountId]);
 
   // Sync workspace dynamically when user logs in & load data from Supabase
@@ -918,7 +919,7 @@ export default function App() {
               setTrades(dbData.trades);
               setChallenges(dbData.challenges);
               
-              const savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
+              const savedSelAcc = safeLocalStorage.getItem(`tv_selected_account_id_${uId}`);
               // If the current saved ID is a default name like "personal", map it to our standardized UUID
               const mappedSelAcc = (savedSelAcc === 'personal' || !savedSelAcc) 
                 ? ensureUUID('personal') 
@@ -929,10 +930,10 @@ export default function App() {
             .catch(err => {
               console.error("Supabase user data load failed. Falling back to local cache:", err);
               // Local storage fallback for maximum resilience
-              let savedTradesRaw = localStorage.getItem(`tv_trades_${uId}`);
-              let savedChallengesRaw = localStorage.getItem(`tv_challenges_${uId}`);
-              let savedAccsRaw = localStorage.getItem(`tv_accounts_${uId}`);
-              let savedSelAcc = localStorage.getItem(`tv_selected_account_id_${uId}`);
+              let savedTradesRaw = safeLocalStorage.getItem(`tv_trades_${uId}`);
+              let savedChallengesRaw = safeLocalStorage.getItem(`tv_challenges_${uId}`);
+              let savedAccsRaw = safeLocalStorage.getItem(`tv_accounts_${uId}`);
+              let savedSelAcc = safeLocalStorage.getItem(`tv_selected_account_id_${uId}`);
 
               let initialTrades = savedTradesRaw ? JSON.parse(savedTradesRaw) : [];
               let initialChallenges = savedChallengesRaw ? JSON.parse(savedChallengesRaw) : [
@@ -993,7 +994,7 @@ export default function App() {
         }
         return u;
       });
-      localStorage.setItem('tv_users', JSON.stringify(updated));
+      safeLocalStorage.setItem('tv_users', JSON.stringify(updated));
       return updated;
     });
   };
@@ -1034,8 +1035,8 @@ export default function App() {
   };
 
   const handleCheckoutCancel = () => {
-    sessionStorage.removeItem('tv_current_user');
-    localStorage.removeItem('tv_current_user');
+    safeSessionStorage.removeItem('tv_current_user');
+    safeLocalStorage.removeItem('tv_current_user');
     setCurrentUser(null);
     setCurrentScreen('login_portal');
   };
@@ -1324,7 +1325,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
+      <div className="min-h-[100dvh] bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
@@ -1374,13 +1375,13 @@ export default function App() {
 
       {/* 3. APPLICATION WORKSPACE SCREEN */}
       {currentScreen === 'app' && currentUser && (
-        <div className="flex-1 flex flex-col lg:flex-row min-h-screen relative z-0">
+        <div className="flex-1 flex flex-col lg:flex-row min-h-[100dvh] relative z-0">
           
           {/* YOUTUBE BACKGROUND LOOP */}
           <BackgroundVideo />
           
           {/* Navigation Sidebar panel */}
-          <aside className="w-full lg:w-64 bg-white dark:bg-[#050505]/80 backdrop-blur-xl border-r border-neutral-200 dark:border-zinc-800 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-screen shrink-0 relative z-30">
+          <aside className="w-full lg:w-64 bg-white dark:bg-[#050505]/80 backdrop-blur-xl border-r border-neutral-200 dark:border-zinc-800 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-[100dvh] shrink-0 relative z-30">
             <div className="space-y-6">
               
               {/* Brand Logo and Name */}
@@ -1579,8 +1580,8 @@ export default function App() {
                 onClick={() => {
                   setCurrentUser(null);
                   setCurrentScreen('login_portal');
-                  sessionStorage.removeItem('tv_current_user');
-                  localStorage.removeItem('tv_current_user');
+                  safeSessionStorage.removeItem('tv_current_user');
+                  safeLocalStorage.removeItem('tv_current_user');
                 }}
                 className="w-full py-2 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/20 rounded-xl text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
               >
@@ -1681,13 +1682,13 @@ export default function App() {
                   subscriptionPeriod={subscriptionPeriod}
                   onUpdateAdminParams={(trc, bep, price, period) => {
                     setAdminWalletTRC20(trc);
-                    localStorage.setItem('tv_admin_wallet_trc20', trc);
+                    safeLocalStorage.setItem('tv_admin_wallet_trc20', trc);
                     setAdminWalletBEP20(bep);
-                    localStorage.setItem('tv_admin_wallet_bep20', bep);
+                    safeLocalStorage.setItem('tv_admin_wallet_bep20', bep);
                     setSubscriptionPrice(price);
-                    localStorage.setItem('tv_subscription_price', price.toString());
+                    safeLocalStorage.setItem('tv_subscription_price', price.toString());
                     setSubscriptionPeriod(period);
-                    localStorage.setItem('tv_subscription_period', period.toString());
+                    safeLocalStorage.setItem('tv_subscription_period', period.toString());
                   }}
                   paymentRequests={paymentRequests}
                   onApproveRenewal={handleApproveRenewal}

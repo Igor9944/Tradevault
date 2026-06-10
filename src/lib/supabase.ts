@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 const dummyUrl = "https://placeholder-project.supabase.co";
 const dummyKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE1Nzg4OTk2MDAsImV4cCI6MTg5NDQ1OTYwMH0.placeholder";
@@ -34,7 +35,14 @@ if (supabaseUrl === dummyUrl || supabaseAnonKey === dummyKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: safeLocalStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
   global: {
     fetch: customSupabaseFetch
   }
 });
+
