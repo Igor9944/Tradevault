@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/**/*.js": {
+      "includeFiles": "{SUPABASE_PENDING_EMAIL.html,SUPABASE_WELCOME_EMAIL.html}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -80,7 +80,7 @@ const ResetPassword = React.lazy(() => import('./components/ResetPassword'));
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
   return (
-    <div className="min-h-[100dvh] bg-black flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
+    <div className="min-h-[100vh] min-h-[100dvh] bg-black flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
       <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="relative z-10 flex flex-col items-center space-y-5">
@@ -1325,7 +1325,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-[100dvh] bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
+      <div className="min-h-[100vh] min-h-[100dvh] bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
@@ -1375,13 +1375,13 @@ export default function App() {
 
       {/* 3. APPLICATION WORKSPACE SCREEN */}
       {currentScreen === 'app' && currentUser && (
-        <div className="flex-1 flex flex-col lg:flex-row min-h-[100dvh] relative z-0">
+        <div className="flex-1 flex flex-col lg:flex-row min-h-[100vh] min-h-[100dvh] relative z-0">
           
           {/* YOUTUBE BACKGROUND LOOP */}
           <BackgroundVideo />
           
           {/* Navigation Sidebar panel */}
-          <aside className="w-full lg:w-64 bg-white dark:bg-[#050505]/80 backdrop-blur-xl border-r border-neutral-200 dark:border-zinc-800 flex flex-col justify-between p-5 lg:sticky lg:top-0 lg:h-[100dvh] shrink-0 relative z-30">
+          <aside className="w-full lg:w-64 bg-white dark:bg-[#050505]/80 backdrop-blur-xl border-r border-neutral-200 dark:border-zinc-800 flex flex-col justify-between p-5 lg:sticky lg:top-0 h-[100vh] lg:h-[100dvh] shrink-0 relative z-30">
             <div className="space-y-6">
               
               {/* Brand Logo and Name */}

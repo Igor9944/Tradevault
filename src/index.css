@@ -205,62 +205,12 @@ html, body {
 }
 
 /* Glassmorphism panel styling used throughout the app */
-.glass-panel {
-  background: rgba(18, 18, 18, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1rem; /* 16px */
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
-}
-
-/* Disable tailwind backdrop-blur utilities globally for performance */
-.backdrop-blur-sm,
-.backdrop-blur-md,
-.backdrop-blur-lg,
-.backdrop-blur-xl,
-.backdrop-blur-2xl,
-.backdrop-blur {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* Provide an opaque fallback for transparent layout elements to remain legible */
-.bg-black\/85,
-.bg-\[\#050505\]\/80,
-.bg-slate-950\/80,
-.bg-\[\#080808\] {
-  background-color: rgba(15, 15, 15, 0.98) !important;
-}
-
-/* Disable heavy overlays and shadows to save GPU */
-.particle-overlay {
-  background-image: none !important;
-}
-
-.tilt-card {
-  transform-style: flat !important;
-  -webkit-transform-style: flat !important;
-  transform: none !important;
-  -webkit-transform: none !important;
-}
-
-.three-d-perspective {
-  perspective: none !important;
-  -webkit-perspective: none !important;
-}
-
-/* Disable heavy gaussian blurs to prevent memory/GPU crashes */
-.blur-lg,
-.blur-xl,
-.blur-2xl,
-.blur-3xl,
-[class*="drop-shadow"] {
-  filter: none !important;
-  -webkit-filter: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-[class*="blur-3xl"] {
-  display: none !important;
+@layer components {
+  .glass-panel {
+    background: rgba(18, 18, 18, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem; /* 16px */
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+  }
 }
 
