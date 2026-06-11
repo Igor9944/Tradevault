@@ -67,12 +67,14 @@ import App from './App.tsx';
 import './index.css';
 import { ThemeLanguageProvider } from './utils/themeLanguageContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeLanguageProvider>
         <App />
+        <Analytics />
       </ThemeLanguageProvider>
     </ErrorBoundary>
   </StrictMode>,
