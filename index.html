@@ -13,7 +13,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
   </head>
   <body class="bg-black text-neutral-200">
-    <div id="root"></div>
+    <div id="root">
+      <div id="global-error-fallback" style="display: none; padding: 20px; color: white; background: #5c0000; font-family: sans-serif; min-height: 100vh; text-align: left;">
+        <h2 style="margin-top: 0;">Application Failed to Start</h2>
+        <p>A critical error occurred before the application could load. If you are the developer, please check the browser console.</p>
+        <pre id="global-error-details" style="background: rgba(0,0,0,0.5); padding: 10px; overflow-x: auto; font-size: 11px;"></pre>
+      </div>
+    </div>
+    <script>
+      function showGlobalError(message) {
+        var root = document.getElementById('root');
+        var fallback = document.getElementById('global-error-fallback');
+        var details = document.getElementById('global-error-details');
+        if (root && root.children.length <= 1 && fallback && details) {
+          fallback.style.display = 'block';
+          details.innerText = message;
+        }
+      }
+      window.addEventListener('error', function(event) {
+        showGlobalError(event.error ? event.error.stack : event.message);
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        showGlobalError(event.reason ? (event.reason.stack || event.reason) : 'Unhandled Promise Rejection');
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
