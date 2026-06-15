@@ -841,6 +841,12 @@ export default function App() {
     return () => window.removeEventListener('message', handleOAuthMessage);
   }, [currentUser, users]);
 
+  useEffect(() => {
+    if (currentUser) {
+      setCurrentScreen(currentUser.paid ? 'app' : 'checkout');
+    }
+  }, [currentUser]);
+
   // Trigger LocalStorage sync on change
   useEffect(() => {
     safeLocalStorage.setItem('tv_users', JSON.stringify(users));
@@ -1166,6 +1172,12 @@ export default function App() {
       paid_until: expiryStr
     };
     setUsers(prev => prev.map(u => u.id === user_id ? approved : u));
+
+    // Update current user if it is the one being approved
+    if (currentUser?.id === user_id) {
+      setCurrentUser(approved);
+      setCurrentScreen('app'); // Navigate to app
+    }
 
     // Update profile in Supabase
     syncUserProfile(approved);
