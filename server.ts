@@ -131,6 +131,50 @@ export async function triggerEmailOnApproval(username: string, email: string) {
   }
 }
 
+export async function triggerEmailOnRejection(username: string, email: string) {
+  try {
+    let htmlContent = "";
+    const rejectedHtmlPath = path.join(process.cwd(), "SUPABASE_REJECTED_EMAIL.html");
+    if (fs.existsSync(rejectedHtmlPath)) {
+      htmlContent = fs.readFileSync(rejectedHtmlPath, "utf8");
+    } else {
+      htmlContent = `<h2>Mise à jour de votre demande — TradeVault</h2><p>Bonjour ${username}, après examen, nous ne sommes pas en mesure de valider votre inscription pour le moment. Si vous pensez qu'il s'agit d'une erreur, contactez notre support à support@tradevault.app.</p>`;
+    }
+
+    htmlContent = htmlContent
+      .replace(/\{\{user_name\}\}/g, username)
+      .replace(/\{\{user_email\}\}/g, email);
+
+    await sendEmailViaResend(email, "TradeVault — Mise à jour de votre demande", htmlContent);
+  } catch (err) {
+    console.error("Error in triggerEmailOnRejection:", err);
+  }
+}
+
+export async function triggerEmailOnRenewalReceipt(username: string, email: string, amount: number, network: string) {
+  try {
+    let htmlContent = "";
+    const receiptHtmlPath = path.join(process.cwd(), "SUPABASE_RENEWAL_RECEIPT_EMAIL.html");
+    if (fs.existsSync(receiptHtmlPath)) {
+      htmlContent = fs.readFileSync(receiptHtmlPath, "utf8");
+    } else {
+      htmlContent = `<h2>Reçu de paiement — TradeVault</h2><p>Bonjour ${username}, votre paiement de renouvellement de ${amount} USD via ${network} a été approuvé avec succès.</p>`;
+    }
+
+    const platformUrl = "https://traderpr0.netlify.app";
+
+    htmlContent = htmlContent
+      .replace(/\{\{user_name\}\}/g, username)
+      .replace(/\{\{user_email\}\}/g, email)
+      .replace(/\{\{amount\}\}/g, String(amount || 30))
+      .replace(/\{\{network\}\}/g, network || "USDT");
+
+    await sendEmailViaResend(email, "🧾 Reçu de paiement et renouvellement — TradeVault Premium", htmlContent);
+  } catch (err) {
+    console.error("Error in triggerEmailOnRenewalReceipt:", err);
+  }
+}
+
 export const app = express();
 app.disable('x-powered-by');
 
@@ -449,18 +493,37 @@ function handleInmemoryProxyAction(action: string, args: any): any {
         const uIdx = inMemoryUsers.findIndex(u => u.id === row.user_id);
         if (uIdx !== -1) {
           const userObj = inMemoryUsers[uIdx];
+          const wasAlreadyPaid = userObj.paid || userObj.status === 'approved';
+          
           userObj.status = 'approved';
           userObj.paid = true;
-          userObj.paid_until = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+          // Extend payment date by 30 days
+          const currentExpiry = userObj.paid_until ? new Date(userObj.paid_until) : new Date();
+          const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+          baseDate.setDate(baseDate.getDate() + 30);
+          userObj.paid_until = baseDate.toISOString();
           
-          // Trigger Resend premium activation welcome email
-          triggerEmailOnApproval(userObj.username, userObj.email);
+          if (wasAlreadyPaid) {
+            // Trigger renewal payment receipt email
+            triggerEmailOnRenewalReceipt(userObj.username, userObj.email, row.amount, row.network);
+          } else {
+            // Trigger Resend premium activation welcome email
+            triggerEmailOnApproval(userObj.username, userObj.email);
+          }
         }
       } else if (row.status === 'rejected') {
         const uIdx = inMemoryUsers.findIndex(u => u.id === row.user_id);
         if (uIdx !== -1) {
-          inMemoryUsers[uIdx].status = 'rejected';
-          inMemoryUsers[uIdx].paid = false;
+          const userObj = inMemoryUsers[uIdx];
+          const wasAlreadyPaid = userObj.paid || userObj.status === 'approved';
+          
+          if (!wasAlreadyPaid) {
+            userObj.status = 'rejected';
+            userObj.paid = false;
+          }
+          
+          // Trigger rejection/insufficient proof retry email
+          triggerEmailOnRejection(userObj.username, userObj.email);
         }
       }
 
@@ -485,12 +548,25 @@ function handleInmemoryProxyAction(action: string, args: any): any {
       const { userId, username, email, status } = args;
       const index = inMemoryUsers.findIndex(u => u.id === userId);
       if (index !== -1) {
+        const oldStatus = inMemoryUsers[index].status;
+        const targetUsername = username || inMemoryUsers[index].username;
+        const targetEmail = email || inMemoryUsers[index].email;
+
         inMemoryUsers[index] = {
           ...inMemoryUsers[index],
-          username: username || inMemoryUsers[index].username,
-          email: email || inMemoryUsers[index].email,
+          username: targetUsername,
+          email: targetEmail,
           status: status || inMemoryUsers[index].status
         };
+
+        if (status && status !== oldStatus) {
+          if (status === 'approved') {
+            triggerEmailOnApproval(targetUsername, targetEmail);
+          } else if (status === 'rejected') {
+            triggerEmailOnRejection(targetUsername, targetEmail);
+          }
+        }
+
         return { success: true, user: inMemoryUsers[index] };
       }
       return { success: false, error: "Utilisateur introuvable" };
@@ -757,10 +833,29 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
               .maybeSingle();
 
             if (userProfile && userProfile.email) {
-              await triggerEmailOnApproval(userProfile.username || 'Trader', userProfile.email);
+              const wasAlreadyPaid = userProfile.paid || userProfile.status === 'approved';
+              if (wasAlreadyPaid) {
+                await triggerEmailOnRenewalReceipt(userProfile.username || 'Trader', userProfile.email, row.amount, row.network);
+              } else {
+                await triggerEmailOnApproval(userProfile.username || 'Trader', userProfile.email);
+              }
             }
           } catch (err) {
             console.error("Failed to query user for approval email trigger:", err);
+          }
+        } else if (row.status === 'rejected') {
+          try {
+            const { data: userProfile } = await serverSupabase
+              .from('profiles')
+              .select('*')
+              .eq('id', row.user_id)
+              .maybeSingle();
+
+            if (userProfile && userProfile.email) {
+              await triggerEmailOnRejection(userProfile.username || 'Trader', userProfile.email);
+            }
+          } catch (err) {
+            console.error("Failed to query user for rejection email trigger:", err);
           }
         }
 
@@ -786,12 +881,27 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "adminUpdateUser": {
         const { userId, username, email, status } = args;
+        
+        let oldStatus = "";
+        try {
+          const { data: current } = await serverSupabase.from('profiles').select('status').eq('id', userId).maybeSingle();
+          if (current) oldStatus = current.status;
+        } catch (errPrev) {}
+
         const { error } = await serverSupabase.from('profiles').update({
           username,
           email,
           status
         }).eq('id', userId);
         if (error) throw error;
+
+        if (status && status !== oldStatus) {
+          if (status === 'approved') {
+            await triggerEmailOnApproval(username || 'Trader', email);
+          } else if (status === 'rejected') {
+            await triggerEmailOnRejection(username || 'Trader', email);
+          }
+        }
         return res.json({ success: true });
       }
 

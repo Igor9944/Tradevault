@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reçu de Paiement & Renouvellement TradeVault</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0d1117;font-family:'Segoe UI',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0d1117;padding:40px 20px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-collapse:collapse;">
+
+      <!-- HEADER -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#0a1628,#0d2137);border-radius:16px 16px 0 0;padding:32px 40px;text-align:center;border-bottom:2px solid #00c896;">
+          <div style="color:#00c896;font-size:24px;font-weight:700;letter-spacing:3px;font-family:'Trebuchet MS',sans-serif;">TRADEVAULT</div>
+          <div style="color:#4a9ebe;font-size:10px;letter-spacing:3px;margin-top:4px;font-family:monospace;text-transform:uppercase;">GLOBAL FINANCIAL SERVICES</div>
+        </td>
+      </tr>
+
+      <!-- BADGE -->
+      <tr>
+        <td style="background:#0d1f2d;padding:24px 40px 0;text-align:center;">
+          <div style="background:rgba(0,200,150,0.15);color:#00c896;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 20px;display:inline-block;border:1px solid rgba(0,200,150,0.3);border-radius:20px;font-family:monospace;">
+            🧾 REÇU DE PAIEMENT & RENOUVELLEMENT
+          </div>
+        </td>
+      </tr>
+
+      <!-- BODY -->
+      <tr>
+        <td style="background:#0d1f2d;padding:24px 40px 36px;">
+
+          <!-- Central Icon -->
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-block;width:72px;height:72px;background:linear-gradient(135deg,#00c896,#0284c7);border-radius:50%;line-height:72px;font-size:32px;text-align:center;box-shadow:0 8px 24px rgba(0,200,150,0.25);">💳</div>
+          </div>
+
+          <p style="color:#8b9db5;font-size:14px;margin:0 0 6px;font-family:sans-serif;">Bonjour <strong style="color:#e0eaf5;">{{user_name}}</strong>,</p>
+
+          <p style="color:#c8d8e8;font-size:16px;font-weight:600;margin:0 0 16px;font-family:sans-serif;">
+            Votre paiement de renouvellement a été validé avec succès !
+          </p>
+
+          <p style="color:#8b9db5;font-size:14px;line-height:1.8;margin:0 0 24px;font-family:sans-serif;">
+            Nous vous confirmons l'extension et la validation de votre abonnement premium sur la plateforme. Vos indicateurs de performance, journaux et outils de statistiques de Prop Firms restent actifs sans interruption.
+          </p>
+
+          <!-- Receipt Details Grid -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b1520;border-radius:12px;border:1px solid #1a3040;margin-bottom:28px;border-collapse:collapse;font-family:sans-serif;">
+            <tr>
+              <td style="padding:15px 20px; border-bottom:1px solid #142230; color:#4a9ebe; font-size:11px; text-transform:uppercase; letter-spacing:1px; width:50%;">Description</td>
+              <td style="padding:15px 20px; border-bottom:1px solid #142230; color:#e2e8f0; font-size:13px; font-weight:bold; text-align:right;">Extension d'abonnement Premium (+30 jours)</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 20px; border-bottom:1px solid #142230; color:#4a9ebe; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Trader</td>
+              <td style="padding:12px 20px; border-bottom:1px solid #142230; color:#e2e8f0; font-size:13px; text-align:right;">{{user_name}} ({{user_email}})</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 20px; border-bottom:1px solid #142230; color:#4a9ebe; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Montant Reçu</td>
+              <td style="padding:12px 20px; border-bottom:1px solid #142230; color:#00c896; font-size:14px; font-weight:bold; text-align:right;">{{amount}} USD</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 20px; border-bottom:1px solid #142230; color:#4a9ebe; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Réseau / Network</td>
+              <td style="padding:12px 20px; border-bottom:1px solid #142230; color:#e2e8f0; font-size:13px; text-align:right;">{{network}}</td>
+            </tr>
+            <tr>
+              <td style="padding:15px 20px; color:#4a9ebe; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Statut</td>
+              <td style="padding:15px 20px; color:#00c896; font-size:13px; font-weight:bold; text-align:right;">🟢 PAYÉ & APPROUVÉ</td>
+            </tr>
+          </table>
+
+          <!-- Action Button -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+            <tr>
+              <td align="center">
+                <a href="{{platform_url}}" style="background:#00c896;color:#0d1117;font-size:14px;font-weight:700;text-decoration:none;padding:16px 32px;border-radius:8px;display:inline-block;letter-spacing:1px;font-family:sans-serif;text-transform:uppercase;">
+                  Accéder à mon tableau de bord
+                </a>
+              </td>
+            </tr>
+          </table>
+
+          <p style="color:#4a6080;font-size:13px;line-height:1.6;text-align:center;margin:0;font-family:sans-serif;">
+            Merci pour votre précieuse confiance.<br>
+            Notre support reste disponible à <a href="mailto:support@tradevault.app" style="color:#00c896;text-decoration:none;">support@tradevault.app</a>.
+          </p>
+
+        </td>
+      </tr>
+
+      <!-- FOOTER -->
+      <tr>
+        <td style="background:#080e18;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;border-top:1px solid #1a3040;">
+          <p style="color:#3a5068;font-size:12px;margin:0 0 4px;font-family:sans-serif;">TradeVault Global Financial Services</p>
+          <p style="color:#2a3848;font-size:11px;margin:0;font-family:sans-serif;">© 2026 TradeVault — Professional Trading Journal & Prop Firm Analytics</p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

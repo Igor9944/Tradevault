@@ -965,6 +965,33 @@ export default function App() {
     }
   }, [currentUser?.id]);
 
+  // Verify and notify in-app if subscription is within 7 days of expiration (re-evaluated on login)
+  useEffect(() => {
+    if (currentUser && currentUser.paid_until && currentUser.status === 'approved') {
+      const expirationDate = new Date(currentUser.paid_until);
+      const now = new Date();
+      const diffTime = expirationDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+
+      // Trigger warning if remaining days <= 7 (one week) and greater than 0
+      if (diffDays > 0 && diffDays <= 7) {
+        const warnedSessionKey = `tv_warning_notified_${currentUser.id}_${Math.floor(expirationDate.getTime() / 86400000)}`;
+        if (!safeSessionStorage.getItem(warnedSessionKey)) {
+          safeSessionStorage.setItem(warnedSessionKey, 'true');
+          
+          // Send notification via notification service (which logs in user's notification list/inbox)
+          import('./utils/notificationService').then(({ sendPushNotification }) => {
+            sendPushNotification(
+              `⚠️ Expiration d'abonnement proche !`,
+              `Votre accès professionnel TradeVault Premium expirera dans ${diffDays} jour${diffDays > 1 ? 's' : ''}. Veuillez s'il vous plaît procéder au renouvellement anticipé pour conserver votre historique.`,
+              'system'
+            );
+          });
+        }
+      }
+    }
+  }, [currentUser?.id, currentUser?.paid_until]);
+
   // Session handler actions
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);

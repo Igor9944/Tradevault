@@ -4,6 +4,46 @@ import { User, PaymentRequest } from '../types';
 import { DefaultLogoAvatar } from './Logo';
 import { customAlert, customConfirm } from '../utils/customDialog';
 
+const getPremiumStatus = (trader: any) => {
+  if (trader.status === 'rejected') {
+    return {
+      label: '🔴 Compte Suspendu',
+      bg: 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+    };
+  }
+  if (trader.status === 'pending') {
+    return {
+      label: '🟡 Pending Review',
+      bg: 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+    };
+  }
+  if (trader.paid_until) {
+    const expiry = new Date(trader.paid_until);
+    if (expiry < new Date()) {
+      return {
+        label: '🟠 Subs Expired',
+        bg: 'bg-orange-500/10 text-orange-420 border border-orange-500/20'
+      };
+    }
+  }
+  if (trader.status === 'approved') {
+    if (trader.paid) {
+      return {
+        label: '🔵 Active Sub',
+        bg: 'bg-blue-500/10 text-blue-400 border border-blue-500/25'
+      };
+    }
+    return {
+      label: '🟢 Approved',
+      bg: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+    };
+  }
+  return {
+    label: '🟢 Approved',
+    bg: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+  };
+};
+
 interface AdminProps {
   users: User[];
   onApproveUser: (user_id: string) => void;
@@ -552,17 +592,14 @@ export default function Admin({
                           <option value="approved">Premium Actif</option>
                           <option value="rejected">Bloqué</option>
                         </select>
-                      ) : (
-                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider ${
-                          trader.status === 'approved' 
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : trader.status === 'pending'
-                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                            : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
-                        }`}>
-                          {trader.status === 'approved' ? 'Premium Actif' : trader.status === 'pending' ? 'Validation' : 'Bloqué'}
-                        </span>
-                      )}
+                      ) : (() => {
+                        const s = getPremiumStatus(trader);
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider ${s.bg}`}>
+                            {s.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-3 whitespace-nowrap text-center">
                       <div className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/60 border border-zinc-800">
