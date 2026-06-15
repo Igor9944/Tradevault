@@ -457,20 +457,21 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
     console.error("loadUserDataFromSupabase error:", err);
     return {
       accounts: [
-        { id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' },
-        { id: ensureUUID('ftmo-100k'), name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+        { id: ensureUUID('personal'), user_id: safeUserId, name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() },
+        { id: ensureUUID('ftmo-100k'), user_id: safeUserId, name: 'Compte FTMO 100k', account_type: 'prop_firm', capital: 100000, target: 8, daily_loss: 5, global_loss: 10, created_at: new Date().toISOString() }
       ],
       trades: [],
       challenges: [
         {
           id: ensureUUID('ftmo-100k-challenge'),
-          accountId: ensureUUID('ftmo-100k'),
+          account_id: ensureUUID('ftmo-100k'),
+          user_id: safeUserId,
           name: 'Compte FTMO 100k',
           capital: 100000,
           target: 8,
-          dailyLoss: 5,
-          globalLoss: 10,
-          createdAt: new Date().toISOString()
+          daily_loss: 5,
+          global_loss: 10,
+          created_at: new Date().toISOString()
         }
       ],
       paymentRequests: []
@@ -682,10 +683,10 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
       email: p.email,
       country: p.country || 'FR',
       paid: p.paid || false,
-      paidUntil: p.paid_until || null,
+      paid_until: p.paid_until || null,
       status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-      avatar: p.avatar_url || undefined,
-      createdAt: p.created_at || new Date().toISOString()
+      avatar_url: p.avatar_url || undefined,
+      created_at: p.created_at || new Date().toISOString()
     }));
   } catch (err) {
     console.error("adminLoadAllUsersFromSupabase error:", err);
@@ -798,14 +799,14 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
       const u = p.users || {};
       return {
         id: p.id,
-        userId: p.user_id,
+        user_id: p.user_id,
         username: u.username || 'Trader',
         email: u.email || 'trader@example.com',
         amount: p.amount ? Number(p.amount) : 30,
         network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-        proofScreenshot: p.payment_proof || '',
+        payment_proof: p.payment_proof || '',
         status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-        createdAt: p.created_at || new Date().toISOString()
+        created_at: p.created_at || new Date().toISOString()
       };
     });
   } catch (err) {
@@ -905,10 +906,10 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
         email: userEmail || profile.email,
         country: profile.country || 'FR',
         paid: profile.paid ?? false,
-        paidUntil: profile.paid_until || null,
+        paid_until: profile.paid_until || null,
         status: (profile.status || 'approved') as 'approved' | 'pending' | 'rejected',
-        avatar: profile.avatar_url || authUser.user_metadata?.avatar_url || undefined,
-        createdAt: profile.created_at || new Date().toISOString()
+        avatar_url: profile.avatar_url || authUser.user_metadata?.avatar_url || undefined,
+        created_at: profile.created_at || new Date().toISOString()
       };
     } else {
       // First-time Google user: create dynamic pending profile record in DB
@@ -952,10 +953,10 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
         email: newProfile.email,
         country: newProfile.country,
         paid: newProfile.paid,
-        paidUntil: newProfile.paid_until,
+        paid_until: newProfile.paid_until,
         status: newProfile.status as 'approved' | 'pending' | 'rejected',
-        avatar: newProfile.avatar_url || undefined,
-        createdAt: newProfile.created_at
+        avatar_url: newProfile.avatar_url || undefined,
+        created_at: newProfile.created_at
       };
     }
 

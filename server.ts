@@ -19,12 +19,18 @@ export function addLog(message: string) {
 }
 
 // Helper to send emails via Resend
-export async function sendEmailViaResend(to: string, subject: string, html: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+export async function sendEmailViaResend(to: string | string[], subject: string, html: string) {
+  // L'utilisateur a fourni sa clé API Resend explicitement
+  const apiKey = process.env.RESEND_API_KEY || "re_QjFfcnKE_4gspG3CrLHYnKFFVcBRyLABe";
+  
+  // Important : Resend bloque l'envoi depuis @gmail.com (il faut un nom de domaine pro).
+  // Nous sommes obligés d'utiliser onboarding@resend.dev en adresse d'envoi.
+  // Cependant, nous allons rajouter un entête "Reply-To" pour que les réponses aillent sur le Gmail.
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "TradeVault <onboarding@resend.dev>";
+  const replyTo = "igorrose2003@gmail.com, tradonyx@vault.com";
   
   if (!apiKey) {
-    addLog(`[RESEND SIMULATION] Destinataire: ${to} | Sujet: "${subject}"`);
+    addLog(`[RESEND SIMULATION] Destinataire: ${Array.isArray(to) ? to.join(', ') : to} | Sujet: "${subject}"`);
     return { success: true, simulated: true };
   }
   
@@ -33,7 +39,8 @@ export async function sendEmailViaResend(to: string, subject: string, html: stri
     const resend = new Resend(apiKey);
     const response = await resend.emails.send({
       from: fromEmail,
-      to: [to],
+      replyTo: replyTo,
+      to: Array.isArray(to) ? to : [to],
       subject: subject,
       html: html
     });
@@ -68,7 +75,7 @@ export async function triggerEmailsOnSignup(username: string, email: string, pay
     await sendEmailViaResend(email, "⏳ Votre demande d'inscription premium TradeVault est en cours de traitement", htmlContent);
 
     // Notify the admin
-    const adminEmail = "tradonyx@vault.com";
+    const adminEmails = ["igorrose2003@gmail.com", "tradonyx@vault.com"];
     const adminHtml = `
       <div style="font-family: sans-serif; background-color: #0b0f19; color: #f1f5f9; padding: 30px; border-radius: 12px; border: 1px solid #1e293b;">
         <h2 style="color: #6366f1;">🚨 Nouvelle inscription TradeVault Pro !</h2>
@@ -84,7 +91,7 @@ export async function triggerEmailsOnSignup(username: string, email: string, pay
       </div>
     `;
 
-    await sendEmailViaResend(adminEmail, `🚨 Nouvelle preuve d'abonnement : ${username}`, adminHtml);
+    await sendEmailViaResend(adminEmails, `🚨 Nouvelle preuve d'abonnement : ${username}`, adminHtml);
   } catch (err) {
     console.error("Error in triggerEmailsOnSignup:", err);
   }
@@ -174,7 +181,7 @@ if (supabaseUrl && supabaseAnonKey) {
 let inMemoryUsers: any[] = [
   {
     id: "user_igor",
-    email: "tradonyx@vault.com",
+    email: "igorrose2003@gmail.com",
     username: "Igor Rose",
     country: "FR",
     avatar_url: null,
@@ -824,7 +831,7 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
     
     // Check if user exists in either Supabase or in-memory store
     let userExists = false;
-    if (cleanEmail === "admin@tradevault.com") {
+    if (cleanEmail === "igorrose2003@gmail.com") {
       userExists = true;
     } else if (inMemoryUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
       userExists = true;
@@ -963,7 +970,7 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
   app.post("/api/notify/renewal-request", async (req, res) => {
     try {
       const { username, email, amount, network, paymentId } = req.body;
-      const adminEmail = "tradonyx@vault.com";
+      const adminEmails = ["igorrose2003@gmail.com", "tradonyx@vault.com"];
       const adminHtml = `
         <div style="font-family: sans-serif; background-color: #0b0f19; color: #f1f5f9; padding: 30px; border-radius: 12px; border: 1px solid #1e293b;">
           <h2 style="color: #00ff9c;">⌛ Demande de renouvellement reçue !</h2>
@@ -976,7 +983,7 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
           <p>Veuillez visiter votre portail admin pour vérifier et valider.</p>
         </div>
       `;
-      await sendEmailViaResend(adminEmail, `⌛ Renouvellement TradeVault : ${username}`, adminHtml);
+      await sendEmailViaResend(adminEmails, `⌛ Renouvellement TradeVault : ${username}`, adminHtml);
       res.status(200).json({ success: true });
     } catch (e) {
       console.error("Renewal request send error:", e);

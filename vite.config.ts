@@ -76,6 +76,7 @@ export default defineConfig(() => {
     },
     build: {
       sourcemap: true,
+      chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
           // Remove manualChunks to allow Vite to default chunking
