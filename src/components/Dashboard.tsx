@@ -8,7 +8,20 @@ import { useThemeLang } from '../utils/themeLanguageContext';
 interface DashboardProps {
   trades: Trade[];
   activeAccount: Account;
+  currency?: 'USD' | 'EUR' | 'GBP';
 }
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£'
+};
+
+const CURRENCY_RATES: Record<string, number> = {
+  USD: 1.0,
+  EUR: 0.92,
+  GBP: 0.78
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -23,8 +36,18 @@ const cardVariants = {
   show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 100 } }
 };
 
-export default function Dashboard({ trades, activeAccount }: DashboardProps) {
+export default function Dashboard({ trades, activeAccount, currency = 'USD' }: DashboardProps) {
   const { t, lang } = useThemeLang();
+  
+  const symbol = CURRENCY_SYMBOLS[currency] || '$';
+  const rate = CURRENCY_RATES[currency] || 1.0;
+
+  const formatWithCurrency = (amount: number, forcePlusSign = false) => {
+    const convertedVal = amount * rate;
+    const sign = convertedVal >= 0 ? (forcePlusSign ? '+' : '') : '-';
+    return `${sign}${symbol}${Math.abs(convertedVal).toFixed(2)}`;
+  };
+
   const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Accumulate P&L for Equity chart
@@ -35,8 +58,8 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
     return {
       name: `Trade #${idx + 1}`,
       shortDate: dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-      Pnl: parseFloat(currentBalance.toFixed(2)),
-      tradePnl: t.pnl,
+      Pnl: parseFloat((currentBalance * rate).toFixed(2)),
+      tradePnl: parseFloat((t.pnl * rate).toFixed(2)),
       pair: t.pair
     };
   });
@@ -90,6 +113,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
       
       {/* 4 PRIMARY KPIS */}
       <motion.div 
+        id="tour-dashboard-panel"
         variants={containerVariants} 
         initial="hidden" 
         animate="show" 
@@ -101,12 +125,12 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
           <div className="space-y-1">
             <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('net_total_pnl')}</span>
             <div className={`text-2xl font-extrabold font-mono ${totalPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
-              {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+              {formatWithCurrency(totalPnl, true)}
             </div>
             <span className="text-[10px] text-neutral-300 block font-mono">{t('total_trades')}: {trades.length}</span>
           </div>
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${totalPnl >= 0 ? 'bg-[#00FF9C]/10 text-[#00FF9C]' : 'bg-red-500/10 text-red-400'}`}>
-            <DollarSign size={20} />
+            <span className="text-lg font-black font-mono">{symbol}</span>
           </div>
         </motion.div>
 
@@ -145,7 +169,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
           <div className="space-y-1">
             <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('max_drawdown')}</span>
             <div className="text-2xl font-extrabold font-mono text-rose-500">
-              ${maxDrawdown.toFixed(2)}
+              {formatWithCurrency(maxDrawdown, false)}
             </div>
             <span className="text-[10px] text-slate-500 block">{t('max_cumulative_drawdown_legend')}</span>
           </div>
@@ -171,7 +195,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
           <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('daily_pnl')}</span>
             <div className={`text-base font-bold font-mono ${todayPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
-              {todayPnl >= 0 ? '+' : ''}${todayPnl.toFixed(2)}
+              {formatWithCurrency(todayPnl, true)}
             </div>
           </div>
 
@@ -192,7 +216,7 @@ export default function Dashboard({ trades, activeAccount }: DashboardProps) {
           <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('best_trade')}</span>
             <div className="text-base font-bold font-mono text-[#00FF9C]">
-              {todayBest > 0 ? `+${todayBest.toFixed(2)}` : '$0.00'}
+              {todayBest > 0 ? formatWithCurrency(todayBest, true) : `${symbol}0.00`}
             </div>
           </div>
         </div>

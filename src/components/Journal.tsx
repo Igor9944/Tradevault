@@ -207,6 +207,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         <div className="md:col-span-2">
           <button
             type="button"
+            id="tour-add-trade"
             onClick={handleOpenNew}
             className="w-full py-2 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg shadow-[#00FF9C]/10"
           >
@@ -220,14 +221,20 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         <div 
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
         >
-          <AnimatePresence mode="sync">
+          <AnimatePresence mode="popLayout">
             {sortedFiltered.map((t) => (
               <motion.div 
                 key={t.id}
-                initial={{ opacity: 0, y: 35, scale: 0.95 }}
+                layout
+                initial={{ opacity: 0, y: 40, scale: 0.92 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -25, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 350, damping: 26 }}
+                exit={{ opacity: 0, scale: 0.85, y: -20 }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 400, 
+                  damping: 30,
+                  layout: { type: "spring", stiffness: 350, damping: 30 }
+                }}
                 className="bg-[#080808] rounded-2xl border border-zinc-900 overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#00FF9C]/40 transition-all duration-300 p-4 space-y-4"
               >
                 

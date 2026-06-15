@@ -12,6 +12,7 @@ export interface Profile {
   avatar_url?: string; 
   google_linked?: boolean;
   google_email?: string;
+  currency?: 'USD' | 'EUR' | 'GBP';
 }
 
 export type User = Profile; // keep User alias

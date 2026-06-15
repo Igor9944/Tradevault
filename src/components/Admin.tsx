@@ -1,8 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Users, Check, X, ShieldAlert, Award, Image as ImageIcon, Copy, ArrowRight, Mail, Trash2, Edit } from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 import { User, PaymentRequest } from '../types';
 import { DefaultLogoAvatar } from './Logo';
 import { customAlert, customConfirm } from '../utils/customDialog';
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0cf09c]/5 border border-zinc-800 p-3 rounded-xl shadow-2xl font-mono text-xs">
+        <p className="font-bold text-slate-200 mb-1.5">{label}</p>
+        {payload.map((item: any, idx: number) => (
+          <div key={idx} className="flex items-center justify-between gap-4 py-0.5">
+            <span className="flex items-center gap-1.5" style={{ color: item.color }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.name}:
+            </span>
+            <span className="font-black text-white">${item.value} USD</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 const getPremiumStatus = (trader: any) => {
   if (trader.status === 'rejected') {
@@ -149,8 +180,182 @@ export default function Admin({
     customAlert('Configuration Admin', 'Coordonnées de réception (adresses de wallets et tarification) mises à jour avec succès !');
   };
 
+  const getMonthlyData = () => {
+    const monthsMap: Record<string, { month: string; approved: number; pending: number; monthKey: string }> = {};
+
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthsMap[monthKey] = {
+        month: monthName,
+        approved: 0,
+        pending: 0,
+        monthKey
+      };
+    }
+
+    paymentRequests.forEach(req => {
+      if (!req.created_at) return;
+      const d = new Date(req.created_at);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      
+      const amountVal = Number(req.amount) || 0;
+      
+      if (monthsMap[monthKey]) {
+        if (req.status === 'approved') {
+          monthsMap[monthKey].approved += amountVal;
+        } else if (req.status === 'pending') {
+          monthsMap[monthKey].pending += amountVal;
+        }
+      } else {
+        const monthName = d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+        monthsMap[monthKey] = {
+          month: monthName,
+          approved: req.status === 'approved' ? amountVal : 0,
+          pending: req.status === 'pending' ? amountVal : 0,
+          monthKey
+        };
+      }
+    });
+
+    return Object.values(monthsMap).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+  };
+
+  const monthlyData = getMonthlyData();
+  
+  const totalApproved = paymentRequests
+    .filter(r => r.status === 'approved')
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const totalPending = paymentRequests
+    .filter(r => r.status === 'pending')
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const totalApprovedCount = paymentRequests.filter(r => r.status === 'approved').length;
+  const totalPendingCount = paymentRequests.filter(r => r.status === 'pending').length;
+
   return (
     <div className="space-y-6 animate-scale-in bg-black min-h-screen p-6 text-slate-200">
+
+      {/* ANALYTICS SECTION DE SUIVI DES REVENUS ET TRANSACTIONS */}
+      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-zinc-800/40 pb-4">
+          <div>
+            <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
+              <span className="text-emerald-400">📊</span> Tableau de Bord Financier & Revenus Mensuels
+            </h3>
+            <p className="text-slate-400 text-[11px] mt-1 font-sans">
+              Visualisation en temps réel de la performance d'abonnement et des volumes de transactions (validés vs en attente).
+            </p>
+          </div>
+          <div className="flex items-center gap-4 bg-slate-950/80 px-4 py-2 rounded-xl border border-zinc-800/60 font-mono text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#00FF9C]" />
+              <span className="text-slate-400 text-[10px]">Validés:</span>
+              <strong className="text-white">${totalApproved} USD</strong>
+            </div>
+            <div className="w-[1px] h-3 bg-zinc-800" />
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
+              <span className="text-slate-400 text-[10px]">En attente:</span>
+              <strong className="text-white">${totalPending} USD</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* METRICS ROW */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-zinc-800/40 flex flex-col justify-between">
+            <span className="text-[10px] text-slate-500 font-mono font-bold uppercase tracking-wider">Total Revenu Collecté</span>
+            <span className="text-lg font-black text-emerald-400 mt-1 font-mono">${totalApproved} <span className="text-[10px] text-slate-400">USD</span></span>
+            <span className="text-[9px] text-slate-500 mt-1.5 font-sans">De {totalApprovedCount} transaction{totalApprovedCount > 1 ? 's' : ''} approuvée{totalApprovedCount > 1 ? 's' : ''}</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-zinc-800/40 flex flex-col justify-between">
+            <span className="text-[10px] text-slate-500 font-mono font-bold uppercase tracking-wider">Revenu Potentiel (Attente)</span>
+            <span className="text-lg font-black text-amber-500 mt-1 font-mono">${totalPending} <span className="text-[10px] text-slate-400">USD</span></span>
+            <span className="text-[9px] text-slate-500 mt-1.5 font-sans">De {totalPendingCount} paiement{totalPendingCount > 1 ? 's' : ''} en attente</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-zinc-800/40 flex flex-col justify-between">
+            <span className="text-[10px] text-slate-500 font-mono font-bold uppercase tracking-wider">Subscription Price</span>
+            <span className="text-lg font-black text-[#38bdf8] mt-1 font-mono">${subscriptionPrice} <span className="text-[10px] text-slate-400">USD</span></span>
+            <span className="text-[9px] text-slate-500 mt-1.5 font-sans">Pour {subscriptionPeriod} mois d'accès premium</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-zinc-800/40 flex flex-col justify-between">
+            <span className="text-[10px] text-slate-500 font-mono font-bold uppercase tracking-wider">Taux de Validation</span>
+            <span className="text-lg font-black text-teal-400 mt-1 font-mono">
+              {totalApprovedCount + totalPendingCount > 0 
+                ? `${Math.round((totalApprovedCount / (totalApprovedCount + totalPendingCount)) * 100)}%` 
+                : '100%'}
+            </span>
+            <span className="text-[9px] text-slate-500 mt-1.5 font-sans">Efficacité du traitement admin</span>
+          </div>
+        </div>
+
+        {/* CHART CONTAINER */}
+        <div className="h-64 sm:h-72 w-full p-2 bg-slate-950/30 rounded-xl border border-zinc-900/60">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
+              <defs>
+                <linearGradient id="valApproved" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="#00b875" stopOpacity={0.4} />
+                </linearGradient>
+                <linearGradient id="valPending" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="#d97706" stopOpacity={0.4} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis 
+                dataKey="month" 
+                stroke="#64748b" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false}
+                dy={6}
+              />
+              <YAxis 
+                stroke="#64748b" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+                dx={-4}
+                tickFormatter={(val) => `$${val}`}
+              />
+              <Tooltip 
+                content={<CustomTooltip />}
+                cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
+              />
+              <Legend 
+                verticalAlign="top" 
+                height={36} 
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '1px' }}
+              />
+              <Bar 
+                name="Revenus Validés ($)" 
+                dataKey="approved" 
+                fill="url(#valApproved)" 
+                radius={[4, 4, 0, 0]} 
+                maxBarSize={36}
+              />
+              <Bar 
+                name="Revenus En Attente ($)" 
+                dataKey="pending" 
+                fill="url(#valPending)" 
+                radius={[4, 4, 0, 0]} 
+                maxBarSize={36}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
       {/* Grid containing Admin configuration details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

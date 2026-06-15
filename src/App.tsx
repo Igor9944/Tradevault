@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AccountSelector from './components/AccountSelector';
+import InteractiveTour from './components/InteractiveTour';
 import { motion } from 'motion/react';
 import { useThemeLang } from './utils/themeLanguageContext';
 import { 
@@ -463,7 +464,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'tradonyx@vault.com' || u.username === 'tradonyx';
+      const isAdmin = u.email === 'tradonyx@vault.com' || u.email === 'igorrose2003@gmail.com' || u.username === 'tradonyx';
       const saved = safeLocalStorage.getItem(`tv_trades_${u.id}`);
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
@@ -526,7 +527,7 @@ export default function App() {
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com';
+    return safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com,igorrose2003@gmail.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
@@ -586,6 +587,7 @@ export default function App() {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileUsername, setProfileUsername] = useState('');
   const [profileCountry, setProfileCountry] = useState('FR');
+  const [profileCurrency, setProfileCurrency] = useState<'USD' | 'EUR' | 'GBP'>('USD');
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   
   const [profileOldPassword, setProfileOldPassword] = useState('');
@@ -602,6 +604,7 @@ export default function App() {
     if (!currentUser) return;
     setProfileUsername(currentUser.username || '');
     setProfileCountry(currentUser.country || 'FR');
+    setProfileCurrency(currentUser.currency || 'USD');
     setProfileAvatar(currentUser.avatar_url || null);
     
     setProfileOldPassword('');
@@ -642,6 +645,7 @@ export default function App() {
       ...currentUser,
       username: profileUsername.trim(),
       country: profileCountry,
+      currency: profileCurrency,
       avatar_url: profileAvatar || undefined,
       password: finalPassword
     };
@@ -892,7 +896,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      const isAdmin = currentUser.email === 'tradonyx@vault.com' || currentUser.username === 'tradonyx';
+      const isAdmin = currentUser.email === 'tradonyx@vault.com' || currentUser.email === 'igorrose2003@gmail.com' || currentUser.username === 'tradonyx';
 
       if (isAdmin) {
         // Administrative view: Load users & payments from remote database
@@ -997,7 +1001,7 @@ export default function App() {
     setCurrentUser(user);
     if (user.paid) {
       setCurrentScreen('app');
-      if (user.email === 'tradonyx@vault.com' || user.username === 'tradonyx') {
+      if (user.email === 'tradonyx@vault.com' || user.email === 'igorrose2003@gmail.com' || user.username === 'tradonyx') {
         setActiveTab('admin');
       } else {
         setActiveTab('dashboard');
@@ -1274,7 +1278,7 @@ export default function App() {
   };
 
   const handleDeleteAllUsersExceptAdmin = async () => {
-    const adminUser = users.find(u => u.email === 'tradonyx@vault.com' || u.username === 'tradonyx');
+    const adminUser = users.find(u => u.email === 'tradonyx@vault.com' || u.email === 'igorrose2003@gmail.com' || u.username === 'tradonyx');
     if (!adminUser) {
       customAlert("Erreur", "Administrateur non trouvé.");
       return;
@@ -1408,6 +1412,13 @@ export default function App() {
       {/* 3. APPLICATION WORKSPACE SCREEN */}
       {currentScreen === 'app' && currentUser && (
         <div className="flex-1 flex flex-col lg:flex-row min-h-[100vh] min-h-[100dvh] relative z-0">
+          
+          {/* INTERACTIVE ONBOARDING TOUR */}
+          <InteractiveTour 
+            userId={currentUser.id} 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+          />
           
           {/* YOUTUBE BACKGROUND LOOP */}
           <BackgroundVideo />
@@ -1569,6 +1580,7 @@ export default function App() {
 
               {/* Active user tag detail */}
               <div 
+                id="tour-profile-trigger"
                 onClick={openProfileModal}
                 className="flex gap-2.5 items-center px-2 py-1.5 rounded-xl hover:bg-slate-900/60 border border-transparent hover:border-[#00FF9C]/10 active:scale-[0.98] transition-all cursor-pointer group"
                 title="Modifier mon profil"
@@ -1656,7 +1668,7 @@ export default function App() {
 
             {/* Active page renderer routing depending on states */}
             {activeTab === 'dashboard' && (
-              <Dashboard trades={activeAccountTrades} activeAccount={activeAccount} />
+              <Dashboard trades={activeAccountTrades} activeAccount={activeAccount} currency={currentUser?.currency || 'USD'} />
             )}
 
             {activeTab === 'journal' && (
@@ -1948,7 +1960,7 @@ export default function App() {
               <div className="space-y-1">
                 <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Pays / Devise région</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none font-sans">
                     <Globe size={14} />
                   </span>
                   <input
@@ -1958,6 +1970,25 @@ export default function App() {
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
                     placeholder="Ex: FR"
                   />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wide block">Devise de la plateforme (P&L)</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500 pointer-events-none font-mono text-xs font-bold text-[#00FF9C]">
+                    {profileCurrency === 'EUR' ? '€' : profileCurrency === 'GBP' ? '£' : '$'}
+                  </span>
+                  <select
+                    value={profileCurrency}
+                    onChange={(e) => setProfileCurrency(e.target.value as 'USD' | 'EUR' | 'GBP')}
+                    className="w-full pl-10 pr-8 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 appearance-none cursor-pointer font-sans"
+                  >
+                    <option value="USD" className="bg-black text-white">USD ($ - Dollar Américain)</option>
+                    <option value="EUR" className="bg-black text-white">EUR (€ - Euro)</option>
+                    <option value="GBP" className="bg-black text-white">GBP (£ - Livre Sterling)</option>
+                  </select>
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 pointer-events-none text-[9px]">▼</span>
                 </div>
               </div>
 

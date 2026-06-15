@@ -32,7 +32,7 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative" ref={containerRef} id="tour-account-selector">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between bg-black border border-zinc-900 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#00FF9C] font-semibold truncate"
