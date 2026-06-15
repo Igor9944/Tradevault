@@ -57,7 +57,7 @@ export default function Calendar({ trades }: CalendarProps) {
   const selectedDayNetPnl = selectedDayTrades.reduce((sum, t) => sum + t.pnl, 0);
 
   return (
-    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
+    <div className="space-y-6 text-slate-200">
       
       {/* Calendar Header Card */}
       <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 flex items-center justify-between">

@@ -109,7 +109,7 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
   ];
 
   return (
-    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
+    <div className="space-y-6 text-slate-200">
       
       {/* 4 PRIMARY KPIS */}
       <motion.div 

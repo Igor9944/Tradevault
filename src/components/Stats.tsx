@@ -233,7 +233,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
   });
 
   return (
-    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
+    <div className="space-y-6 text-slate-200">
 
       {/* METRICS BREAKDOWN CARD MATRIX */}
       <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">

@@ -60,7 +60,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
   };
 
   return (
-    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
+    <div className="space-y-6 text-slate-200">
 
       {/* Challenges Tracker Header */}
       <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

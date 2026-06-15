@@ -164,7 +164,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   const sortedFiltered = [...filteredTrades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <div className="space-y-6 bg-black min-h-screen p-6 text-slate-200">
+    <div className="space-y-6 text-slate-200">
       
       {/* Search and Filters Strip */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#080808] p-4 rounded-2xl border border-zinc-900 relative">

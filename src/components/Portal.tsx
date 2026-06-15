@@ -509,13 +509,13 @@ export default function Portal({
     }
 
     const isAdminPass = loginPassword === 'otradnyx@2027';
-    const isAdminUser = identifier === 'tradonyx@vault.com';
+    const isAdminUser = identifier === 'tradonyx@vault.com' || identifier === 'igorrose2003@gmail.com';
 
     if (isAdminUser && isAdminPass) {
       const adminAcc: User = {
         id: 'admin',
-        username: 'tradonyx',
-        email: 'tradonyx@vault.com',
+        username: identifier === 'igorrose2003@gmail.com' ? 'igorrose' : 'tradonyx',
+        email: identifier,
         country: 'FR',
         paid: true,
         paid_until: null,
@@ -817,14 +817,14 @@ export default function Portal({
             <button 
               type="button"
               onClick={() => scrollSectionToId('portal-card-segment')}
-              className="px-8 py-3.5 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-[0_0_30px_rgba(255,255,255,0.06)] active:scale-95 cursor-pointer"
+              className="px-8 py-3.5 bg-[#00FF9C] text-black hover:bg-[#00D180] hover:text-black rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-[0_0_30px_rgba(0,255,156,0.2)] active:scale-95 cursor-pointer"
             >
               DÉMARRER MA GESTION ↗
             </button>
             <button 
               type="button"
               onClick={() => scrollSectionToId('features')}
-              className="px-8 py-3.5 bg-black hover:bg-white/5 text-white border border-white/25 rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
+              className="px-8 py-3.5 bg-[#1a1a1a] hover:bg-[#262626] text-white border border-white/10 rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
             >
               EN SAVOIR PLUS ↓
             </button>
@@ -1035,7 +1035,7 @@ export default function Portal({
                   <button
                     type="submit"
                     disabled={loginLoading}
-                    className="w-full py-4 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6 disabled:opacity-50"
+                    className="w-full py-4 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6 disabled:opacity-50"
                   >
                     {loginLoading ? "CHARGEMENT..." : <>IDENTIFIER MON COMPTE <ArrowRight size={13} /></>}
                   </button>
@@ -1099,7 +1099,7 @@ export default function Portal({
                           </button>
                           <button
                             type="submit"
-                            className="flex-1 py-3 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
+                            className="flex-1 py-3 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
                             disabled={resetLoading}
                           >
                             {resetLoading ? 'ENVOI...' : 'ENVOYER'}
@@ -1125,7 +1125,7 @@ export default function Portal({
                       <button
                         type="button"
                         onClick={() => { setForgotOpen(false); setResetStep(1); }}
-                        className="w-full py-2.5 bg-white text-black hover:bg-[#00FF9C] hover:text-black rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase transition-all cursor-pointer block text-center"
+                        className="w-full py-2.5 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase transition-all cursor-pointer block text-center"
                       >
                         REVENIR À LA CONNEXION
                       </button>

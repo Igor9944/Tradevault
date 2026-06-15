@@ -1361,7 +1361,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-[100vh] min-h-[100dvh] bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
+      <div className="min-h-[100vh] min-h-[100dvh] bg-black text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
       
       {/* 1. PORTAL PAGE SCREEN */}
       {currentScreen === 'login_portal' && (
@@ -1424,14 +1424,14 @@ export default function App() {
           <BackgroundVideo />
           
           {/* Navigation Sidebar panel */}
-          <aside className="w-full lg:w-64 bg-white dark:bg-[#050505]/80 backdrop-blur-xl border-r border-neutral-200 dark:border-zinc-800 flex flex-col justify-between p-5 lg:sticky lg:top-0 h-[100vh] lg:h-[100dvh] shrink-0 relative z-30">
+          <aside className="w-full lg:w-64 bg-[#050505] backdrop-blur-xl border-r border-zinc-900 flex flex-col justify-between p-5 lg:sticky lg:top-0 h-[100vh] lg:h-[100dvh] shrink-0 relative z-30">
             <div className="space-y-6">
               
               {/* Brand Logo and Name */}
-              <div className="flex items-center px-1 border-b border-neutral-200 dark:border-zinc-800 pb-4">
+              <div className="flex items-center px-1 border-b border-zinc-900 pb-4">
                 <div>
-                  <h2 className="text-xl font-black font-display tracking-tight text-neutral-900 dark:text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
-                  <span className="text-[9px] text-neutral-500 dark:text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
+                  <h2 className="text-xl font-black font-display tracking-tight text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#00FF9C]">VAULT</span></h2>
+                  <span className="text-[9px] text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
                 </div>
               </div>
 
