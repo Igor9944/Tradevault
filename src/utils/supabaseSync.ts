@@ -5,7 +5,16 @@ import { safeLocalStorage, safeSessionStorage } from './safeStorage';
 const dummyUrl = "https://placeholder-project.supabase.co";
 const dummyKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE1Nzg4OTk2MDAsImV4cCI6MTg5NDQ1OTYwMH0.placeholder";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || dummyUrl;
+let rawSyncUrl = import.meta.env.VITE_SUPABASE_URL || dummyUrl;
+if (rawSyncUrl && rawSyncUrl.includes('supabase.com/dashboard/project/')) {
+  const match = rawSyncUrl.match(/project\/([a-z0-9]+)/);
+  if (match) {
+    rawSyncUrl = `https://${match[1]}.supabase.co`;
+  }
+} else if (rawSyncUrl && !rawSyncUrl.startsWith('http')) {
+  rawSyncUrl = `https://${rawSyncUrl}.supabase.co`;
+}
+const supabaseUrl = rawSyncUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || dummyKey;
 let isSupabaseOnline: boolean | null = null;
 
@@ -176,11 +185,11 @@ export async function signUpWithSupabase(
       email,
       country: regCountry,
       paid: false,
-      paidUntil: null,
-      createdAt: new Date().toISOString(),
-      paymentScreenshot,
+      paid_until: null,
+      created_at: new Date().toISOString(),
+      payment_proof: paymentScreenshot,
       status: 'pending',
-      avatar: regAvatar || undefined
+      avatar_url: regAvatar || undefined
     };
 
     return { success: true, user: newUser };
@@ -252,10 +261,10 @@ export async function signInWithSupabase(
       email: authData.user.email || email,
       country: profile?.country || 'FR',
       paid: profile?.paid ?? false,
-      paidUntil: profile?.paid_until || null,
+      paid_until: profile?.paid_until || null,
       status: profile?.status || 'approved', // fallback default
-      avatar: profile?.avatar_url || undefined,
-      createdAt: profile?.created_at || new Date().toISOString()
+      avatar_url: profile?.avatar_url || undefined,
+      created_at: profile?.created_at || new Date().toISOString()
     };
 
     return { success: true, user };
@@ -282,8 +291,8 @@ export async function syncUserProfile(user: User): Promise<void> {
     country: user.country,
     status: user.status,
     paid: user.paid,
-    paid_until: user.paidUntil,
-    avatar_url: user.avatar || null
+    paid_until: user.paid_until,
+    avatar_url: user.avatar_url || null
   };
 
   try {
@@ -295,8 +304,8 @@ export async function syncUserProfile(user: User): Promise<void> {
         full_name: user.username,
         email: user.email,
         status: user.status,
-        payment_proof: user.paymentScreenshot || null,
-        created_at: user.createdAt
+        payment_proof: user.payment_proof || null,
+        created_at: user.created_at
       });
     } catch (profErr) {
       console.warn("Profiles table double sync failed (ignored):", profErr);
@@ -356,30 +365,36 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
     // Map DB items back to Frontend structure
     const accounts: Account[] = (accountsRaw || []).map(a => ({
       id: a.id,
+      user_id: a.user_id || safeUserId,
       name: a.name,
-      type: a.type as 'personal' | 'propfirm',
+      account_type: a.account_type as 'personal' | 'prop_firm' | 'demo',
       capital: a.capital ? Number(a.capital) : undefined,
       target: a.target ? Number(a.target) : undefined,
-      dailyLoss: a.daily_loss ? Number(a.daily_loss) : undefined,
-      globalLoss: a.global_loss ? Number(a.global_loss) : undefined
+      daily_loss: a.daily_loss ? Number(a.daily_loss) : undefined,
+      global_loss: a.global_loss ? Number(a.global_loss) : undefined,
+      challenge_status: a.challenge_status,
+      created_at: a.created_at
     }));
 
     if (accounts.length === 0) {
-      accounts.push({ id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' });
+      accounts.push({ id: ensureUUID('personal'), user_id: safeUserId, name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() });
       accounts.push({
         id: ensureUUID('ftmo-100k'),
+        user_id: safeUserId,
         name: 'Compte FTMO 100k',
-        type: 'propfirm',
+        account_type: 'prop_firm',
         capital: 100000,
         target: 8,
-        dailyLoss: 5,
-        globalLoss: 10
+        daily_loss: 5,
+        global_loss: 10,
+        created_at: new Date().toISOString()
       });
     }
 
     const trades: Trade[] = (tradesRaw || []).map(t => ({
       id: t.id,
-      accountId: t.account_id,
+      account_id: t.account_id,
+      user_id: t.user_id || safeUserId,
       date: t.date,
       pair: t.pair,
       side: (t.direction || 'BUY') as 'BUY' | 'SELL',
@@ -391,44 +406,50 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       setup: t.setup || '',
       mindset: '',
       notes: '',
-      screenshot: t.screenshot_url || undefined,
-      createdAt: t.created_at || t.date
+      screenshot_url: t.screenshot_url || undefined,
+      emotion: t.emotion,
+      session: t.session,
+      rr_ratio: t.rr_ratio ? Number(t.rr_ratio) : undefined,
+      risk_percent: t.risk_percent ? Number(t.risk_percent) : undefined,
+      created_at: t.created_at || t.date
     }));
 
     const challenges: Challenge[] = (challengesRaw || []).map(c => ({
       id: c.id,
-      accountId: c.account_id,
+      account_id: c.account_id,
+      user_id: c.user_id || safeUserId,
       name: c.name,
       capital: c.capital ? Number(c.capital) : 100000,
       target: c.target ? Number(c.target) : 8,
-      dailyLoss: c.daily_loss ? Number(c.daily_loss) : 5,
-      globalLoss: c.global_loss ? Number(c.global_loss) : 10,
-      createdAt: c.created_at || new Date().toISOString()
+      daily_loss: c.daily_loss ? Number(c.daily_loss) : 5,
+      global_loss: c.global_loss ? Number(c.global_loss) : 10,
+      created_at: c.created_at || new Date().toISOString()
     }));
 
     if (challenges.length === 0) {
       challenges.push({
         id: ensureUUID('ftmo-100k-challenge'),
-        accountId: ensureUUID('ftmo-100k'),
+        account_id: ensureUUID('ftmo-100k'),
+        user_id: safeUserId,
         name: 'Compte FTMO 100k',
         capital: 100000,
         target: 8,
-        dailyLoss: 5,
-        globalLoss: 10,
-        createdAt: new Date().toISOString()
+        daily_loss: 5,
+        global_loss: 10,
+        created_at: new Date().toISOString()
       });
     }
 
     const paymentRequests: PaymentRequest[] = (paymentsRaw || []).map(p => ({
       id: p.id,
-      userId: p.user_id,
+      user_id: p.user_id,
       username: '',
       email: '',
       amount: p.amount ? Number(p.amount) : 30,
       network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-      proofScreenshot: p.payment_proof || '',
+      payment_proof: p.payment_proof || '',
       status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-      createdAt: p.created_at || new Date().toISOString()
+      created_at: p.created_at || new Date().toISOString()
     }));
 
     return { accounts, trades, challenges, paymentRequests };
@@ -467,11 +488,11 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
     id: safeId,
     user_id: safeUserId,
     name: account.name,
-    type: account.type,
+    account_type: account.account_type,
     capital: account.capital || null,
     target: account.target || null,
-    daily_loss: account.dailyLoss || null,
-    global_loss: account.globalLoss || null
+    daily_loss: account.daily_loss || null,
+    global_loss: account.global_loss || null
   };
 
   try {
@@ -504,7 +525,7 @@ export async function deleteAccountFromSupabase(accountId: string): Promise<void
 export async function saveTradeToSupabase(userId: string, trade: Trade): Promise<void> {
   const safeUserId = ensureUUID(userId);
   const safeId = ensureUUID(trade.id);
-  const safeAccId = ensureUUID(trade.accountId);
+  const safeAccId = ensureUUID(trade.account_id);
   const row = {
     id: safeId,
     user_id: safeUserId,
@@ -515,7 +536,11 @@ export async function saveTradeToSupabase(userId: string, trade: Trade): Promise
     status: trade.pnl > 0 ? 'WIN' : (trade.pnl < 0 ? 'LOSS' : 'BE'),
     pnl: trade.pnl,
     setup: trade.setup || null,
-    screenshot_url: trade.screenshot || null
+    screenshot_url: trade.screenshot_url || null,
+    emotion: trade.emotion || null,
+    session: trade.session || null,
+    rr_ratio: trade.rr_ratio || null,
+    risk_percent: trade.risk_percent || null
   };
 
   try {
@@ -548,7 +573,7 @@ export async function deleteTradeFromSupabase(tradeId: string): Promise<void> {
 export async function saveChallengeToSupabase(userId: string, challenge: Challenge): Promise<void> {
   const safeUserId = ensureUUID(userId);
   const safeId = ensureUUID(challenge.id);
-  const safeAccId = ensureUUID(challenge.accountId);
+  const safeAccId = ensureUUID(challenge.account_id);
   const row = {
     id: safeId,
     user_id: safeUserId,
@@ -556,8 +581,8 @@ export async function saveChallengeToSupabase(userId: string, challenge: Challen
     name: challenge.name,
     capital: challenge.capital,
     target: challenge.target,
-    daily_loss: challenge.dailyLoss,
-    global_loss: challenge.globalLoss
+    daily_loss: challenge.daily_loss,
+    global_loss: challenge.global_loss
   };
 
   try {

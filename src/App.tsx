@@ -487,13 +487,14 @@ export default function App() {
       return [
         {
           id: 'ftmo-100k-challenge',
-          accountId: 'ftmo-100k',
+          account_id: 'ftmo-100k',
+    user_id: 'admin',
           name: 'Compte FTMO 100k',
           capital: 100000,
           target: 8,
-          dailyLoss: 5,
-          globalLoss: 10,
-          createdAt: new Date().toISOString()
+          daily_loss: 5,
+          global_loss: 10,
+          created_at: new Date().toISOString()
         }
       ];
     }
@@ -511,16 +512,16 @@ export default function App() {
       }
       // Fallback: both accounts by default for newly created / registered user
       const freshAccounts: Account[] = [
-        { id: 'personal', name: 'Compte Personnel', type: 'personal' },
-        { id: 'ftmo-100k', name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+        { id: 'personal', user_id: u?.id || 'admin', name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() },
+        { id: 'ftmo-100k', user_id: u?.id || 'admin', name: 'Compte FTMO 100k', account_type: 'prop_firm', capital: 100000, target: 8, daily_loss: 5, global_loss: 10, created_at: new Date().toISOString() }
       ];
       safeLocalStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
       return freshAccounts;
     }
     const saved = safeLocalStorage.getItem('tv_accounts');
     return saved ? JSON.parse(saved) : [
-      { id: 'personal', name: 'Compte Personnel', type: 'personal' },
-      { id: 'ftmo-100k', name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+      { id: 'personal', user_id: 'admin', name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() },
+      { id: 'ftmo-100k', user_id: 'admin', name: 'Compte FTMO 100k', account_type: 'prop_firm', capital: 100000, target: 8, daily_loss: 5, global_loss: 10, created_at: new Date().toISOString() }
     ];
   });
 
@@ -601,7 +602,7 @@ export default function App() {
     if (!currentUser) return;
     setProfileUsername(currentUser.username || '');
     setProfileCountry(currentUser.country || 'FR');
-    setProfileAvatar(currentUser.avatar || null);
+    setProfileAvatar(currentUser.avatar_url || null);
     
     setProfileOldPassword('');
     setProfileNewPassword('');
@@ -641,7 +642,7 @@ export default function App() {
       ...currentUser,
       username: profileUsername.trim(),
       country: profileCountry,
-      avatar: profileAvatar || undefined,
+      avatar_url: profileAvatar || undefined,
       password: finalPassword
     };
 
@@ -757,14 +758,14 @@ export default function App() {
             if (finalSession) {
               const res = await handleSupabaseSession(finalSession);
               if (res.success && res.user) {
-                const googleEmail = res.user.email;
+                const google_email = res.user.email;
 
                 if (currentUser) {
                   // SCENARIO A: Already Logged In -> Link current account to Google!
                   const updatedUser: User = {
                     ...currentUser,
-                    googleLinked: true,
-                    googleEmail: googleEmail
+                    google_linked: true,
+                    google_email: google_email
                   };
 
                   setCurrentUser(updatedUser);
@@ -777,14 +778,14 @@ export default function App() {
                     console.warn("Could not sync linked Google status to remote DB, using local persistence:", syncErr);
                   }
 
-                  (window as any).showCustomAlert?.('Succès', `Liaison réussie ! Votre compte est associé à l'adresse Google : ${googleEmail}`);
+                  (window as any).showCustomAlert?.('Succès', `Liaison réussie ! Votre compte est associé à l'adresse Google : ${google_email}`);
                   setProfileModalOpen(false); // Close modal
                 } else {
-                  // SCENARIO B: Login Flow -> Look for existing user with matched email or googleEmail
+                  // SCENARIO B: Login Flow -> Look for existing user with matched email or google_email
                   const matchedUser = (users || []).find(u => 
                     u.id === res.user?.id ||
-                    u.email.toLowerCase() === googleEmail.toLowerCase() ||
-                    (u.googleEmail && u.googleEmail.toLowerCase() === googleEmail.toLowerCase())
+                    u.email.toLowerCase() === google_email.toLowerCase() ||
+                    (u.google_email && u.google_email.toLowerCase() === google_email.toLowerCase())
                   );
 
                   let activeUserToLog = res.user;
@@ -792,14 +793,14 @@ export default function App() {
                   if (matchedUser) {
                     activeUserToLog = {
                       ...matchedUser,
-                      avatar: matchedUser.avatar || res.user.avatar,
-                      googleLinked: true,
-                      googleEmail: googleEmail
+                      avatar_url: matchedUser.avatar_url || res.user.avatar_url,
+                      google_linked: true,
+                      google_email: google_email
                     };
                   } else {
                     // Update field on first-time login
-                    activeUserToLog.googleLinked = true;
-                    activeUserToLog.googleEmail = googleEmail;
+                    activeUserToLog.google_linked = true;
+                    activeUserToLog.google_email = google_email;
                   }
 
                   // Register/Update user locally
@@ -939,18 +940,19 @@ export default function App() {
               let initialChallenges = savedChallengesRaw ? JSON.parse(savedChallengesRaw) : [
                 {
                   id: ensureUUID('ftmo-100k-challenge'),
-                  accountId: ensureUUID('ftmo-100k'),
+                  account_id: ensureUUID('ftmo-100k'),
+          user_id: 'admin',
                   name: 'Compte FTMO 100k',
                   capital: 100000,
                   target: 8,
-                  dailyLoss: 5,
-                  globalLoss: 10,
-                  createdAt: new Date().toISOString()
+                  daily_loss: 5,
+                  global_loss: 10,
+                  created_at: new Date().toISOString()
                 }
               ];
               let initialAccounts = savedAccsRaw ? JSON.parse(savedAccsRaw) : [
-                { id: ensureUUID('personal'), name: 'Compte Personnel', type: 'personal' },
-                { id: ensureUUID('ftmo-100k'), name: 'Compte FTMO 100k', type: 'propfirm', capital: 100000, target: 8, dailyLoss: 5, globalLoss: 10 }
+                { id: ensureUUID('personal'), user_id: 'admin', name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() },
+                { id: ensureUUID('ftmo-100k'), user_id: 'admin', name: 'Compte FTMO 100k', account_type: 'prop_firm', capital: 100000, target: 8, daily_loss: 5, global_loss: 10, created_at: new Date().toISOString() }
               ];
 
               setTrades(initialTrades);
@@ -1007,14 +1009,14 @@ export default function App() {
     const paymentId = 'pay_' + Date.now();
     const newRequest: PaymentRequest = {
       id: paymentId,
-      userId: currentUser.id,
+      user_id: currentUser.id,
       username: currentUser.username,
       email: currentUser.email,
       amount: subscriptionPrice,
       network: network,
-      proofScreenshot: proofBase64,
+      payment_proof: proofBase64,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
 
     setPaymentRequests(prev => [...prev, newRequest]);
@@ -1042,10 +1044,10 @@ export default function App() {
   };
 
   // Switch accounts list
-  const activeAccount = accounts.find(a => a.id === selectedAccountId) || accounts[0] || { id: 'personal', name: 'Compte Personnel', type: 'personal' };
+  const activeAccount = accounts.find(a => a.id === selectedAccountId) || accounts[0] || { id: 'personal', user_id: currentUser?.id || 'admin', name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() };
   
   // Filter trades correspond with currently selected active account
-  const activeAccountTrades = trades.filter(t => t.accountId === selectedAccountId);
+  const activeAccountTrades = trades.filter(t => t.account_id === selectedAccountId);
 
   // Stats calculation
   const totalAccountPnl = activeAccountTrades.reduce((sum, t) => sum + t.pnl, 0);
@@ -1089,7 +1091,7 @@ export default function App() {
     
     // Check if account can be deleted
     const accountToDelete = accounts.find(a => a.id === id);
-    if (accountToDelete && (accountToDelete.type === 'personal' || accountToDelete.name.toLowerCase().includes('challenge'))) {
+    if (accountToDelete && (accountToDelete.account_type === 'personal' || accountToDelete.name.toLowerCase().includes('challenge'))) {
       customAlert("Action Non Autorisée", "Ce type de compte (personnel ou challenge) ne peut pas être supprimé.");
       return;
     }
@@ -1099,7 +1101,7 @@ export default function App() {
       return;
     }
     setAccounts(prev => prev.filter(a => a.id !== id));
-    setChallenges(prev => prev.filter(c => c.accountId !== id));
+    setChallenges(prev => prev.filter(c => c.account_id !== id));
     if (currentUser) {
       deleteAccountFromSupabase(id);
     }
@@ -1120,8 +1122,8 @@ export default function App() {
   };
 
   // Admin CRUD
-  const handleApproveUser = (userId: string) => {
-    const target = users.find(u => u.id === userId);
+  const handleApproveUser = (user_id: string) => {
+    const target = users.find(u => u.id === user_id);
     if (!target) return;
     const now = new Date();
     const expiry = new Date();
@@ -1132,9 +1134,9 @@ export default function App() {
       ...target,
       status: 'approved',
       paid: true,
-      paidUntil: expiryStr
+      paid_until: expiryStr
     };
-    setUsers(prev => prev.map(u => u.id === userId ? approved : u));
+    setUsers(prev => prev.map(u => u.id === user_id ? approved : u));
 
     // Update profile in Supabase
     syncUserProfile(approved);
@@ -1149,10 +1151,10 @@ export default function App() {
     });
   };
 
-  const handleRejectUser = (userId: string) => {
+  const handleRejectUser = (user_id: string) => {
     setUsers(prev => {
-      const updated = prev.map(u => u.id === userId ? { ...u, status: 'rejected' as const } : u);
-      const target = updated.find(u => u.id === userId);
+      const updated = prev.map(u => u.id === user_id ? { ...u, status: 'rejected' as const } : u);
+      const target = updated.find(u => u.id === user_id);
       if (target) {
         syncUserProfile(target);
       }
@@ -1165,12 +1167,12 @@ export default function App() {
     if (!req) return;
 
     // Get the target user to renew
-    const targetUser = users.find(u => u.id === req.userId);
+    const targetUser = users.find(u => u.id === req.user_id);
     if (!targetUser) return;
 
     let baseDate = new Date();
-    if (targetUser.paid && targetUser.paidUntil) {
-      const currExpiry = new Date(targetUser.paidUntil);
+    if (targetUser.paid && targetUser.paid_until) {
+      const currExpiry = new Date(targetUser.paid_until);
       if (currExpiry > baseDate) {
         baseDate = currExpiry;
       }
@@ -1184,7 +1186,7 @@ export default function App() {
     const renewedUser: User = {
       ...targetUser,
       paid: true,
-      paidUntil: expiryStr
+      paid_until: expiryStr
     };
 
     // Update state lists
@@ -1208,7 +1210,7 @@ export default function App() {
       const updated = prev.map(r => r.id === payId ? { ...r, status: 'rejected' as const } : r);
       const req = updated.find(r => r.id === payId);
       if (req) {
-        savePaymentToSupabase(req.userId, req);
+        savePaymentToSupabase(req.user_id, req);
       }
       return updated;
     });
@@ -1234,11 +1236,11 @@ export default function App() {
     });
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    const success = await adminDeleteUserFromSupabase(userId);
+  const handleDeleteUser = async (user_id: string) => {
+    const success = await adminDeleteUserFromSupabase(user_id);
     if (success) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      setPaymentRequests(prev => prev.filter(p => p.userId !== userId));
+      setUsers(prev => prev.filter(u => u.id !== user_id));
+      setPaymentRequests(prev => prev.filter(p => p.user_id !== user_id));
     } else {
       customAlert("Erreur", "La suppression de l'utilisateur a échoué.");
     }
@@ -1261,12 +1263,12 @@ export default function App() {
   };
 
   const handleEditUser = async (
-    userId: string, 
+    user_id: string, 
     updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }
   ) => {
-    const success = await adminUpdateUserFromSupabase(userId, updatedFields);
+    const success = await adminUpdateUserFromSupabase(user_id, updatedFields);
     if (success) {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updatedFields } : u));
+      setUsers(prev => prev.map(u => u.id === user_id ? { ...u, ...updatedFields } : u));
     } else {
       customAlert("Erreur", "La modification du profil a échoué.");
     }
@@ -1280,12 +1282,14 @@ export default function App() {
     const accId = generateUUID();
     const newAcc: Account = {
       id: accId,
+      user_id: currentUser?.id || 'admin',
       name: newAccName.trim(),
-      type: newAccType,
-      capital: newAccType === 'propfirm' ? parseFloat(newAccCapital) : undefined,
-      target: newAccType === 'propfirm' ? parseFloat(newAccTarget) : undefined,
-      dailyLoss: newAccType === 'propfirm' ? parseFloat(newAccDailyLoss) : undefined,
-      globalLoss: newAccType === 'propfirm' ? parseFloat(newAccGlobalLoss) : undefined
+      account_type: newAccType as 'personal' | 'prop_firm' | 'demo',
+      capital: newAccType === 'prop_firm' ? parseFloat(newAccCapital) : undefined,
+      target: newAccType === 'prop_firm' ? parseFloat(newAccTarget) : undefined,
+      daily_loss: newAccType === 'prop_firm' ? parseFloat(newAccDailyLoss) : undefined,
+      global_loss: newAccType === 'prop_firm' ? parseFloat(newAccGlobalLoss) : undefined,
+      created_at: new Date().toISOString()
     };
 
     setAccounts(prev => [...prev, newAcc]);
@@ -1294,16 +1298,17 @@ export default function App() {
     }
 
     // If type is prop firm challenge, automatically seed a corresponding Challenge object
-    if (newAccType === 'propfirm') {
+    if (newAccType === 'prop_firm') {
       const newCh: Challenge = {
         id: generateUUID(),
-        accountId: accId,
+        user_id: currentUser?.id || 'admin',
+        account_id: accId,
         name: newAccName.trim(),
         capital: parseFloat(newAccCapital) || 100000,
         target: parseFloat(newAccTarget) || 8,
-        dailyLoss: parseFloat(newAccDailyLoss) || 5,
-        globalLoss: parseFloat(newAccGlobalLoss) || 10,
-        createdAt: new Date().toISOString()
+        daily_loss: parseFloat(newAccDailyLoss) || 5,
+        global_loss: parseFloat(newAccGlobalLoss) || 10,
+        created_at: new Date().toISOString()
       };
       setChallenges(prev => [...prev, newCh]);
       if (currentUser) {
@@ -1409,8 +1414,8 @@ export default function App() {
               )}
 
               {/* SUBSCRIPTION COUNTDOWN (90 DAYS) */}
-              {!isAdmin && currentUser?.paidUntil && (() => {
-                const daysLeft = Math.max(0, Math.ceil((new Date(currentUser.paidUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24)));
+              {!isAdmin && currentUser?.paid_until && (() => {
+                const daysLeft = Math.max(0, Math.ceil((new Date(currentUser.paid_until).getTime() - new Date().getTime()) / (1000 * 3600 * 24)));
                 const isNearingExpiry = daysLeft <= 7;
                 return (
                   <div className={`${isNearingExpiry ? 'bg-rose-900/20 border-rose-500/40 text-rose-300' : 'bg-[#00FF9C]/5 border-[#00FF9C]/20 text-[#00FF9C]'} border p-3 rounded-xl flex flex-col gap-2`}>
@@ -1495,7 +1500,7 @@ export default function App() {
                     >
                       <TrendingUp size={15} /> Statistiques
                     </button>
-                    {accounts.some(acc => acc.type === 'propfirm') && (
+                    {accounts.some(acc => acc.account_type === 'prop_firm') && (
                       <button
                         type="button"
                         onClick={() => setActiveTab('challenges')}
@@ -1541,9 +1546,9 @@ export default function App() {
                 className="flex gap-2.5 items-center px-2 py-1.5 rounded-xl hover:bg-slate-900/60 border border-transparent hover:border-[#00FF9C]/10 active:scale-[0.98] transition-all cursor-pointer group"
                 title="Modifier mon profil"
               >
-                {currentUser.avatar ? (
+                {currentUser.avatar_url ? (
                   <img 
-                    src={currentUser.avatar} 
+                    src={currentUser.avatar_url} 
                     alt={currentUser.username} 
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-[#00FF9C]/25 group-hover:ring-[#00FF9C]/50 transition-all shrink-0"
                     referrerPolicy="no-referrer"
@@ -1650,7 +1655,7 @@ export default function App() {
                 <Stats 
                   trades={activeAccountTrades} 
                   onImportTrades={(imported) => setTrades(imported)} 
-                  onResetTrades={() => setTrades(prev => prev.filter(t => t.accountId !== selectedAccountId))} 
+                  onResetTrades={() => setTrades(prev => prev.filter(t => t.account_id !== selectedAccountId))} 
                   activeAccount={activeAccount} 
                 />
               </React.Suspense>
@@ -1747,7 +1752,7 @@ export default function App() {
                 </select>
               </div>
 
-              {newAccType === 'propfirm' && (
+              {newAccType === 'prop_firm' && (
                 <div className="space-y-3 p-4 bg-slate-900 border border-slate-800 rounded-xl animate-fade-in font-mono text-xs">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -2003,7 +2008,7 @@ export default function App() {
                 <div className="pt-4 border-t border-white/5 space-y-2.5">
                   <span className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wider block">Liaison Google</span>
                   
-                  {currentUser.googleLinked ? (
+                  {currentUser.google_linked ? (
                     <div className="p-3 bg-[#00FF9C]/5 border border-[#00FF9C]/20 rounded-xl flex items-center justify-between">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1.5">
@@ -2011,7 +2016,7 @@ export default function App() {
                           <span className="text-[10px] font-bold text-[#00FF9C] uppercase tracking-wider font-mono">Compte Lié à Google</span>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-tight">
-                          E-mail : <span className="font-mono text-zinc-350 font-semibold">{currentUser.googleEmail || currentUser.email}</span>
+                          E-mail : <span className="font-mono text-zinc-350 font-semibold">{currentUser.google_email || currentUser.email}</span>
                         </p>
                       </div>
                       <span className="text-[#00FF9C] text-sm">✅</span>

@@ -1,23 +1,26 @@
-export interface User {
-  id: string;
+export interface Profile {
+  id: string; // references auth.users
   username: string;
   email: string;
-  password?: string;
+  password?: string; // local only
   country: string;
   paid: boolean;
-  paidUntil: string | null;
-  createdAt: string;
-  paymentScreenshot?: string; // Base64 representation
+  paid_until: string | null;
+  created_at: string;
+  payment_proof?: string; 
   status: 'pending' | 'approved' | 'rejected';
-  avatar?: string; // Base64 representation of profile photo
-  googleLinked?: boolean;
-  googleEmail?: string;
+  avatar_url?: string; 
+  google_linked?: boolean;
+  google_email?: string;
 }
+
+export type User = Profile; // keep User alias
 
 export interface Trade {
   id: string;
-  accountId: string;
-  date: string; // ISO datetime string
+  account_id: string;
+  user_id: string;
+  date: string;
   pair: string;
   side: 'BUY' | 'SELL';
   entry: number;
@@ -28,30 +31,40 @@ export interface Trade {
   setup: string;
   mindset: string;
   notes: string;
-  screenshot?: string; // Base64
-  createdAt: string;
+  screenshot_url?: string;
+  emotion?: 'fomo' | 'revenge' | 'boredom' | 'fear' | 'greed' | 'patience' | 'discipline' | 'tilt' | 'confident' | 'hesitant';
+  session?: 'london' | 'new_york' | 'tokyo' | 'sydney' | 'asian';
+  rr_ratio?: number;
+  risk_percent?: number;
+  created_at: string;
 }
 
 export interface Challenge {
   id: string;
-  accountId: string;
+  account_id: string;
+  user_id: string;
   name: string;
   capital: number;
-  target: number; // profit target % e.g., 8
-  dailyLoss: number; // max daily loss % e.g., 5
-  globalLoss: number; // max global loss % e.g., 10
-  createdAt: string;
+  target: number;
+  daily_loss: number;
+  global_loss: number;
+  created_at: string;
 }
 
-export interface Account {
+export interface TradingAccount {
   id: string;
+  user_id: string;
   name: string;
-  type: 'personal' | 'propfirm';
+  account_type: 'personal' | 'prop_firm' | 'demo';
   capital?: number;
   target?: number;
-  dailyLoss?: number;
-  globalLoss?: number;
+  daily_loss?: number;
+  global_loss?: number;
+  challenge_status?: 'not_started' | 'passed' | 'failed' | 'in_progress';
+  created_at: string;
 }
+
+export type Account = TradingAccount; // alias
 
 export interface NotificationPreference {
   payments: boolean;
@@ -71,14 +84,14 @@ export interface AppNotification {
 
 export interface PaymentRequest {
   id: string;
-  userId: string;
-  username: string;
-  email: string;
+  user_id: string;
+  username?: string;
+  email?: string;
   amount: number;
   network: 'TRC20' | 'BEP20';
-  proofScreenshot: string; // Base64 representation
+  payment_proof: string; 
   status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
+  created_at: string;
 }
 
 

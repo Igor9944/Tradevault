@@ -90,7 +90,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setSetup(trade.setup);
     setMindset(trade.mindset);
     setNotes(trade.notes);
-    setScreenshot(trade.screenshot || null);
+    setScreenshot(trade.screenshot_url || null);
     setModalOpen(true);
   };
 
@@ -113,7 +113,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
       setup,
       mindset,
       notes: notes.trim(),
-      screenshot: screenshot || undefined
+      screenshot_url: screenshot || undefined
     };
 
     if (editingId) {
@@ -121,7 +121,8 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     } else {
       const newFullTrade: Trade = {
         id: 'trd_' + Date.now(),
-        accountId: activeAccount.id,
+        user_id: activeAccount.user_id,
+        account_id: activeAccount.id,
         date: tradeData.date!,
         pair: tradeData.pair!,
         side: tradeData.side!,
@@ -133,8 +134,8 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         setup: tradeData.setup!,
         mindset: tradeData.mindset!,
         notes: tradeData.notes!,
-        screenshot: tradeData.screenshot,
-        createdAt: new Date().toISOString()
+        screenshot_url: tradeData.screenshot_url,
+        created_at: new Date().toISOString()
       };
       onAddTrade(newFullTrade);
     }
@@ -255,12 +256,12 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 </div>
 
                 {/* Screenshot thumbnail if available */}
-                {t.screenshot && (
+                {t.screenshot_url && (
                   <div 
-                    onClick={() => setActiveLightboxImage(t.screenshot!)}
+                    onClick={() => setActiveLightboxImage(t.screenshot_url!)}
                     className="h-32 bg-[#080808] border border-zinc-900 rounded-xl overflow-hidden cursor-zoom-in group relative"
                   >
-                    <img src={t.screenshot} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
+                    <img src={t.screenshot_url} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
                     <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
                       <ImageIcon size={16} className="mr-1.5" /> Agrandir
                     </div>

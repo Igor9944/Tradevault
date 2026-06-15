@@ -146,7 +146,8 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
               if (cols.length >= 7) {
                 importedTrades.push({
                   id: `csv-${Date.now()}-${i}`,
-                  accountId: activeAccount.id,
+                  user_id: activeAccount.user_id,
+                  account_id: activeAccount.id,
                   date: cols[0],
                   pair: cols[1],
                   side: cols[2].toUpperCase().includes('SELL') ? 'SELL' : 'BUY',
@@ -158,7 +159,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                   mindset: '',
                   notes: cols[8] ? cols[8].replace(/""/g, '"').replace(/^"|"$/g, '') : '',
                   fees: 0,
-                  createdAt: new Date().toISOString()
+                  created_at: new Date().toISOString()
                 });
               }
             }

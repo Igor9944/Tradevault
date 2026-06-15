@@ -114,7 +114,7 @@ export default function Checkout({
       const { supabase } = await import('../lib/supabase');
       try {
         // Sync users
-        await supabase.from('users').update({ status: 'pending', avatar_url: user.avatar || null }).eq('id', user.id);
+        await supabase.from('users').update({ status: 'pending', avatar_url: user.avatar_url || null }).eq('id', user.id);
         // Sync profiles as requested
         await supabase.from('profiles').upsert({
           id: user.id,
@@ -139,7 +139,16 @@ export default function Checkout({
 
     // 3. Trigger edge functions email
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+      let rawCheckoutUrl = import.meta.env.VITE_SUPABASE_URL || "";
+      if (rawCheckoutUrl && rawCheckoutUrl.includes('supabase.com/dashboard/project/')) {
+        const match = rawCheckoutUrl.match(/project\/([a-z0-9]+)/);
+        if (match) {
+          rawCheckoutUrl = `https://${match[1]}.supabase.co`;
+        }
+      } else if (rawCheckoutUrl && !rawCheckoutUrl.startsWith('http')) {
+        rawCheckoutUrl = `https://${rawCheckoutUrl}.supabase.co`;
+      }
+      const supabaseUrl = rawCheckoutUrl;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
       if (supabaseUrl && supabaseAnonKey) {
         await fetch(`${supabaseUrl}/functions/v1/send-email`, {

@@ -6,8 +6,8 @@ import { customAlert, customConfirm } from '../utils/customDialog';
 
 interface AdminProps {
   users: User[];
-  onApproveUser: (userId: string) => void;
-  onRejectUser: (userId: string) => void;
+  onApproveUser: (user_id: string) => void;
+  onRejectUser: (user_id: string) => void;
   onUpdateAdminEmails: (emails: string) => void;
   adminEmails: string;
   adminWalletTRC20: string;
@@ -19,9 +19,9 @@ interface AdminProps {
   onApproveRenewal?: (payId: string) => void;
   onRejectRenewal?: (payId: string) => void;
   onCheckCronRenewals?: () => void;
-  onDeleteUser?: (userId: string) => void;
+  onDeleteUser?: (user_id: string) => void;
   onDeleteAllUsersExceptAdmin?: () => void;
-  onEditUser?: (userId: string, updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }) => void;
+  onEditUser?: (user_id: string, updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }) => void;
 }
 
 export default function Admin({ 
@@ -79,12 +79,12 @@ export default function Admin({
     setEditingUserId(null);
   };
 
-  const saveEditedUser = (userId: string) => {
+  const saveEditedUser = (user_id: string) => {
     if (!editUserName.trim() || !editUserEmail.trim()) {
       customAlert("Erreur", "Le nom d'utilisateur et l'e-mail ne peuvent pas être vides.");
       return;
     }
-    onEditUser(userId, {
+    onEditUser(user_id, {
       username: editUserName.trim(),
       email: editUserEmail.trim(),
       status: editUserStatus
@@ -300,13 +300,13 @@ export default function Admin({
                       <div className="text-[10px] text-slate-400">${req.amount} USD</div>
                     </td>
                     <td className="p-3 text-slate-500">
-                      {new Date(req.createdAt).toLocaleDateString()} {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      {new Date(req.created_at).toLocaleDateString()} {new Date(req.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </td>
                     <td className="p-3 whitespace-nowrap">
-                      {req.proofScreenshot ? (
+                      {req.payment_proof ? (
                         <button
                           type="button"
-                          onClick={() => setActiveImage(req.proofScreenshot)}
+                          onClick={() => setActiveImage(req.payment_proof)}
                           className="px-2.5 py-1 text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                         >
                           <ImageIcon size={12} /> Voir capture d'écran
@@ -391,13 +391,13 @@ export default function Admin({
                     <td className="p-3 font-bold text-white whitespace-nowrap">{pending.username}</td>
                     <td className="p-3 text-slate-400 whitespace-nowrap">{pending.email}</td>
                     <td className="p-3 whitespace-nowrap text-slate-500">
-                      {new Date(pending.createdAt).toLocaleDateString()}
+                      {new Date(pending.created_at).toLocaleDateString()}
                     </td>
                     <td className="p-3 whitespace-nowrap">
-                      {pending.paymentScreenshot ? (
+                      {pending.payment_proof ? (
                         <button
                           type="button"
-                          onClick={() => setActiveImage(pending.paymentScreenshot!)}
+                          onClick={() => setActiveImage(pending.payment_proof!)}
                           className="px-2.5 py-1 text-[10px] font-bold bg-[#00FF9C]/10 hover:bg-[#00FF9C]/20 text-[#00FF9C] border border-[#00FF9C]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                         >
                           <ImageIcon size={12} /> Voir capture d'écran
@@ -504,8 +504,8 @@ export default function Admin({
                   <tr key={trader.id} className="hover:bg-slate-900/30 text-slate-300">
                     <td className="p-3 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
-                        {trader.avatar ? (
-                          <img src={trader.avatar} alt={trader.username} className="w-7 h-7 rounded-full object-cover border border-[white/10]" referrerPolicy="no-referrer" />
+                        {trader.avatar_url ? (
+                          <img src={trader.avatar_url} alt={trader.username} className="w-7 h-7 rounded-full object-cover border border-[white/10]" referrerPolicy="no-referrer" />
                         ) : (
                           <DefaultLogoAvatar className="w-7 h-7" />
                         )}
@@ -539,7 +539,7 @@ export default function Admin({
                       )}
                     </td>
                     <td className="p-3 whitespace-nowrap text-slate-500">
-                      {new Date(trader.createdAt).toLocaleDateString()}
+                      {new Date(trader.created_at).toLocaleDateString()}
                     </td>
                     <td className="p-3 whitespace-nowrap">
                       {isEditing ? (

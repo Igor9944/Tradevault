@@ -385,7 +385,7 @@ export default function Portal({
   const [regConfirm, setRegConfirm] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [regCountry, setRegCountry] = useState('FR');
-  const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
+  const [payment_proof, setPaymentScreenshot] = useState<string | null>(null);
   const [regAvatar, setRegAvatar] = useState<string | null>(null);
   const [regMethod, setRegMethod] = useState<'choice' | 'email'>('email');
 
@@ -518,8 +518,8 @@ export default function Portal({
         email: 'tradonyx@vault.com',
         country: 'FR',
         paid: true,
-        paidUntil: null,
-        createdAt: new Date().toISOString(),
+        paid_until: null,
+        created_at: new Date().toISOString(),
         status: 'approved'
       };
       onLoginSuccess(adminAcc);
@@ -590,7 +590,7 @@ export default function Portal({
       displayToast('Les mots de passe diffèrent.', 'error');
       return;
     }
-    if (!paymentScreenshot) {
+    if (!payment_proof) {
       displayToast('Capture d\'écran de preuve obligatoire.', 'error');
       return;
     }
@@ -609,7 +609,7 @@ export default function Portal({
         regEmail.trim(),
         regPassword,
         regCountry,
-        paymentScreenshot,
+        payment_proof,
         selectedNetwork,
         subscriptionPrice,
         regAvatar
@@ -628,11 +628,11 @@ export default function Portal({
           password: regPassword,
           country: regCountry,
           paid: false,
-          paidUntil: null,
-          createdAt: new Date().toISOString(),
-          paymentScreenshot: paymentScreenshot,
+          paid_until: null,
+          created_at: new Date().toISOString(),
+          payment_proof: payment_proof,
           status: 'pending',
-          avatar: regAvatar || undefined
+          avatar_url: regAvatar || undefined
         };
         onRegisterPending(localUser);
       }
@@ -1208,7 +1208,7 @@ export default function Portal({
                           onChange={handleFileChange}
                           className="absolute inset-0 opacity-0 cursor-pointer z-10"
                         />
-                        {!paymentScreenshot ? (
+                        {!payment_proof ? (
                           <div className="flex flex-col items-center gap-1">
                             <Upload size={18} className="text-white/40" />
                             <span className="text-[10px] text-white/60 font-mono">Glissez-déposez la capture de preuve ici</span>
@@ -1217,7 +1217,7 @@ export default function Portal({
                         ) : (
                           <div className="flex items-center justify-between pointer-events-none">
                             <div className="flex items-center gap-2">
-                              <img src={paymentScreenshot} alt="Preuve" className="w-8 h-8 object-cover rounded border border-white/10" />
+                              <img src={payment_proof} alt="Preuve" className="w-8 h-8 object-cover rounded border border-white/10" />
                               <span className="text-[10px] text-[#00FF9C] font-mono">Preuve_chargee.jpg</span>
                             </div>
                             <button 

@@ -20,10 +20,10 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
   const [name, setName] = useState('');
   const [capital, setCapital] = useState('');
   const [targetPercent, setTargetPercent] = useState('8'); // standard FTMO target is 8% or 10%
-  const [dailyLoss, setDailyLoss] = useState('5'); // standard is 5%
-  const [globalLoss, setGlobalLoss] = useState('10'); // standard is 10%
+  const [daily_loss, setDailyLoss] = useState('5'); // standard is 5%
+  const [global_loss, setGlobalLoss] = useState('10'); // standard is 10%
 
-  const activeAccountChallenges = challenges.filter(c => c.accountId === activeAccount.id);
+  const activeAccountChallenges = challenges.filter(c => c.account_id === activeAccount.id);
 
   // Filter trades of current mock session today
   const todayStr = new Date().toISOString().split('T')[0];
@@ -41,13 +41,14 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
 
     const newChallenge: Challenge = {
       id: 'ch_' + Date.now(),
-      accountId: activeAccount.id,
+      user_id: activeAccount.user_id,
+      account_id: activeAccount.id,
       name: name.trim(),
       capital: parseFloat(capital),
       target: parseFloat(targetPercent) || 8,
-      dailyLoss: parseFloat(dailyLoss) || 5,
-      globalLoss: parseFloat(globalLoss) || 10,
-      createdAt: new Date().toISOString()
+      daily_loss: parseFloat(daily_loss) || 5,
+      global_loss: parseFloat(global_loss) || 10,
+      created_at: new Date().toISOString()
     };
 
     onAddChallenge(newChallenge);
@@ -85,8 +86,8 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {activeAccountChallenges.map((ch) => {
             const targetAmount = ch.capital * (ch.target / 100);
-            const maxDailyLossAmount = ch.capital * (ch.dailyLoss / 100);
-            const maxGlobalLossAmount = ch.capital * (ch.globalLoss / 100);
+            const maxDailyLossAmount = ch.capital * (ch.daily_loss / 100);
+            const maxGlobalLossAmount = ch.capital * (ch.global_loss / 100);
 
             // Compute current metrics relative to this specific challenge parameter
             const profitProgress = targetAmount > 0 ? (cumulativePnl / targetAmount) * 100 : 0;
@@ -121,7 +122,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                 <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
                   <div className="space-y-0.5">
                     <h4 className="text-sm font-black font-mono text-white capitalize">{ch.name}</h4>
-                    <span className="text-[10px] text-neutral-300 block font-mono">Date d'initialisation : {new Date(ch.createdAt).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-neutral-300 block font-mono">Date d'initialisation : {new Date(ch.created_at).toLocaleDateString()}</span>
                   </div>
 
                   {ch.id !== 'ftmo-100k-challenge' && (
@@ -177,7 +178,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                   {/* Daily Max Drawdown limit bar */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-slate-400 font-semibold uppercase">Perte Journalière Max ({ch.dailyLoss}%)</span>
+                      <span className="text-slate-400 font-semibold uppercase">Perte Journalière Max ({ch.daily_loss}%)</span>
                       <span className={`font-bold ${dailyCheckedPnl <= -maxDailyLossAmount ? 'text-red-400 font-extrabold animate-pulse' : 'text-slate-400'}`}>
                         {Math.abs(dailyCheckedPnl) > 0 ? `$${Math.abs(dailyCheckedPnl).toFixed(0)}` : '$0'} / ${maxDailyLossAmount.toFixed(0)}
                       </span>
@@ -195,7 +196,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                   {/* Global loss Drawdown limit bar */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-slate-400 font-semibold uppercase">Perte Globale Max ({ch.globalLoss}%)</span>
+                      <span className="text-slate-400 font-semibold uppercase">Perte Globale Max ({ch.global_loss}%)</span>
                       <span className={`font-bold ${cumulativePnl <= -maxGlobalLossAmount ? 'text-red-400 font-extrabold animate-pulse' : 'text-slate-400'}`}>
                         {cumulativePnl < 0 ? `$${Math.abs(cumulativePnl).toFixed(0)}` : '$0'} / ${maxGlobalLossAmount.toFixed(0)}
                       </span>
@@ -287,7 +288,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                   <label className="text-xs text-slate-300 font-semibold font-sans font-mono">Max Daily Loss (%)</label>
                   <input
                     type="number"
-                    value={dailyLoss}
+                    value={daily_loss}
                     onChange={(e) => setDailyLoss(e.target.value)}
                     placeholder="5"
                     className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
@@ -298,7 +299,7 @@ export default function Challenges({ challenges, trades, onAddChallenge, onDelet
                   <label className="text-xs text-slate-300 font-semibold font-sans font-mono">Max Global Loss (%)</label>
                   <input
                     type="number"
-                    value={globalLoss}
+                    value={global_loss}
                     onChange={(e) => setGlobalLoss(e.target.value)}
                     placeholder="10"
                     className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
