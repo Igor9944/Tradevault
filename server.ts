@@ -20,13 +20,25 @@ export function addLog(message: string) {
 
 // Helper to send emails via Resend
 export async function sendEmailViaResend(to: string | string[], subject: string, html: string) {
-  // L'utilisateur a fourni sa clé API Resend explicitement
-  const apiKey = process.env.RESEND_API_KEY || "re_QjFfcnKE_4gspG3CrLHYnKFFVcBRyLABe";
+  let apiKey = process.env.RESEND_API_KEY;
+  let fromEmail = process.env.RESEND_FROM_EMAIL;
+  
+  // Sécurité / Robustesse robuste : l'utilisateur a collé sa clé API Resend (qui commence par "re_")
+  // dans la case "RESEND_FROM_EMAIL" de la configuration de l'environnement.
+  // On détecte ça et on corrige automatiquement pour éviter que ça plante !
+  if (fromEmail && fromEmail.trim().startsWith("re_")) {
+    apiKey = fromEmail.trim();
+    fromEmail = undefined;
+  }
+  
+  if (!apiKey) {
+    apiKey = "re_QjFfcnKE_4gspG3CrLHYnKFFVcBRyLABe";
+  }
   
   // Important : Resend bloque l'envoi depuis @gmail.com (il faut un nom de domaine pro).
   // Nous sommes obligés d'utiliser onboarding@resend.dev en adresse d'envoi.
   // Cependant, nous allons rajouter un entête "Reply-To" pour que les réponses aillent sur le Gmail.
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "TradeVault <onboarding@resend.dev>";
+  const finalFromEmail = fromEmail || "TradeVault <onboarding@resend.dev>";
   const replyTo = "igorrose2003@gmail.com, tradonyx@vault.com";
   
   if (!apiKey) {
@@ -38,7 +50,7 @@ export async function sendEmailViaResend(to: string | string[], subject: string,
     const { Resend } = await import("resend");
     const resend = new Resend(apiKey);
     const response = await resend.emails.send({
-      from: fromEmail,
+      from: finalFromEmail,
       replyTo: replyTo,
       to: Array.isArray(to) ? to : [to],
       subject: subject,
