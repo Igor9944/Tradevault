@@ -1068,10 +1068,8 @@ export default function App() {
   };
 
   const handleCheckoutCancel = () => {
-    safeSessionStorage.removeItem('tv_current_user');
-    safeLocalStorage.removeItem('tv_current_user');
-    setCurrentUser(null);
-    setCurrentScreen('login_portal');
+    setActiveTab('dashboard');
+    setCurrentScreen('app');
   };
 
   // Switch accounts list
