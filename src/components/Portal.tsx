@@ -661,9 +661,7 @@ export default function Portal({
     setForgotResult(null);
 
     try {
-      const redirectUrl = window.location.origin.includes('localhost') || window.location.origin.includes('run.app') 
-        ? `${window.location.origin}/reset-password` 
-        : 'https://traderpr0.netlify.app/reset-password';
+      const redirectUrl = `${window.location.origin}/reset-password`;
 
       const { data, error } = await supabase.auth.resetPasswordForEmail(emailToSearch, {
         redirectTo: redirectUrl,

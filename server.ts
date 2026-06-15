@@ -119,7 +119,16 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" })); // Support base64 uploads
 
 // Initialize Server-side Supabase client to bypass client-side "Failed to fetch" (caused by ad-blockers, CORS etc)
-const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+let rawServerUrl = process.env.VITE_SUPABASE_URL || "";
+if (rawServerUrl && rawServerUrl.includes('supabase.com/dashboard/project/')) {
+  const match = rawServerUrl.match(/project\/([a-z0-9]+)/);
+  if (match) {
+    rawServerUrl = `https://${match[1]}.supabase.co`;
+  }
+} else if (rawServerUrl && !rawServerUrl.startsWith('http')) {
+  rawServerUrl = `https://${rawServerUrl}.supabase.co`;
+}
+const supabaseUrl = rawServerUrl;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 let serverSupabase: any = null;
 let dbReachabilityPromise: Promise<boolean> | null = null;
@@ -191,28 +200,28 @@ let inMemoryPayments: any[] = [
     id: "pay_igor",
     user_id: "user_igor",
     amount: 30,
-    proof_file_url: "https://example.com/screenshot.png",
+    payment_proof: "https://example.com/screenshot.png",
     network: "TRC20",
     status: "approved",
-    payment_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
     id: "pay_toshiro",
     user_id: "user_toshiro",
     amount: 30,
-    proof_file_url: "https://example.com/screenshot.png",
+    payment_proof: "https://example.com/screenshot.png",
     network: "BEP20",
     status: "approved",
-    payment_date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+    created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
     id: "pay_test",
     user_id: "user_test",
     amount: 30,
-    proof_file_url: "https://example.com/screenshot_pending.png",
+    payment_proof: "https://example.com/screenshot_pending.png",
     network: "TRC20",
     status: "pending",
-    payment_date: new Date().toISOString()
+    created_at: new Date().toISOString()
   }
 ];
 
@@ -253,10 +262,10 @@ function handleInmemoryProxyAction(action: string, args: any): any {
         id: paymentId,
         user_id: userId,
         amount: subscriptionPrice || 30,
-        proof_file_url: paymentScreenshot,
+        payment_proof: paymentScreenshot,
         network: selectedNetwork || "TRC20",
         status: "pending",
-        payment_date: new Date().toISOString()
+        created_at: new Date().toISOString()
       });
 
       // Trigger Resend email deliverability on signup
@@ -517,7 +526,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
         // 2. Profile Upsert
         const { error: profileError } = await serverSupabase
-          .from('users')
+          .from('profiles')
           .upsert({
             id: userId,
             email,
@@ -536,12 +545,12 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         // 3. Payment Request insert
         const paymentId = 'pay_' + Date.now();
         const { error: paymentError } = await serverSupabase
-          .from('payments')
+          .from('payment_requests')
           .insert({
             id: paymentId,
             user_id: userId,
             amount: subscriptionPrice,
-            proof_file_url: paymentScreenshot,
+            payment_proof: paymentScreenshot,
             network: selectedNetwork,
             status: 'pending'
           });
@@ -606,7 +615,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
         // Load profile
         const { data: profile, error: profileError } = await serverSupabase
-          .from('users')
+          .from('profiles')
           .select('*')
           .eq('id', userId)
           .maybeSingle();
@@ -633,10 +642,10 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "loadUserData": {
         const { userId } = args;
-        const { data: accountsRaw, error: errA } = await serverSupabase.from('accounts').select('*').eq('user_id', userId);
+        const { data: accountsRaw, error: errA } = await serverSupabase.from('trading_accounts').select('*').eq('user_id', userId);
         const { data: tradesRaw, error: errT } = await serverSupabase.from('trades').select('*').eq('user_id', userId);
         const { data: challengesRaw, error: errC } = await serverSupabase.from('challenges').select('*').eq('user_id', userId);
-        const { data: paymentsRaw, error: errP } = await serverSupabase.from('payments').select('*').eq('user_id', userId);
+        const { data: paymentsRaw, error: errP } = await serverSupabase.from('payment_requests').select('*').eq('user_id', userId);
 
         if (errA || errT || errC || errP) {
           const errMsg = [errA, errT, errC, errP].filter(Boolean).map(e => e.message || String(e)).join(", ");
@@ -656,21 +665,21 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "syncUserProfile": {
         const { profile } = args;
-        const { error } = await serverSupabase.from('users').upsert(profile);
+        const { error } = await serverSupabase.from('profiles').upsert(profile);
         if (error) throw error;
         return res.json({ success: true });
       }
 
       case "saveAccount": {
         const { row } = args;
-        const { error } = await serverSupabase.from('accounts').upsert(row);
+        const { error } = await serverSupabase.from('trading_accounts').upsert(row);
         if (error) throw error;
         return res.json({ success: true });
       }
 
       case "deleteAccount": {
         const { userId, accountId } = args;
-        const { error } = await serverSupabase.from('accounts').delete().eq('id', accountId).eq('user_id', userId);
+        const { error } = await serverSupabase.from('trading_accounts').delete().eq('id', accountId).eq('user_id', userId);
         if (error) throw error;
         return res.json({ success: true });
       }
@@ -705,13 +714,13 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "savePayment": {
         const { row } = args;
-        const { error } = await serverSupabase.from('payments').upsert(row);
+        const { error } = await serverSupabase.from('payment_requests').upsert(row);
         if (error) throw error;
 
         if (row.status === 'approved') {
           try {
             const { data: userProfile } = await serverSupabase
-              .from('users')
+              .from('profiles')
               .select('*')
               .eq('id', row.user_id)
               .maybeSingle();
@@ -728,25 +737,25 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
       }
 
       case "adminLoadAllUsers": {
-        const { data, error } = await serverSupabase.from('users').select('*').order('created_at', { ascending: false });
+        const { data, error } = await serverSupabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         return res.json({ success: true, data });
       }
 
       case "adminDeleteUser": {
         const { userId } = args;
-        await serverSupabase.from('payments').delete().eq('user_id', userId);
+        await serverSupabase.from('payment_requests').delete().eq('user_id', userId);
         await serverSupabase.from('trades').delete().eq('user_id', userId);
         await serverSupabase.from('challenges').delete().eq('user_id', userId);
-        await serverSupabase.from('accounts').delete().eq('user_id', userId);
-        const { error } = await serverSupabase.from('users').delete().eq('id', userId);
+        await serverSupabase.from('trading_accounts').delete().eq('user_id', userId);
+        const { error } = await serverSupabase.from('profiles').delete().eq('id', userId);
         if (error) throw error;
         return res.json({ success: true });
       }
 
       case "adminUpdateUser": {
         const { userId, username, email, status } = args;
-        const { error } = await serverSupabase.from('users').update({
+        const { error } = await serverSupabase.from('profiles').update({
           username,
           email,
           status
@@ -757,7 +766,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "adminLoadAllPayments": {
         const { data, error } = await serverSupabase
-          .from('payments')
+          .from('payment_requests')
           .select(`
             *,
             users (
@@ -765,7 +774,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
               username
             )
           `)
-          .order('payment_date', { ascending: false });
+          .order('created_at', { ascending: false });
         if (error) throw error;
         return res.json({ success: true, data });
       }
@@ -810,7 +819,7 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
     } else if (serverSupabase) {
       try {
         const { data, error } = await serverSupabase
-          .from('users')
+          .from('profiles')
           .select('email')
           .eq('email', cleanEmail)
           .maybeSingle();
@@ -1072,7 +1081,7 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
     });
   }
 
-  if (!process.env.NETLIFY) {
+  if (!process.env.NETLIFY && !process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
     });
   }
