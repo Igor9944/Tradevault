@@ -122,6 +122,15 @@ export default function Admin({
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [logs, setLogs] = useState<{ timestamp: string, message: string }[]>([]);
 
+  // Synchronise les états de formulaire locaux avec les props du parent chargées de manière asynchrone depuis la base Supabase globale
+  useEffect(() => {
+    setEmailsInput(adminEmails);
+    setTrcInput(adminWalletTRC20);
+    setBepInput(adminWalletBEP20);
+    setPriceInput(subscriptionPrice.toString());
+    setPeriodInput(subscriptionPeriod.toString());
+  }, [adminEmails, adminWalletTRC20, adminWalletBEP20, subscriptionPrice, subscriptionPeriod]);
+
   useEffect(() => {
     fetch('/api/admin/logs')
       .then(res => res.json())

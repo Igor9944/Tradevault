@@ -281,6 +281,168 @@ export async function signInWithSupabase(
 }
 
 /**
+ * Fetch latest user profile from public profiles table
+ */
+export async function fetchUserProfile(userId: string): Promise<User | null> {
+  try {
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) return null;
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', ensureUUID(userId))
+      .maybeSingle();
+    if (error || !profile) return null;
+
+    return {
+      id: userId,
+      username: profile.username || 'Trader',
+      email: profile.email || '',
+      country: profile.country || 'FR',
+      paid: profile.paid ?? false,
+      paid_until: profile.paid_until || null,
+      created_at: profile.created_at || new Date().toISOString(),
+      status: profile.status || 'approved',
+      avatar_url: profile.avatar_url || null,
+      currency: profile.currency || 'USD'
+    };
+  } catch (err) {
+    console.warn("fetchUserProfile error:", err);
+    return null;
+  }
+}
+
+/**
+ * Administrative settings structures
+ */
+export interface AdminSettings {
+  adminEmails: string;
+  adminWalletTRC20: string;
+  adminWalletBEP20: string;
+  subscriptionPrice: number;
+  subscriptionPeriod: number;
+}
+
+/**
+ * Load global system settings from persistent profiles row
+ */
+export async function loadAdminSettings(): Promise<AdminSettings | null> {
+  try {
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', '00000000-0000-0000-0000-0000000000ff')
+      .maybeSingle();
+    if (error || !data) return null;
+
+    let price = 30;
+    let period = 3;
+    if (data.currency && data.currency.includes('|')) {
+      const parts = data.currency.split('|');
+      price = parseFloat(parts[0]) || 30;
+      period = parseInt(parts[1], 10) || 3;
+    }
+
+    let adminEmails = data.email || 'tradonyx@vault.com,igorrose2003@gmail.com';
+    let adminWalletTRC20 = data.country || 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV';
+    let adminWalletBEP20 = data.avatar_url || '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0';
+
+    // Support new elegant custom schema columns if they exist
+    if ('wallet_trc20' in data && data.wallet_trc20 !== null) {
+      adminWalletTRC20 = data.wallet_trc20;
+    }
+    if ('wallet_bep20' in data && data.wallet_bep20 !== null) {
+      adminWalletBEP20 = data.wallet_bep20;
+    }
+    if ('subscription_price' in data && data.subscription_price !== null) {
+      price = parseFloat(data.subscription_price) || price;
+    }
+    if ('subscription_duration_days' in data && data.subscription_duration_days !== null) {
+      period = parseInt(data.subscription_duration_days, 10) || period;
+    }
+    if ('admin_emails' in data && data.admin_emails !== null) {
+      if (Array.isArray(data.admin_emails)) {
+        adminEmails = data.admin_emails.join(', ');
+      } else if (typeof data.admin_emails === 'string') {
+        adminEmails = data.admin_emails;
+      }
+    }
+
+    return {
+      adminEmails,
+      adminWalletTRC20,
+      adminWalletBEP20,
+      subscriptionPrice: price,
+      subscriptionPeriod: period
+    };
+  } catch (err) {
+    console.warn("loadAdminSettings error:", err);
+    return null;
+  }
+}
+
+/**
+ * Save global system settings to persistent profiles row
+ */
+export async function saveAdminSettings(settings: AdminSettings): Promise<void> {
+  try {
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) return;
+
+    // Try modern schema format first
+    const profileNewSchema = {
+      id: '00000000-0000-0000-0000-0000000000ff',
+      username: 'system_settings_v001',
+      // Legacy columns fallback
+      email: settings.adminEmails,
+      country: settings.adminWalletTRC20,
+      avatar_url: settings.adminWalletBEP20,
+      currency: `${settings.subscriptionPrice}|${settings.subscriptionPeriod}`,
+      paid: true,
+      paid_until: null,
+      status: 'approved',
+      created_at: new Date().toISOString(),
+      // Custom columns
+      wallet_trc20: settings.adminWalletTRC20,
+      wallet_bep20: settings.adminWalletBEP20,
+      subscription_price: settings.subscriptionPrice,
+      subscription_duration_days: settings.subscriptionPeriod,
+      admin_emails: settings.adminEmails.split(',').map(e => e.trim()).filter(Boolean)
+    };
+
+    const { error: newSchemaError } = await supabase.from('profiles').upsert(profileNewSchema);
+    
+    // If Supabase complains about non-existent columns (undefined_column 42703), fallback safely to legacy mapping
+    if (newSchemaError) {
+      const code = (newSchemaError as any).code || '';
+      const message = newSchemaError.message || '';
+      if (code === '42703' || message.includes('column') || message.includes('exist')) {
+        const profileFallback = {
+          id: '00000000-0000-0000-0000-0000000000ff',
+          username: 'system_settings_v001',
+          email: settings.adminEmails,
+          country: settings.adminWalletTRC20,
+          avatar_url: settings.adminWalletBEP20,
+          currency: `${settings.subscriptionPrice}|${settings.subscriptionPeriod}`,
+          paid: true,
+          paid_until: null,
+          status: 'approved',
+          created_at: new Date().toISOString()
+        };
+        const { error: fallbackError } = await supabase.from('profiles').upsert(profileFallback);
+        if (fallbackError) throw fallbackError;
+      } else {
+        throw newSchemaError;
+      }
+    }
+  } catch (err) {
+    console.warn("saveAdminSettings error:", err);
+  }
+}
+
+/**
  * Sync user profile to DB (e.g. state changes)
  */
 export async function syncUserProfile(user: User): Promise<void> {

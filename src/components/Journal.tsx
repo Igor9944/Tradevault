@@ -70,7 +70,11 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setPnl('');
     setSetup('Order Block');
     setMindset('Disciplined');
-    setNotes('');
+    
+    // Auto-restore draft for new notes if exists
+    const draft = localStorage.getItem('tv_journal_draft_notes_new');
+    setNotes(draft || '');
+    
     setScreenshot(null);
     setModalOpen(true);
   };
@@ -89,7 +93,11 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setPnl(trade.pnl.toString());
     setSetup(trade.setup);
     setMindset(trade.mindset);
-    setNotes(trade.notes);
+    
+    // Auto-restore draft for this trade or fall back to original note
+    const draft = localStorage.getItem(`tv_journal_draft_notes_${trade.id}`);
+    setNotes(draft !== null ? draft : trade.notes);
+    
     setScreenshot(trade.screenshot_url || null);
     setModalOpen(true);
   };
@@ -118,6 +126,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
     if (editingId) {
       onEditTrade(editingId, tradeData);
+      localStorage.removeItem(`tv_journal_draft_notes_${editingId}`);
     } else {
       const newFullTrade: Trade = {
         id: 'trd_' + Date.now(),
@@ -138,6 +147,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         created_at: new Date().toISOString()
       };
       onAddTrade(newFullTrade);
+      localStorage.removeItem('tv_journal_draft_notes_new');
     }
 
     setModalOpen(false);
@@ -520,7 +530,16 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 <label className="text-[11px] text-slate-300 font-semibold font-mono">OBSERVATIONS / RECITS DU TRADING</label>
                 <textarea
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNotes(val);
+                    if (editingId) {
+                      onEditTrade(editingId, { notes: val });
+                      localStorage.setItem(`tv_journal_draft_notes_${editingId}`, val);
+                    } else {
+                      localStorage.setItem('tv_journal_draft_notes_new', val);
+                    }
+                  }}
                   rows={2}
                   placeholder="Expliquez la structure du marché et la raison de votre entrée / sortie..."
                   className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] leading-relaxed font-sans"

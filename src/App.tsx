@@ -68,15 +68,33 @@ import Dashboard from './components/Dashboard';
 import { BackgroundVideo } from './components/BackgroundVideo';
 import Logo, { DefaultLogoAvatar } from './components/Logo';
 
+// Safe lazy loading wrapper to prevent "Failed to fetch dynamically imported module" errors when deploying hotfixes
+function safeLazy<T extends React.ComponentType<any>>(importFunc: () => Promise<{ default: T }>): React.LazyExoticComponent<T> {
+  return React.lazy(async () => {
+    try {
+      return await importFunc();
+    } catch (error) {
+      console.error("Chunk/Module load failed, attempting automated page refresh:", error);
+      const lastReload = safeSessionStorage.getItem("tv_last_chunk_reload") || "0";
+      const now = Date.now();
+      if (now - parseInt(lastReload, 10) > 12000) {
+        safeSessionStorage.setItem("tv_last_chunk_reload", now.toString());
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
+}
+
 // Lazy loaded components for maximum initial page speed and optimized bundle chunk splitting
-const Portal = React.lazy(() => import('./components/Portal'));
-const Checkout = React.lazy(() => import('./components/Checkout'));
-const Journal = React.lazy(() => import('./components/Journal'));
-const Calendar = React.lazy(() => import('./components/Calendar'));
-const Stats = React.lazy(() => import('./components/Stats'));
-const Challenges = React.lazy(() => import('./components/Challenges'));
-const Admin = React.lazy(() => import('./components/Admin'));
-const ResetPassword = React.lazy(() => import('./components/ResetPassword'));
+const Portal = safeLazy(() => import('./components/Portal'));
+const Checkout = safeLazy(() => import('./components/Checkout'));
+const Journal = safeLazy(() => import('./components/Journal'));
+const Calendar = safeLazy(() => import('./components/Calendar'));
+const Stats = safeLazy(() => import('./components/Stats'));
+const Challenges = safeLazy(() => import('./components/Challenges'));
+const Admin = safeLazy(() => import('./components/Admin'));
+const ResetPassword = safeLazy(() => import('./components/ResetPassword'));
 
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
@@ -414,6 +432,27 @@ export default function App() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  // Synchroniser la configuration de l'espace administration (et pricing / portefeuilles) depuis la base de données globale
+  useEffect(() => {
+    import('./utils/supabaseSync').then(({ loadAdminSettings }) => {
+      loadAdminSettings().then(settings => {
+        if (settings) {
+          setAdminEmails(settings.adminEmails);
+          setAdminWalletTRC20(settings.adminWalletTRC20);
+          setAdminWalletBEP20(settings.adminWalletBEP20);
+          setSubscriptionPrice(settings.subscriptionPrice);
+          setSubscriptionPeriod(settings.subscriptionPeriod);
+          
+          safeLocalStorage.setItem('tv_admin_emails', settings.adminEmails);
+          safeLocalStorage.setItem('tv_admin_wallet_trc20', settings.adminWalletTRC20);
+          safeLocalStorage.setItem('tv_admin_wallet_bep20', settings.adminWalletBEP20);
+          safeLocalStorage.setItem('tv_subscription_price', settings.subscriptionPrice.toString());
+          safeLocalStorage.setItem('tv_subscription_period', settings.subscriptionPeriod.toString());
+        }
+      }).catch(err => console.warn("Failed to load global admin settings:", err));
+    });
   }, []);
 
   const handleInstallClick = async () => {
@@ -847,6 +886,16 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Synchronize currentUser with any changes in local users array (e.g., fallback local flow updates from Admin)
+  useEffect(() => {
+    if (currentUser) {
+      const matched = users.find(u => u.id === currentUser.id || (currentUser.email && u.email?.toLowerCase() === currentUser.email?.toLowerCase()));
+      if (matched && (matched.paid !== currentUser.paid || matched.status !== currentUser.status || matched.paid_until !== currentUser.paid_until)) {
+        setCurrentUser(prev => prev ? { ...prev, paid: matched.paid, status: matched.status, paid_until: matched.paid_until } : null);
+      }
+    }
+  }, [users, currentUser?.id, currentUser?.email]);
+
   // Trigger LocalStorage sync on change
   useEffect(() => {
     safeLocalStorage.setItem('tv_users', JSON.stringify(users));
@@ -923,7 +972,28 @@ export default function App() {
           .catch(err => console.error("Error fetching administrative payments:", err));
       } else {
         // Standard trader workspace: Real-time query from Supabase
-        import('./utils/supabaseSync').then(({ loadUserDataFromSupabase }) => {
+        import('./utils/supabaseSync').then(({ loadUserDataFromSupabase, fetchUserProfile }) => {
+          // Fetch and update latest profile status from DB to ensure local session isn't stale
+          fetchUserProfile(uId)
+            .then(updatedProfile => {
+              if (updatedProfile) {
+                setCurrentUser(prev => {
+                  if (!prev) return updatedProfile;
+                  return {
+                    ...prev,
+                    paid: updatedProfile.paid,
+                    status: updatedProfile.status,
+                    paid_until: updatedProfile.paid_until,
+                    username: updatedProfile.username,
+                    country: updatedProfile.country,
+                    avatar_url: updatedProfile.avatar_url,
+                    currency: updatedProfile.currency
+                  };
+                });
+              }
+            })
+            .catch(err => console.warn("Could not load updated profile on startup:", err));
+
           loadUserDataFromSupabase(uId)
             .then(dbData => {
               setAccounts(dbData.accounts);
@@ -1089,7 +1159,13 @@ export default function App() {
 
   // Trade CRUD
   const handleAddTrade = (newTrade: Trade) => {
-    setTrades(prev => [...prev, newTrade]);
+    setTrades(prev => {
+      const next = [...prev, newTrade];
+      if (currentUser) {
+        safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(next));
+      }
+      return next;
+    });
     if (currentUser) {
       saveTradeToSupabase(currentUser.id, newTrade);
     }
@@ -1098,6 +1174,9 @@ export default function App() {
   const handleEditTrade = (id: string, updated: Partial<Trade>) => {
     setTrades(prev => {
       const mapped = prev.map(t => t.id === id ? { ...t, ...updated } : t);
+      if (currentUser) {
+        safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(mapped));
+      }
       const updatedTrade = mapped.find(t => t.id === id);
       if (currentUser && updatedTrade) {
         saveTradeToSupabase(currentUser.id, updatedTrade);
@@ -1107,7 +1186,13 @@ export default function App() {
   };
 
   const handleDeleteTrade = (id: string) => {
-    setTrades(prev => prev.filter(t => t.id !== id));
+    setTrades(prev => {
+      const next = prev.filter(t => t.id !== id);
+      if (currentUser) {
+        safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(next));
+      }
+      return next;
+    });
     if (currentUser) {
       deleteTradeFromSupabase(id);
     }
@@ -1728,7 +1813,19 @@ export default function App() {
                   users={users} 
                   onApproveUser={handleApproveUser} 
                   onRejectUser={handleRejectUser} 
-                  onUpdateAdminEmails={setAdminEmails} 
+                  onUpdateAdminEmails={(emails) => {
+                    setAdminEmails(emails);
+                    safeLocalStorage.setItem('tv_admin_emails', emails);
+                    import('./utils/supabaseSync').then(({ saveAdminSettings }) => {
+                      saveAdminSettings({
+                        adminEmails: emails,
+                        adminWalletTRC20,
+                        adminWalletBEP20,
+                        subscriptionPrice,
+                        subscriptionPeriod
+                      });
+                    }).catch(e => console.error("Error saving admin emails:", e));
+                  }}
                   adminEmails={adminEmails} 
                   adminWalletTRC20={adminWalletTRC20}
                   adminWalletBEP20={adminWalletBEP20}
@@ -1743,6 +1840,16 @@ export default function App() {
                     safeLocalStorage.setItem('tv_subscription_price', price.toString());
                     setSubscriptionPeriod(period);
                     safeLocalStorage.setItem('tv_subscription_period', period.toString());
+
+                    import('./utils/supabaseSync').then(({ saveAdminSettings }) => {
+                      saveAdminSettings({
+                        adminEmails,
+                        adminWalletTRC20: trc,
+                        adminWalletBEP20: bep,
+                        subscriptionPrice: price,
+                        subscriptionPeriod: period
+                      });
+                    }).catch(e => console.error("Error saving admin params:", e));
                   }}
                   paymentRequests={paymentRequests}
                   onApproveRenewal={handleApproveRenewal}
