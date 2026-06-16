@@ -128,8 +128,11 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
       onEditTrade(editingId, tradeData);
       localStorage.removeItem(`tv_journal_draft_notes_${editingId}`);
     } else {
+      // Import generateUUID dynamically or utilize the prop if available
+      const generatedId = 'trd_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      
       const newFullTrade: Trade = {
-        id: 'trd_' + Date.now(),
+        id: generatedId,
         user_id: activeAccount.user_id,
         account_id: activeAccount.id,
         date: tradeData.date!,

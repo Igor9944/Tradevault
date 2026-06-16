@@ -446,7 +446,7 @@ export async function saveAdminSettings(settings: AdminSettings): Promise<void> 
  * Sync user profile to DB (e.g. state changes)
  */
 export async function syncUserProfile(user: User): Promise<void> {
-  const profile = {
+  const profile: any = {
     id: ensureUUID(user.id),
     email: user.email,
     username: user.username,
@@ -454,26 +454,43 @@ export async function syncUserProfile(user: User): Promise<void> {
     status: user.status,
     paid: user.paid,
     paid_until: user.paid_until,
-    avatar_url: user.avatar_url || null
+    avatar_url: user.avatar_url || null,
+    // Add support for modern schema columns
+    wallet_trc20: (user as any).wallet_trc20 || null,
+    wallet_bep20: (user as any).wallet_bep20 || null,
+    subscription_price: (user as any).subscription_price || null,
+    subscription_duration_days: (user as any).subscription_period || null
   };
 
   try {
-    await supabase.from('profiles').upsert(profile);
-    try {
-      // Keep 'profiles' table in sync for approval and status changes
-      await supabase.from('profiles').upsert({
-        id: ensureUUID(user.id),
-        full_name: user.username,
-        email: user.email,
-        status: user.status,
-        payment_proof: user.payment_proof || null,
-        created_at: user.created_at
-      });
-    } catch (profErr) {
-      console.warn("Profiles table double sync failed (ignored):", profErr);
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) {
+      console.warn("Offline mode: Profile saved to local storage only.");
+      return;
+    }
+
+    const { error } = await supabase.from('profiles').upsert(profile);
+    
+    if (error) {
+      // Fallback if custom columns don't exist yet
+      if (error.code === '42703' || error.message.includes('column')) {
+        const legacyProfile = {
+          id: ensureUUID(user.id),
+          email: user.email,
+          username: user.username,
+          country: user.country,
+          status: user.status,
+          paid: user.paid,
+          paid_until: user.paid_until,
+          avatar_url: user.avatar_url || null
+        };
+        await supabase.from('profiles').upsert(legacyProfile);
+      } else {
+        throw error;
+      }
     }
   } catch (err: any) {
-    console.warn("[CLIENT_ROUTING] syncUserProfile client call failed. Routing through Server Proxy...", err);
+    console.warn("[CLIENT_ROUTING] syncUserProfile failed, routing to proxy:", err);
     try {
       await invokeProxy("syncUserProfile", { profile });
     } catch (proxyErr) {

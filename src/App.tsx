@@ -689,11 +689,14 @@ export default function App() {
       password: finalPassword
     };
 
-    // Update session
+    // Sync with remote database
+    syncUserProfile(updatedUser);
     setCurrentUser(updatedUser);
+
     // Update local database list
     setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
     setProfileModalOpen(false);
+    customAlert('Succès', 'Votre profil a été mis à jour avec succès.');
   };
 
   const handleProfileAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -997,7 +1000,24 @@ export default function App() {
           loadUserDataFromSupabase(uId)
             .then(dbData => {
               setAccounts(dbData.accounts);
-              setTrades(dbData.trades);
+              
+              setTrades(prev => {
+                // Merging strategy: deduplicate by ID, preferring DB data for existing records
+                // but keeping local records that haven't reached DB yet
+                const localTrades = prev || [];
+                const mergedMap = new Map();
+                
+                // First process existing local items (might include unsaved ones)
+                localTrades.forEach(t => mergedMap.set(t.id, t));
+                
+                // Then overwrite/add with DB data (the truth of the cloud)
+                if (dbData.trades && dbData.trades.length > 0) {
+                  dbData.trades.forEach(t => mergedMap.set(t.id, t));
+                }
+                
+                return Array.from(mergedMap.values());
+              });
+
               setChallenges(dbData.challenges);
               
               const savedSelAcc = safeLocalStorage.getItem(`tv_selected_account_id_${uId}`);
