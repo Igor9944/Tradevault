@@ -19,6 +19,34 @@ export function addLog(message: string) {
   console.log(`[LOG] ${message}`);
 }
 
+// Initialize Supabase client
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
+const serverSupabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * Fetch admin emails from system_settings table
+ */
+async function getAdminEmails(): Promise<string[]> {
+  try {
+    const { data, error } = await serverSupabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'admin_emails')
+      .maybeSingle();
+    
+    if (error || !data) {
+      console.error("Error fetching admin emails from DB:", error);
+      return ["igorrose2003@gmail.com", "tradonyx@vault.com"]; // Fallback
+    }
+    
+    return data.value as string[];
+  } catch (err) {
+    console.error("Exception fetching admin emails:", err);
+    return ["igorrose2003@gmail.com", "tradonyx@vault.com"];
+  }
+}
+
 // Helper to send emails via Resend
 export async function sendEmailViaResend(to: string | string[], subject: string, html: string) {
   // Load ONLY from process.env.RESEND_API_KEY
@@ -73,7 +101,7 @@ export async function triggerEmailsOnSignup(username: string, email: string, pay
 
     await sendEmailViaResend(email, "⏳ Votre demande d'inscription premium TradeVault est en cours de traitement", htmlContent);
 
-    const adminEmails = ["igorrose2003@gmail.com", "tradonyx@vault.com"];
+    const adminEmails = await getAdminEmails();
     const adminHtml = `
       <div style="font-family: sans-serif; background-color: #0b0f19; color: #f1f5f9; padding: 30px; border-radius: 12px; border: 1px solid #1e293b;">
         <h2 style="color: #6366f1;">🚨 Nouvelle inscription TradeVault Pro !</h2>
@@ -180,11 +208,6 @@ app.use(cors());
 // Payload size restriction
 app.use(express.json({ limit: "2mb" }));
 
-// Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
-const serverSupabase = createClient(supabaseUrl, supabaseAnonKey);
-
 // Rate limiting middleware placeholder
 const rateLimit = new Map<string, number[]>();
 function checkRateLimit(ip: string, limit: number, windowMs: number) {
@@ -210,8 +233,9 @@ async function authenticate(req: any, res: any, next: any) {
   req.user = user;
   
   // Check admin status for sensitive actions
-  const { data: profile } = await serverSupabase.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
-  req.isAdmin = !!profile?.is_admin;
+  // Updated to check against system_settings table instead of profiles.is_admin column
+  const adminEmails = await getAdminEmails();
+  req.isAdmin = adminEmails.includes(user.email || "");
   
   next();
 }
