@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     status TEXT DEFAULT 'pending',
     avatar_url TEXT,
     google_linked BOOLEAN DEFAULT false,
-    google_email TEXT
+    google_email TEXT,
+    role TEXT DEFAULT 'user'
 );
 
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -29,6 +30,55 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- Helper Functions
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean SECURITY DEFINER AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.users (id, email, username, role, status)
+  VALUES (
+    new.id,
+    new.email,
+    split_part(new.email, '@', 1),
+    CASE
+      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'admin'
+      ELSE 'user'
+    END,
+    CASE
+      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'approved'
+      ELSE 'pending'
+    END
+  );
+  INSERT INTO public.profiles (id, email, full_name, status)
+  VALUES (
+    new.id,
+    new.email,
+    split_part(new.email, '@', 1),
+    CASE
+      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'approved'
+      ELSE 'pending'
+    END
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger binding
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Helper Tables
 CREATE TABLE IF NOT EXISTS public.accounts (
     id UUID PRIMARY KEY,
     user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
@@ -98,36 +148,36 @@ ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own data" ON public.users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can insert own data" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can update own data" ON public.users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Admin can completely manage users" ON public.users FOR ALL USING (auth.jwt() ->> 'email' IN ('tradonyx@vault.com', 'igorrose2003@gmail.com', 'toshirohitsugayaonyx@gmail.com'));
+CREATE POLICY "Admin can completely manage users" ON public.users FOR ALL USING (public.is_admin());
 
 -- === PROFILES ===
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Admin can completely manage profiles" ON public.profiles FOR ALL USING (auth.jwt() ->> 'email' IN ('tradonyx@vault.com', 'igorrose2003@gmail.com', 'toshirohitsugayaonyx@gmail.com'));
+CREATE POLICY "Admin can completely manage profiles" ON public.profiles FOR ALL USING (public.is_admin());
 
 -- === ACCOUNTS ===
 CREATE POLICY "Users can view own accounts" ON public.accounts FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own accounts" ON public.accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own accounts" ON public.accounts FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own accounts" ON public.accounts FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admin can completely manage accounts" ON public.accounts FOR ALL USING (auth.jwt() ->> 'email' IN ('tradonyx@vault.com', 'igorrose2003@gmail.com', 'toshirohitsugayaonyx@gmail.com'));
+CREATE POLICY "Admin can completely manage accounts" ON public.accounts FOR ALL USING (public.is_admin());
 
 -- === TRADES ===
 CREATE POLICY "Users can view own trades" ON public.trades FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own trades" ON public.trades FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own trades" ON public.trades FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own trades" ON public.trades FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admin can completely manage trades" ON public.trades FOR ALL USING (auth.jwt() ->> 'email' IN ('tradonyx@vault.com', 'igorrose2003@gmail.com', 'toshirohitsugayaonyx@gmail.com'));
+CREATE POLICY "Admin can completely manage trades" ON public.trades FOR ALL USING (public.is_admin());
 
 -- === CHALLENGES ===
 CREATE POLICY "Users can view own challenges" ON public.challenges FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own challenges" ON public.challenges FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own challenges" ON public.challenges FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own challenges" ON public.challenges FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admin can completely manage challenges" ON public.challenges FOR ALL USING (auth.jwt() ->> 'email' IN ('tradonyx@vault.com', 'igorrose2003@gmail.com', 'toshirohitsugayaonyx@gmail.com'));
+CREATE POLICY "Admin can completely manage challenges" ON public.challenges FOR ALL USING (public.is_admin());
 
 -- === PAYMENTS ===
 CREATE POLICY "Users can view own payments" ON public.payments FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own payments" ON public.payments FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Admin can completely manage payments" ON public.payments FOR ALL USING (auth.jwt() ->> 'email' IN ('tradonyx@vault.com', 'igorrose2003@gmail.com', 'toshirohitsugayaonyx@gmail.com'));
+CREATE POLICY "Admin can completely manage payments" ON public.payments FOR ALL USING (public.is_admin());
