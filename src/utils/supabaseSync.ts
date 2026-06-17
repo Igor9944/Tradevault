@@ -977,7 +977,7 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
         .from('payment_requests')
         .select(`
           *,
-          profiles (
+          profiles!user_id (
             email,
             username
           )
@@ -1002,7 +1002,7 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
     }
 
     return (payments || []).map(p => {
-      const u = p.users || {};
+      const u = p.profiles || {};
       return {
         id: p.id,
         user_id: p.user_id,
