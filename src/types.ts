@@ -1,23 +1,15 @@
 export interface Profile {
   id: string; // references auth.users
-  username: string | null;
-  full_name?: string | null;
+  username: string;
   email: string;
   password?: string; // local only
-  country?: string | null;
+  country: string;
   paid: boolean;
   paid_until: string | null;
   created_at: string;
-  updated_at: string;
-  payment_proof?: string | null; 
-  payment_method?: string | null;
+  payment_proof?: string; 
   status: 'pending' | 'approved' | 'rejected';
-  role: 'user' | 'admin';
-  plan: 'free' | 'pro';
-  avatar_url?: string | null; 
-  last_seen_at?: string | null;
-  premium_expires_at?: string | null;
-  activated_at?: string | null;
+  avatar_url?: string; 
   google_linked?: boolean;
   google_email?: string;
   currency?: 'USD' | 'EUR' | 'GBP';
@@ -25,39 +17,31 @@ export interface Profile {
   wallet_bep20?: string;
   subscription_price?: number;
   subscription_duration_days?: number;
-  subscription_status?: 'pending' | 'premium_active' | 'blocked';
 }
 
-export type User = Profile;
+export type User = Profile; // keep User alias
 
 export interface Trade {
   id: string;
   account_id: string;
   user_id: string;
-  symbol: string;
-  pair?: string;
-  side: 'buy' | 'sell';
-  entry_price: number;
-  exit_price: number | null;
-  size_lots: number;
-  profit_loss: number | null;
+  date: string;
+  pair: string;
+  side: 'BUY' | 'SELL';
+  entry: number;
+  exit: number;
+  lots: number;
   fees: number;
-  execution_time_entry: string;
-  execution_time_exit: string | null;
-  notes: string | null;
-  screenshot_urls: string[];
-  result: 'WIN' | 'LOSS' | 'BE' | null;
-  rr_ratio: number | null;
-  risk_percent: number | null;
-  session: 'London' | 'New York' | 'Asia' | 'London/NY' | 'Pre-market' | null;
-  setup: string | null;
-  pattern: string | null;
-  emotion: 'Neutre' | 'Confiant' | 'Anxieux' | 'FOMO' | 'Revanche' | 'Discipliné' | null;
-  duration_minutes: number | null;
-  mindset: string | null;
-  trade_date: string | null;
+  pnl: number;
+  setup: string;
+  mindset: string;
+  notes: string;
+  screenshot_url?: string;
+  emotion?: 'fomo' | 'revenge' | 'boredom' | 'fear' | 'greed' | 'patience' | 'discipline' | 'tilt' | 'confident' | 'hesitant';
+  session?: 'london' | 'new_york' | 'tokyo' | 'sydney' | 'asian';
+  rr_ratio?: number;
+  risk_percent?: number;
   created_at: string;
-  updated_at: string;
 }
 
 export interface Challenge {
@@ -65,60 +49,54 @@ export interface Challenge {
   account_id: string;
   user_id: string;
   name: string;
-  firm_name: string | null;
-  phase: 'Phase 1' | 'Phase 2' | 'Funded';
   capital: number;
-  profit_target: number | null;
-  profit_target_pct: number | null;
-  daily_drawdown_limit: number | null;
-  daily_dd_pct: number | null;
-  total_drawdown_limit: number | null;
-  total_dd_pct: number | null;
-  min_trading_days: number;
-  current_pnl: number;
-  current_daily_dd: number;
-  current_total_dd: number;
-  status: 'active' | 'passed' | 'failed' | 'expired';
-  start_date: string | null;
-  end_date: string | null;
-  notes: string | null;
+  target: number;
+  daily_loss: number;
+  global_loss: number;
   created_at: string;
-  updated_at: string;
 }
 
 export interface TradingAccount {
   id: string;
   user_id: string;
-  broker: string;
-  name: string | null;
-  type: 'prop_firm' | 'personal' | 'demo';
-  starting_balance: number;
-  current_balance: number;
-  currency: string;
-  is_active: boolean;
-  is_default: boolean;
+  name: string;
+  account_type: 'personal' | 'prop_firm' | 'demo';
+  capital?: number;
+  target?: number;
+  daily_loss?: number;
+  global_loss?: number;
+  challenge_status?: 'not_started' | 'passed' | 'failed' | 'in_progress';
   created_at: string;
-  updated_at: string;
 }
 
-export type Account = TradingAccount;
+export type Account = TradingAccount; // alias
+
+export interface NotificationPreference {
+  payments: boolean;
+  tradingAlerts: boolean;
+  updates: boolean;
+  browserPush: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'payment' | 'trading' | 'update' | 'system';
+  date: string;
+  read: boolean;
+}
 
 export interface PaymentRequest {
   id: string;
   user_id: string;
-  type: 'registration' | 'renewal';
+  username?: string;
+  email?: string;
   amount: number;
   network: 'TRC20' | 'BEP20';
-  screenshot_url: string | null; 
+  payment_proof: string; 
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
-  updated_at: string;
 }
 
-export interface SystemSetting {
-  id: string;
-  key: string;
-  value: any;
-  description: string | null;
-  updated_at: string;
-}
+

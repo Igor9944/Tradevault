@@ -217,3 +217,10 @@ html, body, #root {
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
 }
 
+/* Dedicated container for modal forms insuring mobile scrollability */
+.responsive-form-container {
+  max-height: 80vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+

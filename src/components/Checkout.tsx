@@ -105,11 +105,7 @@ export default function Checkout({
           console.warn("Storage upload failed, fallback to base64:", storageErr);
         }
       }
-    } catch (e) {
-      console.warn("Dynamic import of supabase storage upload failed:", e);
-    }
 
-    try {
       // 2. Update status and profiles
       const { supabase } = await import('../lib/supabase');
       try {
@@ -127,52 +123,53 @@ export default function Checkout({
       } catch (dbErr) {
         console.warn("Database sync error (ignored):", dbErr);
       }
-    } catch (e) {
-      console.warn("Database sync dynamic import failed:", e);
-    }
 
-        try {
-      await registerPayment(user.id, subscriptionPrice, publicUrl);
-    } catch (e) {
-      console.warn("Payment registration failed:", e);
-    }
+      try {
+        await registerPayment(user.id, subscriptionPrice, publicUrl);
+      } catch (e) {
+        console.warn("Payment registration failed:", e);
+      }
 
-    // 3. Trigger edge functions email
-    try {
-      let rawCheckoutUrl = import.meta.env.VITE_SUPABASE_URL || "";
-      if (rawCheckoutUrl && rawCheckoutUrl.includes('supabase.com/dashboard/project/')) {
-        const match = rawCheckoutUrl.match(/project\/([a-z0-9]+)/);
-        if (match) {
-          rawCheckoutUrl = `https://${match[1]}.supabase.co`;
+      // 3. Trigger edge functions email
+      try {
+        let rawCheckoutUrl = import.meta.env.VITE_SUPABASE_URL || "";
+        if (rawCheckoutUrl && rawCheckoutUrl.includes('supabase.com/dashboard/project/')) {
+          const match = rawCheckoutUrl.match(/project\/([a-z0-9]+)/);
+          if (match) {
+            rawCheckoutUrl = `https://${match[1]}.supabase.co`;
+          }
+        } else if (rawCheckoutUrl && !rawCheckoutUrl.startsWith('http')) {
+          rawCheckoutUrl = `https://${rawCheckoutUrl}.supabase.co`;
         }
-      } else if (rawCheckoutUrl && !rawCheckoutUrl.startsWith('http')) {
-        rawCheckoutUrl = `https://${rawCheckoutUrl}.supabase.co`;
+        const supabaseUrl = rawCheckoutUrl;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+        if (supabaseUrl && supabaseAnonKey) {
+          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseAnonKey}`
+            },
+            body: JSON.stringify({
+              type: "registration_pending",
+              user: { name: user.username, email: user.email },
+              context: { paymentProof: publicUrl }
+            })
+          });
+        }
+      } catch (emailErr) {
+        console.warn("Fetch to edge function send-email failed:", emailErr);
       }
-      const supabaseUrl = rawCheckoutUrl;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-      if (supabaseUrl && supabaseAnonKey) {
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseAnonKey}`
-          },
-          body: JSON.stringify({
-            type: "registration_pending",
-            user: { name: user.username, email: user.email },
-            context: { paymentProof: publicUrl }
-          })
-        });
-      }
-    } catch (emailErr) {
-      console.warn("Fetch to edge function send-email failed:", emailErr);
-    }
 
-    setUploading(false);
-    setSubmissionCompleted(true);
-    
-    // Log in local state
-    onPaymentSuccess(publicUrl, network);
+      setSubmissionCompleted(true);
+      // Log in local state
+      onPaymentSuccess(publicUrl, network);
+    } catch (err) {
+      console.error("Critical submission error:", err);
+      displayToast("Une erreur critique est survenue lors de la soumission. Veuillez réessayer.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   // If user is already pending or has just submitted, show pending state dashboard

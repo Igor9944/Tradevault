@@ -42,6 +42,8 @@ import { customAlert, customConfirm } from './utils/customDialog';
 
 import { 
   syncUserProfile, 
+  patchUserProfile,
+  fetchUserProfile,
   saveAccountToSupabase, 
   deleteAccountFromSupabase, 
   saveTradeToSupabase, 
@@ -632,6 +634,7 @@ export default function App() {
   const [profileOldPassword, setProfileOldPassword] = useState('');
   const [profileNewPassword, setProfileNewPassword] = useState('');
   const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   const [showProfileOldPassword, setShowProfileOldPassword] = useState(false);
   const [showProfileNewPassword, setShowProfileNewPassword] = useState(false);
@@ -657,7 +660,7 @@ export default function App() {
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
     if (!profileUsername.trim()) return;
@@ -680,23 +683,39 @@ export default function App() {
       finalPassword = profileNewPassword;
     }
 
-    const updatedUser: User = {
-      ...currentUser,
+    const updates: Partial<User> = {
       username: profileUsername.trim(),
       country: profileCountry,
-      currency: profileCurrency,
+      currency: (profileCurrency as any),
       avatar_url: profileAvatar || undefined,
       password: finalPassword
     };
 
-    // Sync with remote database
-    syncUserProfile(updatedUser);
-    setCurrentUser(updatedUser);
+    try {
+      setIsSavingProfile(true);
+      // Sync with remote database using dedicated patch
+      await patchUserProfile(currentUser.id, updates);
+      
+      // Re-fetch to confirm exactly what's in the DB
+      const dbUser = await fetchUserProfile(currentUser.id);
+      
+      const finalUser = dbUser || { ...currentUser, ...updates };
+      setCurrentUser(finalUser);
 
-    // Update local database list
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setProfileModalOpen(false);
-    customAlert('Succès', 'Votre profil a été mis à jour avec succès.');
+      // Update local database list
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? finalUser : u));
+      setProfileModalOpen(false);
+      customAlert('Succès', 'Votre profil a été mis à jour avec succès.');
+    } catch (err) {
+      console.error("Profile save failed:", err);
+      customAlert('Erreur', 'Une erreur est survenue lors de la sauvegarde.');
+    } finally {
+      setIsSavingProfile(false);
+      // Clear password fields
+      setProfileOldPassword('');
+      setProfileNewPassword('');
+      setProfileConfirmPassword('');
+    }
   };
 
   const handleProfileAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -722,11 +741,12 @@ export default function App() {
 
   // New account form fields
   const [newAccName, setNewAccName] = useState('');
-  const [newAccType, setNewAccType] = useState<'personal' | 'propfirm'>('personal');
+  const [newAccType, setNewAccType] = useState<'personal' | 'prop_firm'>('personal');
   const [newAccCapital, setNewAccCapital] = useState('100000');
   const [newAccTarget, setNewAccTarget] = useState('8');
   const [newAccDailyLoss, setNewAccDailyLoss] = useState('5');
   const [newAccGlobalLoss, setNewAccGlobalLoss] = useState('10');
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
 
   // Google OAuth Popup handler & Event Listener for cross-window communication
   useEffect(() => {
@@ -1178,7 +1198,7 @@ export default function App() {
   const totalAccountPnl = activeAccountTrades.reduce((sum, t) => sum + t.pnl, 0);
 
   // Trade CRUD
-  const handleAddTrade = (newTrade: Trade) => {
+  const handleAddTrade = async (newTrade: Trade) => {
     setTrades(prev => {
       const next = [...prev, newTrade];
       if (currentUser) {
@@ -1187,22 +1207,23 @@ export default function App() {
       return next;
     });
     if (currentUser) {
-      saveTradeToSupabase(currentUser.id, newTrade);
+      await saveTradeToSupabase(currentUser.id, newTrade);
     }
   };
 
-  const handleEditTrade = (id: string, updated: Partial<Trade>) => {
+  const handleEditTrade = async (id: string, updated: Partial<Trade>) => {
+    let updatedTrade: Trade | undefined;
     setTrades(prev => {
       const mapped = prev.map(t => t.id === id ? { ...t, ...updated } : t);
+      updatedTrade = mapped.find(t => t.id === id);
       if (currentUser) {
         safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(mapped));
       }
-      const updatedTrade = mapped.find(t => t.id === id);
-      if (currentUser && updatedTrade) {
-        saveTradeToSupabase(currentUser.id, updatedTrade);
-      }
       return mapped;
     });
+    if (currentUser && updatedTrade) {
+      await saveTradeToSupabase(currentUser.id, updatedTrade);
+    }
   };
 
   const handleDeleteTrade = (id: string) => {
@@ -1421,50 +1442,59 @@ export default function App() {
   };
 
   // Add account helper
-  const handleAddAccount = (e: React.FormEvent) => {
+  const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAccName.trim()) return;
 
-    const accId = generateUUID();
-    const newAcc: Account = {
-      id: accId,
-      user_id: currentUser?.id || 'admin',
-      name: newAccName.trim(),
-      account_type: newAccType as 'personal' | 'prop_firm' | 'demo',
-      capital: newAccType === 'prop_firm' ? parseFloat(newAccCapital) : undefined,
-      target: newAccType === 'prop_firm' ? parseFloat(newAccTarget) : undefined,
-      daily_loss: newAccType === 'prop_firm' ? parseFloat(newAccDailyLoss) : undefined,
-      global_loss: newAccType === 'prop_firm' ? parseFloat(newAccGlobalLoss) : undefined,
-      created_at: new Date().toISOString()
-    };
-
-    setAccounts(prev => [...prev, newAcc]);
-    if (currentUser) {
-      saveAccountToSupabase(currentUser.id, newAcc);
-    }
-
-    // If type is prop firm challenge, automatically seed a corresponding Challenge object
-    if (newAccType === 'prop_firm') {
-      const newCh: Challenge = {
-        id: generateUUID(),
+    try {
+      setIsSavingAccount(true);
+      const accId = generateUUID();
+      const newAcc: Account = {
+        id: accId,
         user_id: currentUser?.id || 'admin',
-        account_id: accId,
         name: newAccName.trim(),
-        capital: parseFloat(newAccCapital) || 100000,
-        target: parseFloat(newAccTarget) || 8,
-        daily_loss: parseFloat(newAccDailyLoss) || 5,
-        global_loss: parseFloat(newAccGlobalLoss) || 10,
+        account_type: newAccType as 'personal' | 'prop_firm' | 'demo',
+        capital: newAccType === 'prop_firm' ? parseFloat(newAccCapital) : undefined,
+        target: newAccType === 'prop_firm' ? parseFloat(newAccTarget) : undefined,
+        daily_loss: newAccType === 'prop_firm' ? parseFloat(newAccDailyLoss) : undefined,
+        global_loss: newAccType === 'prop_firm' ? parseFloat(newAccGlobalLoss) : undefined,
         created_at: new Date().toISOString()
       };
-      setChallenges(prev => [...prev, newCh]);
-      if (currentUser) {
-        saveChallengeToSupabase(currentUser.id, newCh);
-      }
-    }
 
-    setSelectedAccountId(accId);
-    setAddAccountOpen(false);
-    setNewAccName('');
+      setAccounts(prev => [...prev, newAcc]);
+      if (currentUser) {
+        await saveAccountToSupabase(currentUser.id, newAcc);
+      }
+
+      // If type is prop firm challenge, automatically seed a corresponding Challenge object
+      if (newAccType === 'prop_firm') {
+        const newCh: Challenge = {
+          id: generateUUID(),
+          user_id: currentUser?.id || 'admin',
+          account_id: accId,
+          name: newAccName.trim(),
+          capital: parseFloat(newAccCapital) || 100000,
+          target: parseFloat(newAccTarget) || 8,
+          daily_loss: parseFloat(newAccDailyLoss) || 5,
+          global_loss: parseFloat(newAccGlobalLoss) || 10,
+          created_at: new Date().toISOString()
+        };
+        setChallenges(prev => [...prev, newCh]);
+        if (currentUser) {
+          await saveChallengeToSupabase(currentUser.id, newCh);
+        }
+      }
+
+      setSelectedAccountId(accId);
+      setAddAccountOpen(false);
+      setNewAccName('');
+      customAlert('Succès', 'Nouveau portefeuille ajouté avec succès.');
+    } catch (err) {
+      console.error("Add account failed:", err);
+      customAlert('Erreur', 'Impossible de sauvegarder le nouveau portefeuille.');
+    } finally {
+      setIsSavingAccount(false);
+    }
   };
 
   // Check if current user is of Admin role
@@ -1685,14 +1715,8 @@ export default function App() {
 
             <div className="pt-6 border-t border-slate-900 mt-6 md:mt-0 space-y-4">
               
-              <button
-                onClick={toggleTheme}
-                className="w-full flex items-center justify-center gap-2.5 px-3 py-2 rounded-lg bg-slate-900 text-neutral-300 hover:text-white transition-all text-xs font-semibold"
-              >
-                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                {theme === 'dark' ? 'Mode Lumineux' : 'Mode Sombre'}
-              </button>
-
+              {/* Theme switcher removed as requested */}
+              
               {/* Active user tag detail */}
               <div 
                 id="tour-profile-trigger"
@@ -1890,7 +1914,7 @@ export default function App() {
       {/* POPUP MODAL: ADD PORTFOLIO ACCOUNT */}
       {addAccountOpen && (
         <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 p-6 space-y-4">
+          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 p-6 space-y-4 custom-scrollbar responsive-form-container">
             
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <h3 className="text-sm font-black font-mono text-white uppercase tracking-widest">Nouveau Portefeuille</h3>
@@ -1924,7 +1948,7 @@ export default function App() {
                   className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40"
                 >
                   <option value="personal">Compte Personnel Standard</option>
-                  <option value="propfirm">Challenge Evaluation Propfirm</option>
+                  <option value="prop_firm">Challenge Evaluation Propfirm</option>
                 </select>
               </div>
 
@@ -1983,14 +2007,21 @@ export default function App() {
                   type="button"
                   onClick={() => setAddAccountOpen(false)}
                   className="flex-1 py-2 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900 font-semibold"
+                  disabled={isSavingAccount}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-colors font-mono tracking-wide"
+                  disabled={isSavingAccount}
+                  className="flex-1 py-2 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
                 >
-                  Enregistrer
+                  {isSavingAccount ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
+                      Patientez...
+                    </>
+                  ) : "Enregistrer"}
                 </button>
               </div>
 
@@ -2002,7 +2033,7 @@ export default function App() {
       {/* POPUP MODAL: PROFILE EDITION */}
       {profileModalOpen && (
         <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in">
+          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in custom-scrollbar responsive-form-container">
             
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
@@ -2266,14 +2297,21 @@ export default function App() {
                   type="button"
                   onClick={() => setProfileModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-colors"
+                  disabled={isSavingProfile}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide"
+                  disabled={isSavingProfile}
+                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
                 >
-                  Enregistrer
+                  {isSavingProfile ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : "Enregistrer"}
                 </button>
               </div>
 

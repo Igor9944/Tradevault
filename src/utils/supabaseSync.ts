@@ -500,6 +500,33 @@ export async function syncUserProfile(user: User): Promise<void> {
 }
 
 /**
+ * Patch a specific set of fields for a user profile
+ */
+export async function patchUserProfile(userId: string, updates: Partial<User>): Promise<void> {
+  try {
+    const isOnline = await checkSupabaseConnection();
+    if (!isOnline) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', ensureUUID(userId));
+
+    if (error) {
+       console.warn("patchUserProfile DB error:", error);
+       throw error;
+    }
+  } catch (err) {
+    console.warn("patchUserProfile failed, routing to proxy...", err);
+    try {
+      await invokeProxy("patchUserProfile", { userId, updates });
+    } catch (proxyErr) {
+      console.error("Proxy patchUserProfile failed:", proxyErr);
+    }
+  }
+}
+
+/**
  * Fetch all workspace entities (Accounts, Trades, Challenges, Payments) from Supabase
  */
 export async function loadUserDataFromSupabase(userId: string): Promise<{
