@@ -44,6 +44,8 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   const SETUPS = ['Order Block', 'Breaker', 'FVG', 'Liquidity Sweep', 'Supply/Demand', 'Trendline'];
   const MINDSETS = ['Disciplined', 'FOMO', 'Impatient', 'Confident', 'Revenge'];
 
+  const [isSaving, setIsSaving] = useState(false);
+
   // Handle upload thumbnail for trade screenshot
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -102,55 +104,63 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pair.trim() || !pnl) {
       customAlert('Données Requises', 'Veuillez remplir les informations obligatoires (Paire et profit)');
       return;
     }
 
-    const tradeData: Partial<Trade> = {
-      date: date.replace('T', ' '),
-      pair: pair.trim().toUpperCase(),
-      side,
-      entry: parseFloat(entry) || 0,
-      exit: parseFloat(exit) || 0,
-      lots: parseFloat(lots) || 0.01,
-      fees: parseFloat(fees) || 0,
-      pnl: parseFloat(pnl) || 0,
-      setup,
-      mindset,
-      notes: notes.trim(),
-      screenshot_url: screenshot || undefined
-    };
-
-    if (editingId) {
-      onEditTrade(editingId, tradeData);
-      localStorage.removeItem(`tv_journal_draft_notes_${editingId}`);
-    } else {
-      const newFullTrade: Trade = {
-        id: 'trd_' + Date.now(),
-        user_id: activeAccount.user_id,
-        account_id: activeAccount.id,
-        date: tradeData.date!,
-        pair: tradeData.pair!,
-        side: tradeData.side!,
-        entry: tradeData.entry!,
-        exit: tradeData.exit!,
-        lots: tradeData.lots!,
-        fees: tradeData.fees!,
-        pnl: tradeData.pnl!,
-        setup: tradeData.setup!,
-        mindset: tradeData.mindset!,
-        notes: tradeData.notes!,
-        screenshot_url: tradeData.screenshot_url,
-        created_at: new Date().toISOString()
+    try {
+      setIsSaving(true);
+      const tradeData: Partial<Trade> = {
+        date: date.replace('T', ' '),
+        pair: pair.trim().toUpperCase(),
+        side,
+        entry: parseFloat(entry) || 0,
+        exit: parseFloat(exit) || 0,
+        lots: parseFloat(lots) || 0.01,
+        fees: parseFloat(fees) || 0,
+        pnl: parseFloat(pnl) || 0,
+        setup,
+        mindset,
+        notes: notes.trim(),
+        screenshot_url: screenshot || undefined
       };
-      onAddTrade(newFullTrade);
-      localStorage.removeItem('tv_journal_draft_notes_new');
-    }
 
-    setModalOpen(false);
+      if (editingId) {
+        await onEditTrade(editingId, tradeData);
+        localStorage.removeItem(`tv_journal_draft_notes_${editingId}`);
+      } else {
+        const generatedId = 'trd_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        const newFullTrade: Trade = {
+          id: generatedId,
+          user_id: activeAccount.user_id,
+          account_id: activeAccount.id,
+          date: tradeData.date!,
+          pair: tradeData.pair!,
+          side: tradeData.side!,
+          entry: tradeData.entry!,
+          exit: tradeData.exit!,
+          lots: tradeData.lots!,
+          fees: tradeData.fees!,
+          pnl: tradeData.pnl!,
+          setup: tradeData.setup!,
+          mindset: tradeData.mindset!,
+          notes: tradeData.notes!,
+          screenshot_url: tradeData.screenshot_url,
+          created_at: new Date().toISOString()
+        };
+        await onAddTrade(newFullTrade);
+        localStorage.removeItem('tv_journal_draft_notes_new');
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error("Journal save error:", err);
+      customAlert('Erreur', 'Une erreur est survenue lors de l\'enregistrement.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Filter Trades
@@ -589,9 +599,19 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1 shadow-md shadow-[#00FF9C]/10 transition-all duration-300"
+                  disabled={isSaving}
+                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md shadow-[#00FF9C]/10 transition-all duration-300"
                 >
-                  <Sparkles size={14} /> Enregistrer le Trade
+                  {isSaving ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={14} /> Enregistrer le Trade
+                    </>
+                  )}
                 </button>
               </div>
 

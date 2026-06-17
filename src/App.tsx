@@ -42,6 +42,8 @@ import { customAlert, customConfirm } from './utils/customDialog';
 
 import { 
   syncUserProfile, 
+  patchUserProfile,
+  fetchUserProfile,
   saveAccountToSupabase, 
   deleteAccountFromSupabase, 
   saveTradeToSupabase, 
@@ -95,6 +97,23 @@ const Stats = safeLazy(() => import('./components/Stats'));
 const Challenges = safeLazy(() => import('./components/Challenges'));
 const Admin = safeLazy(() => import('./components/Admin'));
 const ResetPassword = safeLazy(() => import('./components/ResetPassword'));
+
+
+export function getAdminEmailsList(): string[] {
+  const envEmails = import.meta.env.VITE_ADMIN_EMAILS;
+  const localStorageEmails = safeLocalStorage.getItem('tv_admin_emails');
+  const emailsString = envEmails || localStorageEmails || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
+  return emailsString.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+}
+
+export function isUserAdmin(email?: string, username?: string): boolean {
+  if (!email) return false;
+  const lowerEmail = email.toLowerCase();
+  if (lowerEmail === 'tradonyx@vault.com' || lowerEmail === 'igorrose2003@gmail.com' || lowerEmail === 'toshirohitsugayaonyx@gmail.com') return true;
+  if (username && username.toLowerCase() === 'tradonyx') return true;
+  const adminEmails = getAdminEmailsList();
+  return adminEmails.includes(lowerEmail);
+}
 
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
@@ -503,7 +522,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'tradonyx@vault.com' || u.email === 'igorrose2003@gmail.com' || u.username === 'tradonyx';
+      const isAdmin = isUserAdmin(u.email, u.username);
       const saved = safeLocalStorage.getItem(`tv_trades_${u.id}`);
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
@@ -566,7 +585,7 @@ export default function App() {
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com,igorrose2003@gmail.com';
+    return import.meta.env.VITE_ADMIN_EMAILS || safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
@@ -599,7 +618,8 @@ export default function App() {
     const userSaved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
-    return user.paid ? 'app' : 'checkout';
+    const isAdmin = isUserAdmin(user.email, user.username);
+    return (user.paid && user.status === 'approved') || isAdmin ? 'app' : 'checkout';
   });
 
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
@@ -608,7 +628,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
+      const isAdmin = isUserAdmin(u.email, u.username);
       const saved = safeLocalStorage.getItem(`tv_selected_account_id_${u.id}`);
       if (saved) {
         if (!isAdmin && saved === 'ftmo-100k') return 'personal';
@@ -632,6 +652,7 @@ export default function App() {
   const [profileOldPassword, setProfileOldPassword] = useState('');
   const [profileNewPassword, setProfileNewPassword] = useState('');
   const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   const [showProfileOldPassword, setShowProfileOldPassword] = useState(false);
   const [showProfileNewPassword, setShowProfileNewPassword] = useState(false);
@@ -657,7 +678,7 @@ export default function App() {
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
     if (!profileUsername.trim()) return;
@@ -680,20 +701,39 @@ export default function App() {
       finalPassword = profileNewPassword;
     }
 
-    const updatedUser: User = {
-      ...currentUser,
+    const updates: Partial<User> = {
       username: profileUsername.trim(),
       country: profileCountry,
-      currency: profileCurrency,
+      currency: (profileCurrency as any),
       avatar_url: profileAvatar || undefined,
       password: finalPassword
     };
 
-    // Update session
-    setCurrentUser(updatedUser);
-    // Update local database list
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setProfileModalOpen(false);
+    try {
+      setIsSavingProfile(true);
+      // Sync with remote database using dedicated patch
+      await patchUserProfile(currentUser.id, updates);
+      
+      // Re-fetch to confirm exactly what's in the DB
+      const dbUser = await fetchUserProfile(currentUser.id);
+      
+      const finalUser = dbUser || { ...currentUser, ...updates };
+      setCurrentUser(finalUser);
+
+      // Update local database list
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? finalUser : u));
+      setProfileModalOpen(false);
+      customAlert('Succès', 'Votre profil a été mis à jour avec succès.');
+    } catch (err) {
+      console.error("Profile save failed:", err);
+      customAlert('Erreur', 'Une erreur est survenue lors de la sauvegarde.');
+    } finally {
+      setIsSavingProfile(false);
+      // Clear password fields
+      setProfileOldPassword('');
+      setProfileNewPassword('');
+      setProfileConfirmPassword('');
+    }
   };
 
   const handleProfileAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -719,11 +759,12 @@ export default function App() {
 
   // New account form fields
   const [newAccName, setNewAccName] = useState('');
-  const [newAccType, setNewAccType] = useState<'personal' | 'propfirm'>('personal');
+  const [newAccType, setNewAccType] = useState<'personal' | 'prop_firm'>('personal');
   const [newAccCapital, setNewAccCapital] = useState('100000');
   const [newAccTarget, setNewAccTarget] = useState('8');
   const [newAccDailyLoss, setNewAccDailyLoss] = useState('5');
   const [newAccGlobalLoss, setNewAccGlobalLoss] = useState('10');
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
 
   // Google OAuth Popup handler & Event Listener for cross-window communication
   useEffect(() => {
@@ -882,9 +923,38 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      setCurrentScreen(currentUser.paid ? 'app' : 'checkout');
+      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
+      setCurrentScreen((currentUser.paid && currentUser.status === 'approved') || isAdmin ? 'app' : 'checkout');
     }
   }, [currentUser]);
+
+  // Real-time automatic redirection when administrator approves user account or payment proof
+  useEffect(() => {
+    if (!currentUser || currentUser.status !== 'pending' || currentScreen !== 'checkout') {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      import('./utils/supabaseSync').then(({ fetchUserProfile }) => {
+        fetchUserProfile(currentUser.id)
+          .then(updatedProfile => {
+            if (updatedProfile && updatedProfile.status === 'approved' && updatedProfile.paid) {
+              setCurrentUser(prev => prev ? { 
+                ...prev, 
+                paid: true, 
+                status: 'approved', 
+                paid_until: updatedProfile.paid_until 
+              } : null);
+              setCurrentScreen('app');
+              (window as any).showCustomAlert?.("Accès Premium Activé ! 🎉", "Félicitations ! Votre compte TradeVault Premium a été approuvé et validé par l'administrateur. Bienvenue sur votre plateforme !");
+            }
+          })
+          .catch(err => console.warn("Polling verify failed:", err));
+      });
+    }, 6000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser?.id, currentUser?.status, currentScreen]);
 
   // Synchronize currentUser with any changes in local users array (e.g., fallback local flow updates from Admin)
   useEffect(() => {
@@ -951,7 +1021,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      const isAdmin = currentUser.email === 'tradonyx@vault.com' || currentUser.email === 'igorrose2003@gmail.com' || currentUser.username === 'tradonyx';
+      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
 
       if (isAdmin) {
         // Administrative view: Load users & payments from remote database
@@ -997,7 +1067,24 @@ export default function App() {
           loadUserDataFromSupabase(uId)
             .then(dbData => {
               setAccounts(dbData.accounts);
-              setTrades(dbData.trades);
+              
+              setTrades(prev => {
+                // Merging strategy: deduplicate by ID, preferring DB data for existing records
+                // but keeping local records that haven't reached DB yet
+                const localTrades = prev || [];
+                const mergedMap = new Map();
+                
+                // First process existing local items (might include unsaved ones)
+                localTrades.forEach(t => mergedMap.set(t.id, t));
+                
+                // Then overwrite/add with DB data (the truth of the cloud)
+                if (dbData.trades && dbData.trades.length > 0) {
+                  dbData.trades.forEach(t => mergedMap.set(t.id, t));
+                }
+                
+                return Array.from(mergedMap.values());
+              });
+
               setChallenges(dbData.challenges);
               
               const savedSelAcc = safeLocalStorage.getItem(`tv_selected_account_id_${uId}`);
@@ -1075,9 +1162,10 @@ export default function App() {
   // Session handler actions
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    if (user.paid) {
+    const isAdmin = isUserAdmin(user.email, user.username);
+    if ((user.paid && user.status === 'approved') || isAdmin) {
       setCurrentScreen('app');
-      if (user.email === 'tradonyx@vault.com' || user.email === 'igorrose2003@gmail.com' || user.username === 'tradonyx') {
+      if (isAdmin) {
         setActiveTab('admin');
       } else {
         setActiveTab('dashboard');
@@ -1144,8 +1232,15 @@ export default function App() {
   };
 
   const handleCheckoutCancel = () => {
-    setActiveTab('dashboard');
-    setCurrentScreen('app');
+    if (currentUser && currentUser.status !== 'approved') {
+      setCurrentUser(null);
+      setCurrentScreen('login_portal');
+      safeSessionStorage.removeItem('tv_current_user');
+      safeLocalStorage.removeItem('tv_current_user');
+    } else {
+      setActiveTab('dashboard');
+      setCurrentScreen('app');
+    }
   };
 
   // Switch accounts list
@@ -1158,7 +1253,7 @@ export default function App() {
   const totalAccountPnl = activeAccountTrades.reduce((sum, t) => sum + t.pnl, 0);
 
   // Trade CRUD
-  const handleAddTrade = (newTrade: Trade) => {
+  const handleAddTrade = async (newTrade: Trade) => {
     setTrades(prev => {
       const next = [...prev, newTrade];
       if (currentUser) {
@@ -1167,22 +1262,23 @@ export default function App() {
       return next;
     });
     if (currentUser) {
-      saveTradeToSupabase(currentUser.id, newTrade);
+      await saveTradeToSupabase(currentUser.id, newTrade);
     }
   };
 
-  const handleEditTrade = (id: string, updated: Partial<Trade>) => {
+  const handleEditTrade = async (id: string, updated: Partial<Trade>) => {
+    let updatedTrade: Trade | undefined;
     setTrades(prev => {
       const mapped = prev.map(t => t.id === id ? { ...t, ...updated } : t);
+      updatedTrade = mapped.find(t => t.id === id);
       if (currentUser) {
         safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(mapped));
       }
-      const updatedTrade = mapped.find(t => t.id === id);
-      if (currentUser && updatedTrade) {
-        saveTradeToSupabase(currentUser.id, updatedTrade);
-      }
       return mapped;
     });
+    if (currentUser && updatedTrade) {
+      await saveTradeToSupabase(currentUser.id, updatedTrade);
+    }
   };
 
   const handleDeleteTrade = (id: string) => {
@@ -1242,7 +1338,7 @@ export default function App() {
   };
 
   // Admin CRUD
-  const handleApproveUser = (user_id: string) => {
+  const handleApproveUser = async (user_id: string) => {
     const target = users.find(u => u.id === user_id);
     if (!target) return;
     const now = new Date();
@@ -1265,7 +1361,25 @@ export default function App() {
     }
 
     // Update profile in Supabase
-    syncUserProfile(approved);
+    await syncUserProfile(approved);
+
+    // Also approve corresponding payment request if any
+    const associatedPayments = paymentRequests.filter(p => p.user_id === user_id && p.status === 'pending');
+    for (const p of associatedPayments) {
+      await savePaymentToSupabase(user_id, { ...p, status: 'approved' });
+    }
+    setPaymentRequests(prev => prev.map(p => p.user_id === user_id && p.status === 'pending' ? { ...p, status: 'approved' as const } : p));
+
+    // Call API to send approval confirmation email
+    try {
+      await fetch('/api/notify/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: target.email, username: target.username })
+      });
+    } catch (e) {
+      console.error("Failed to trigger approval email notification:", e);
+    }
 
     // Trigger success notification via background service
     import('./utils/notificationService').then(({ sendPushNotification }) => {
@@ -1277,7 +1391,7 @@ export default function App() {
     });
   };
 
-  const handleRejectUser = (user_id: string) => {
+  const handleRejectUser = async (user_id: string) => {
     setUsers(prev => {
       const updated = prev.map(u => u.id === user_id ? { ...u, status: 'rejected' as const } : u);
       const target = updated.find(u => u.id === user_id);
@@ -1286,9 +1400,16 @@ export default function App() {
       }
       return updated;
     });
+
+    // Also reject corresponding payment requests in local state & database
+    const associatedPayments = paymentRequests.filter(p => p.user_id === user_id && p.status === 'pending');
+    for (const p of associatedPayments) {
+      await savePaymentToSupabase(user_id, { ...p, status: 'rejected' });
+    }
+    setPaymentRequests(prev => prev.map(p => p.user_id === user_id && p.status === 'pending' ? { ...p, status: 'rejected' as const } : p));
   };
 
-  const handleApproveRenewal = (payId: string) => {
+  const handleApproveRenewal = async (payId: string) => {
     const req = paymentRequests.find(r => r.id === payId);
     if (!req) return;
 
@@ -1322,16 +1443,27 @@ export default function App() {
     }
 
     // Sync Approved profile and approved payment to Supabase
-    syncUserProfile(renewedUser);
-    savePaymentToSupabase(targetUser.id, {
+    await syncUserProfile(renewedUser);
+    await savePaymentToSupabase(targetUser.id, {
       ...req,
       status: 'approved'
     });
 
     setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' as const } : r));
+
+    // Call API to send renewal approval e-mail
+    try {
+      await fetch('/api/notify/renewal-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetUser.email, username: targetUser.username })
+      });
+    } catch (e) {
+      console.error("Failed to trigger renewal approval email notification:", e);
+    }
   };
 
-  const handleRejectRenewal = (payId: string) => {
+  const handleRejectRenewal = async (payId: string) => {
     setPaymentRequests(prev => {
       const updated = prev.map(r => r.id === payId ? { ...r, status: 'rejected' as const } : r);
       const req = updated.find(r => r.id === payId);
@@ -1373,7 +1505,7 @@ export default function App() {
   };
 
   const handleDeleteAllUsersExceptAdmin = async () => {
-    const adminUser = users.find(u => u.email === 'tradonyx@vault.com' || u.email === 'igorrose2003@gmail.com' || u.username === 'tradonyx');
+    const adminUser = users.find(u => isUserAdmin(u.email, u.username));
     if (!adminUser) {
       customAlert("Erreur", "Administrateur non trouvé.");
       return;
@@ -1392,59 +1524,106 @@ export default function App() {
     user_id: string, 
     updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }
   ) => {
-    const success = await adminUpdateUserFromSupabase(user_id, updatedFields);
+    const originalUser = users.find(u => u.id === user_id);
+    const wasApprovedBefore = originalUser ? originalUser.status === 'approved' : false;
+
+    // Build the updates specifically including 'paid' and 'paid_until' if we are changing to approved
+    const updates: any = { ...updatedFields };
+    if (updatedFields.status === 'approved' && !wasApprovedBefore) {
+      updates.paid = true;
+      if (!originalUser?.paid_until) {
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 90);
+        updates.paid_until = expiry.toISOString();
+      }
+    }
+
+    const success = await adminUpdateUserFromSupabase(user_id, updates);
     if (success) {
-      setUsers(prev => prev.map(u => u.id === user_id ? { ...u, ...updatedFields } : u));
+      setUsers(prev => prev.map(u => u.id === user_id ? { ...u, ...updates } : u));
+      if (currentUser?.id === user_id) {
+        setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+      }
+
+      // If status changed to approved, trigger notification & email
+      if (updatedFields.status === 'approved' && !wasApprovedBefore && originalUser) {
+        try {
+          await fetch('/api/notify/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: updatedFields.email, username: updatedFields.username })
+          });
+        } catch (e) {
+          console.error("Failed to trigger approval email notification from edit:", e);
+        }
+
+        import('./utils/notificationService').then(({ sendPushNotification }) => {
+          sendPushNotification(
+            `Membre Approuvé ! 🎉`,
+            `L’accès TradeVault de ${updatedFields.username} (${updatedFields.email}) est validé avec succès !`,
+            'payment'
+          );
+        });
+      }
     } else {
       customAlert("Erreur", "La modification du profil a échoué.");
     }
   };
 
   // Add account helper
-  const handleAddAccount = (e: React.FormEvent) => {
+  const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAccName.trim()) return;
 
-    const accId = generateUUID();
-    const newAcc: Account = {
-      id: accId,
-      user_id: currentUser?.id || 'admin',
-      name: newAccName.trim(),
-      account_type: newAccType as 'personal' | 'prop_firm' | 'demo',
-      capital: newAccType === 'prop_firm' ? parseFloat(newAccCapital) : undefined,
-      target: newAccType === 'prop_firm' ? parseFloat(newAccTarget) : undefined,
-      daily_loss: newAccType === 'prop_firm' ? parseFloat(newAccDailyLoss) : undefined,
-      global_loss: newAccType === 'prop_firm' ? parseFloat(newAccGlobalLoss) : undefined,
-      created_at: new Date().toISOString()
-    };
-
-    setAccounts(prev => [...prev, newAcc]);
-    if (currentUser) {
-      saveAccountToSupabase(currentUser.id, newAcc);
-    }
-
-    // If type is prop firm challenge, automatically seed a corresponding Challenge object
-    if (newAccType === 'prop_firm') {
-      const newCh: Challenge = {
-        id: generateUUID(),
+    try {
+      setIsSavingAccount(true);
+      const accId = generateUUID();
+      const newAcc: Account = {
+        id: accId,
         user_id: currentUser?.id || 'admin',
-        account_id: accId,
         name: newAccName.trim(),
-        capital: parseFloat(newAccCapital) || 100000,
-        target: parseFloat(newAccTarget) || 8,
-        daily_loss: parseFloat(newAccDailyLoss) || 5,
-        global_loss: parseFloat(newAccGlobalLoss) || 10,
+        account_type: newAccType as 'personal' | 'prop_firm' | 'demo',
+        capital: newAccType === 'prop_firm' ? parseFloat(newAccCapital) : undefined,
+        target: newAccType === 'prop_firm' ? parseFloat(newAccTarget) : undefined,
+        daily_loss: newAccType === 'prop_firm' ? parseFloat(newAccDailyLoss) : undefined,
+        global_loss: newAccType === 'prop_firm' ? parseFloat(newAccGlobalLoss) : undefined,
         created_at: new Date().toISOString()
       };
-      setChallenges(prev => [...prev, newCh]);
-      if (currentUser) {
-        saveChallengeToSupabase(currentUser.id, newCh);
-      }
-    }
 
-    setSelectedAccountId(accId);
-    setAddAccountOpen(false);
-    setNewAccName('');
+      setAccounts(prev => [...prev, newAcc]);
+      if (currentUser) {
+        await saveAccountToSupabase(currentUser.id, newAcc);
+      }
+
+      // If type is prop firm challenge, automatically seed a corresponding Challenge object
+      if (newAccType === 'prop_firm') {
+        const newCh: Challenge = {
+          id: generateUUID(),
+          user_id: currentUser?.id || 'admin',
+          account_id: accId,
+          name: newAccName.trim(),
+          capital: parseFloat(newAccCapital) || 100000,
+          target: parseFloat(newAccTarget) || 8,
+          daily_loss: parseFloat(newAccDailyLoss) || 5,
+          global_loss: parseFloat(newAccGlobalLoss) || 10,
+          created_at: new Date().toISOString()
+        };
+        setChallenges(prev => [...prev, newCh]);
+        if (currentUser) {
+          await saveChallengeToSupabase(currentUser.id, newCh);
+        }
+      }
+
+      setSelectedAccountId(accId);
+      setAddAccountOpen(false);
+      setNewAccName('');
+      customAlert('Succès', 'Nouveau portefeuille ajouté avec succès.');
+    } catch (err) {
+      console.error("Add account failed:", err);
+      customAlert('Erreur', 'Impossible de sauvegarder le nouveau portefeuille.');
+    } finally {
+      setIsSavingAccount(false);
+    }
   };
 
   // Check if current user is of Admin role
@@ -1665,14 +1844,8 @@ export default function App() {
 
             <div className="pt-6 border-t border-slate-900 mt-6 md:mt-0 space-y-4">
               
-              <button
-                onClick={toggleTheme}
-                className="w-full flex items-center justify-center gap-2.5 px-3 py-2 rounded-lg bg-slate-900 text-neutral-300 hover:text-white transition-all text-xs font-semibold"
-              >
-                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                {theme === 'dark' ? 'Mode Lumineux' : 'Mode Sombre'}
-              </button>
-
+              {/* Theme switcher removed as requested */}
+              
               {/* Active user tag detail */}
               <div 
                 id="tour-profile-trigger"
@@ -1719,6 +1892,12 @@ export default function App() {
                 onClick={() => {
                   setCurrentUser(null);
                   setCurrentScreen('login_portal');
+                  setTrades([]);
+                  setAccounts([]);
+                  setChallenges([]);
+                  setPaymentRequests([]);
+                  setUsers([]);
+                  setSelectedAccountId('personal');
                   safeSessionStorage.removeItem('tv_current_user');
                   safeLocalStorage.removeItem('tv_current_user');
                 }}
@@ -1870,7 +2049,7 @@ export default function App() {
       {/* POPUP MODAL: ADD PORTFOLIO ACCOUNT */}
       {addAccountOpen && (
         <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 p-6 space-y-4">
+          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 p-6 space-y-4 custom-scrollbar responsive-form-container">
             
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <h3 className="text-sm font-black font-mono text-white uppercase tracking-widest">Nouveau Portefeuille</h3>
@@ -1904,7 +2083,7 @@ export default function App() {
                   className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40"
                 >
                   <option value="personal">Compte Personnel Standard</option>
-                  <option value="propfirm">Challenge Evaluation Propfirm</option>
+                  <option value="prop_firm">Challenge Evaluation Propfirm</option>
                 </select>
               </div>
 
@@ -1963,14 +2142,21 @@ export default function App() {
                   type="button"
                   onClick={() => setAddAccountOpen(false)}
                   className="flex-1 py-2 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900 font-semibold"
+                  disabled={isSavingAccount}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-colors font-mono tracking-wide"
+                  disabled={isSavingAccount}
+                  className="flex-1 py-2 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
                 >
-                  Enregistrer
+                  {isSavingAccount ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
+                      Patientez...
+                    </>
+                  ) : "Enregistrer"}
                 </button>
               </div>
 
@@ -1982,7 +2168,7 @@ export default function App() {
       {/* POPUP MODAL: PROFILE EDITION */}
       {profileModalOpen && (
         <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in">
+          <div className="max-w-md w-full bg-[#080808] rounded-2xl border border-[#00FF9C]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in custom-scrollbar responsive-form-container">
             
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
@@ -2246,14 +2432,21 @@ export default function App() {
                   type="button"
                   onClick={() => setProfileModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-colors"
+                  disabled={isSavingProfile}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide"
+                  disabled={isSavingProfile}
+                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
                 >
-                  Enregistrer
+                  {isSavingProfile ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : "Enregistrer"}
                 </button>
               </div>
 

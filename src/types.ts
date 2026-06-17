@@ -13,6 +13,10 @@ export interface Profile {
   google_linked?: boolean;
   google_email?: string;
   currency?: 'USD' | 'EUR' | 'GBP';
+  wallet_trc20?: string;
+  wallet_bep20?: string;
+  subscription_price?: number;
+  subscription_duration_days?: number;
 }
 
 export type User = Profile; // keep User alias

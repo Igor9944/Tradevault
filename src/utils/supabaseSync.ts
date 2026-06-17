@@ -49,6 +49,8 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     return false;
   } catch (err) {
     isSupabaseOnline = false;
+    // Silently log the connection failure instead of allowing it to crash the app
+    console.warn("[Supabase] Connection pre-flight failed (silently):", err);
     return false;
   }
 }

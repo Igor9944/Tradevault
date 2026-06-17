@@ -22,20 +22,32 @@ let isSupabaseOnline: boolean | null = null;
 // Custom pre-flight fetch interceptor to gracefully avoid unneeded direct client console network errors
 const customSupabaseFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   if (isSupabaseOnline === false) {
-    throw new TypeError("Failed to fetch");
+    // Return a mock response instead of throwing to prevent app crash
+    return new Response(JSON.stringify({ error: "Supabase is offline (cached state)" }), { 
+      status: 503, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 
   try {
     const response = await fetch(input, init);
     if (response.status === 502 || response.status === 504) {
       isSupabaseOnline = false;
-      throw new TypeError("Failed to fetch");
+      return new Response(JSON.stringify({ error: "Supabase gateway error" }), { 
+        status: 503, 
+        headers: { 'Content-Type': 'application/json' } 
+      });
     }
     isSupabaseOnline = true;
     return response;
   } catch (err) {
     isSupabaseOnline = false;
-    throw new TypeError("Failed to fetch");
+    // Catch network errors and return mock response instead of re-throwing
+    console.warn("[Supabase] Fetch intercepted failure:", err);
+    return new Response(JSON.stringify({ error: "Network error during fetch" }), { 
+      status: 503, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 };
 
@@ -55,4 +67,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: customSupabaseFetch
   }
 });
-

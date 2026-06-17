@@ -105,74 +105,64 @@ export default function Checkout({
           console.warn("Storage upload failed, fallback to base64:", storageErr);
         }
       }
-    } catch (e) {
-      console.warn("Dynamic import of supabase storage upload failed:", e);
-    }
 
-    try {
-      // 2. Update status and profiles
-      const { supabase } = await import('../lib/supabase');
+      // 2. Register payment request & update progress securely via backend proxy (avoids direct client-side writes to tables user/profiles)
       try {
-        // Sync users
-        await supabase.from('users').update({ status: 'pending', avatar_url: user.avatar_url || null }).eq('id', user.id);
-        // Sync profiles as requested
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          full_name: user.username,
-          email: user.email,
-          status: 'pending',
-          payment_proof: publicUrl,
-          created_at: new Date().toISOString()
-        });
-      } catch (dbErr) {
-        console.warn("Database sync error (ignored):", dbErr);
-      }
-    } catch (e) {
-      console.warn("Database sync dynamic import failed:", e);
-    }
-
-        try {
-      await registerPayment(user.id, subscriptionPrice, publicUrl);
-    } catch (e) {
-      console.warn("Payment registration failed:", e);
-    }
-
-    // 3. Trigger edge functions email
-    try {
-      let rawCheckoutUrl = import.meta.env.VITE_SUPABASE_URL || "";
-      if (rawCheckoutUrl && rawCheckoutUrl.includes('supabase.com/dashboard/project/')) {
-        const match = rawCheckoutUrl.match(/project\/([a-z0-9]+)/);
-        if (match) {
-          rawCheckoutUrl = `https://${match[1]}.supabase.co`;
+        const success = await registerPayment(user.id, subscriptionPrice, publicUrl);
+        if (!success) {
+          console.warn("Backend payment registration returned false, striving with client-side fallback...");
+          const { supabase: fallbackSupabase } = await import('../lib/supabase');
+          await fallbackSupabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            status: 'pending',
+            payment_proof: publicUrl
+          });
         }
-      } else if (rawCheckoutUrl && !rawCheckoutUrl.startsWith('http')) {
-        rawCheckoutUrl = `https://${rawCheckoutUrl}.supabase.co`;
+      } catch (e) {
+        console.warn("Centralized payment registration failed:", e);
       }
-      const supabaseUrl = rawCheckoutUrl;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-      if (supabaseUrl && supabaseAnonKey) {
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseAnonKey}`
-          },
-          body: JSON.stringify({
-            type: "registration_pending",
-            user: { name: user.username, email: user.email },
-            context: { paymentProof: publicUrl }
-          })
-        });
-      }
-    } catch (emailErr) {
-      console.warn("Fetch to edge function send-email failed:", emailErr);
-    }
 
-    setUploading(false);
-    setSubmissionCompleted(true);
-    
-    // Log in local state
-    onPaymentSuccess(publicUrl, network);
+      // 3. Trigger edge functions email
+      try {
+        let rawCheckoutUrl = import.meta.env.VITE_SUPABASE_URL || "";
+        if (rawCheckoutUrl && rawCheckoutUrl.includes('supabase.com/dashboard/project/')) {
+          const match = rawCheckoutUrl.match(/project\/([a-z0-9]+)/);
+          if (match) {
+            rawCheckoutUrl = `https://${match[1]}.supabase.co`;
+          }
+        } else if (rawCheckoutUrl && !rawCheckoutUrl.startsWith('http')) {
+          rawCheckoutUrl = `https://${rawCheckoutUrl}.supabase.co`;
+        }
+        const supabaseUrl = rawCheckoutUrl;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+        if (supabaseUrl && supabaseAnonKey) {
+          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseAnonKey}`
+            },
+            body: JSON.stringify({
+              type: "registration_pending",
+              user: { name: user.username, email: user.email },
+              context: { paymentProof: publicUrl }
+            })
+          });
+        }
+      } catch (emailErr) {
+        console.warn("Fetch to edge function send-email failed:", emailErr);
+      }
+
+      setSubmissionCompleted(true);
+      // Log in local state
+      onPaymentSuccess(publicUrl, network);
+    } catch (err) {
+      console.error("Critical submission error:", err);
+      displayToast("Une erreur critique est survenue lors de la soumission. Veuillez réessayer.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   // If user is already pending or has just submitted, show pending state dashboard
