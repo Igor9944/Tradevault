@@ -345,7 +345,7 @@ export async function loadAdminSettings(): Promise<AdminSettings | null> {
       period = parseInt(parts[1], 10) || 3;
     }
 
-    let adminEmails = data.email || 'tradonyx@vault.com,igorrose2003@gmail.com';
+    let adminEmails = data.email || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
     let adminWalletTRC20 = data.country || 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV';
     let adminWalletBEP20 = data.avatar_url || '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0';
 
@@ -885,7 +885,7 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
 
     return (data || []).map(p => ({
       id: p.id,
-      username: p.username || 'Trader',
+      username: p.username || p.full_name || 'Trader',
       email: p.email,
       country: p.country || 'FR',
       paid: p.paid || false,

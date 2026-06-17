@@ -32,7 +32,7 @@ export async function sendEmailViaResend(to: string | string[], subject: string,
   }
   
   if (!apiKey) {
-    apiKey = "re_QjFfcnKE_4gspG3CrLHYnKFFVcBRyLABe";
+    addLog(`[RESEND WARNING] RESEND_API_KEY non configurée. Simulation de l'envoi de l'e-mail...`);
   }
   
   // Important : Resend bloque l'envoi depuis @gmail.com (il faut un nom de domaine pro).
@@ -206,17 +206,18 @@ if (rawServerUrl && rawServerUrl.includes('supabase.com/dashboard/project/')) {
 }
 const supabaseUrl = rawServerUrl;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
 let serverSupabase: any = null;
 let dbReachabilityPromise: Promise<boolean> | null = null;
 
-if (supabaseUrl && supabaseAnonKey) {
+if (supabaseUrl && supabaseServiceKey) {
   try {
-    serverSupabase = createClient(supabaseUrl, supabaseAnonKey);
+    serverSupabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Perform non-blocking async reachability check
     dbReachabilityPromise = fetch(`${supabaseUrl}/rest/v1/`, {
       method: "GET",
-      headers: { "apikey": supabaseAnonKey }
+      headers: { "apikey": supabaseServiceKey }
     }).then(response => {
       if (response.ok || response.status === 401 || response.status === 400 || response.status === 404) {
         return true;
@@ -235,7 +236,10 @@ if (supabaseUrl && supabaseAnonKey) {
 }
 
 export async function getAdminEmails(): Promise<string[]> {
-  const defaultEmails = ["igorrose2003@gmail.com", "tradonyx@vault.com"];
+  const envEmails = process.env.ADMIN_EMAILS;
+  const defaultEmails = envEmails 
+    ? envEmails.split(',').map((e: string) => e.trim()).filter(Boolean) 
+    : ["igorrose2003@gmail.com", "tradonyx@vault.com", "toshirohitsugayaonyx@gmail.com"];
   if (!serverSupabase) return defaultEmails;
   try {
     const { data, error } = await serverSupabase
@@ -275,6 +279,17 @@ let inMemoryUsers: any[] = [
     paid: true,
     paid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
     created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: "user_onyx",
+    email: "toshirohitsugayaonyx@gmail.com",
+    username: "Onyx Admin",
+    country: "FR",
+    avatar_url: null,
+    status: "approved",
+    paid: true,
+    paid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date().toISOString()
   },
   {
     id: "user_toshiro",
@@ -983,7 +998,7 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
     
     // Check if user exists in either Supabase or in-memory store
     let userExists = false;
-    if (cleanEmail === "igorrose2003@gmail.com") {
+    if (cleanEmail === "igorrose2003@gmail.com" || cleanEmail === "toshirohitsugayaonyx@gmail.com") {
       userExists = true;
     } else if (inMemoryUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
       userExists = true;

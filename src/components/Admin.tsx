@@ -725,6 +725,23 @@ export default function Admin({
                         </div>
                       ) : (
                         <div className="flex justify-center gap-2">
+                          {trader.status !== 'approved' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                customConfirm(
+                                  "Approuver Trader",
+                                  `Souhaitez-vous approuver le compte de "${trader.username}" ? Un e-mail de confirmation lui sera envoyé.`,
+                                  () => {
+                                    onApproveUser(trader.id);
+                                  }
+                                );
+                              }}
+                              className="px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Check size={11} /> Approuver
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => startEditing(trader)}

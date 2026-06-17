@@ -509,12 +509,26 @@ export default function Portal({
     }
 
     const isAdminPass = loginPassword === 'otradnyx@2027';
-    const isAdminUser = identifier === 'tradonyx@vault.com' || identifier === 'igorrose2003@gmail.com';
+    const cleanAdminEmails = (adminEmails || '').toLowerCase().split(',').map(e => e.trim()).filter(Boolean);
+    const isAdminUser = identifier === 'tradonyx@vault.com' || 
+                        identifier === 'igorrose2003@gmail.com' || 
+                        cleanAdminEmails.includes(identifier);
 
     if (isAdminUser && isAdminPass) {
+      // Determine elegant default username
+      let adminUsername = 'tradonyx';
+      if (identifier === 'igorrose2003@gmail.com') {
+        adminUsername = 'igorrose';
+      } else {
+        const parts = identifier.split('@');
+        if (parts.length > 0 && parts[0] !== 'admin') {
+          adminUsername = parts[0];
+        }
+      }
+
       const adminAcc: User = {
         id: 'admin',
-        username: identifier === 'igorrose2003@gmail.com' ? 'igorrose' : 'tradonyx',
+        username: adminUsername,
         email: identifier,
         country: 'FR',
         paid: true,

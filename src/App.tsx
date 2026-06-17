@@ -98,6 +98,23 @@ const Challenges = safeLazy(() => import('./components/Challenges'));
 const Admin = safeLazy(() => import('./components/Admin'));
 const ResetPassword = safeLazy(() => import('./components/ResetPassword'));
 
+
+export function getAdminEmailsList(): string[] {
+  const envEmails = import.meta.env.VITE_ADMIN_EMAILS;
+  const localStorageEmails = safeLocalStorage.getItem('tv_admin_emails');
+  const emailsString = envEmails || localStorageEmails || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
+  return emailsString.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+}
+
+export function isUserAdmin(email?: string, username?: string): boolean {
+  if (!email) return false;
+  const lowerEmail = email.toLowerCase();
+  if (lowerEmail === 'tradonyx@vault.com' || lowerEmail === 'igorrose2003@gmail.com' || lowerEmail === 'toshirohitsugayaonyx@gmail.com') return true;
+  if (username && username.toLowerCase() === 'tradonyx') return true;
+  const adminEmails = getAdminEmailsList();
+  return adminEmails.includes(lowerEmail);
+}
+
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
   return (
@@ -505,7 +522,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'tradonyx@vault.com' || u.email === 'igorrose2003@gmail.com' || u.username === 'tradonyx';
+      const isAdmin = isUserAdmin(u.email, u.username);
       const saved = safeLocalStorage.getItem(`tv_trades_${u.id}`);
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
@@ -568,7 +585,7 @@ export default function App() {
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com,igorrose2003@gmail.com';
+    return import.meta.env.VITE_ADMIN_EMAILS || safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
@@ -601,7 +618,8 @@ export default function App() {
     const userSaved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
-    return user.paid ? 'app' : 'checkout';
+    const isAdmin = isUserAdmin(user.email, user.username);
+    return (user.paid && user.status === 'approved') || isAdmin ? 'app' : 'checkout';
   });
 
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
@@ -610,7 +628,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = u.email === 'admin@tradevault.com' || u.username === 'admin';
+      const isAdmin = isUserAdmin(u.email, u.username);
       const saved = safeLocalStorage.getItem(`tv_selected_account_id_${u.id}`);
       if (saved) {
         if (!isAdmin && saved === 'ftmo-100k') return 'personal';
@@ -905,9 +923,38 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      setCurrentScreen(currentUser.paid ? 'app' : 'checkout');
+      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
+      setCurrentScreen((currentUser.paid && currentUser.status === 'approved') || isAdmin ? 'app' : 'checkout');
     }
   }, [currentUser]);
+
+  // Real-time automatic redirection when administrator approves user account or payment proof
+  useEffect(() => {
+    if (!currentUser || currentUser.status !== 'pending' || currentScreen !== 'checkout') {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      import('./utils/supabaseSync').then(({ fetchUserProfile }) => {
+        fetchUserProfile(currentUser.id)
+          .then(updatedProfile => {
+            if (updatedProfile && updatedProfile.status === 'approved' && updatedProfile.paid) {
+              setCurrentUser(prev => prev ? { 
+                ...prev, 
+                paid: true, 
+                status: 'approved', 
+                paid_until: updatedProfile.paid_until 
+              } : null);
+              setCurrentScreen('app');
+              (window as any).showCustomAlert?.("Accès Premium Activé ! 🎉", "Félicitations ! Votre compte TradeVault Premium a été approuvé et validé par l'administrateur. Bienvenue sur votre plateforme !");
+            }
+          })
+          .catch(err => console.warn("Polling verify failed:", err));
+      });
+    }, 6000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser?.id, currentUser?.status, currentScreen]);
 
   // Synchronize currentUser with any changes in local users array (e.g., fallback local flow updates from Admin)
   useEffect(() => {
@@ -974,7 +1021,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      const isAdmin = currentUser.email === 'tradonyx@vault.com' || currentUser.email === 'igorrose2003@gmail.com' || currentUser.username === 'tradonyx';
+      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
 
       if (isAdmin) {
         // Administrative view: Load users & payments from remote database
@@ -1115,9 +1162,10 @@ export default function App() {
   // Session handler actions
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    if (user.paid) {
+    const isAdmin = isUserAdmin(user.email, user.username);
+    if ((user.paid && user.status === 'approved') || isAdmin) {
       setCurrentScreen('app');
-      if (user.email === 'tradonyx@vault.com' || user.email === 'igorrose2003@gmail.com' || user.username === 'tradonyx') {
+      if (isAdmin) {
         setActiveTab('admin');
       } else {
         setActiveTab('dashboard');
@@ -1184,8 +1232,15 @@ export default function App() {
   };
 
   const handleCheckoutCancel = () => {
-    setActiveTab('dashboard');
-    setCurrentScreen('app');
+    if (currentUser && currentUser.status !== 'approved') {
+      setCurrentUser(null);
+      setCurrentScreen('login_portal');
+      safeSessionStorage.removeItem('tv_current_user');
+      safeLocalStorage.removeItem('tv_current_user');
+    } else {
+      setActiveTab('dashboard');
+      setCurrentScreen('app');
+    }
   };
 
   // Switch accounts list
@@ -1283,7 +1338,7 @@ export default function App() {
   };
 
   // Admin CRUD
-  const handleApproveUser = (user_id: string) => {
+  const handleApproveUser = async (user_id: string) => {
     const target = users.find(u => u.id === user_id);
     if (!target) return;
     const now = new Date();
@@ -1306,7 +1361,25 @@ export default function App() {
     }
 
     // Update profile in Supabase
-    syncUserProfile(approved);
+    await syncUserProfile(approved);
+
+    // Also approve corresponding payment request if any
+    const associatedPayments = paymentRequests.filter(p => p.user_id === user_id && p.status === 'pending');
+    for (const p of associatedPayments) {
+      await savePaymentToSupabase(user_id, { ...p, status: 'approved' });
+    }
+    setPaymentRequests(prev => prev.map(p => p.user_id === user_id && p.status === 'pending' ? { ...p, status: 'approved' as const } : p));
+
+    // Call API to send approval confirmation email
+    try {
+      await fetch('/api/notify/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: target.email, username: target.username })
+      });
+    } catch (e) {
+      console.error("Failed to trigger approval email notification:", e);
+    }
 
     // Trigger success notification via background service
     import('./utils/notificationService').then(({ sendPushNotification }) => {
@@ -1318,7 +1391,7 @@ export default function App() {
     });
   };
 
-  const handleRejectUser = (user_id: string) => {
+  const handleRejectUser = async (user_id: string) => {
     setUsers(prev => {
       const updated = prev.map(u => u.id === user_id ? { ...u, status: 'rejected' as const } : u);
       const target = updated.find(u => u.id === user_id);
@@ -1327,9 +1400,16 @@ export default function App() {
       }
       return updated;
     });
+
+    // Also reject corresponding payment requests in local state & database
+    const associatedPayments = paymentRequests.filter(p => p.user_id === user_id && p.status === 'pending');
+    for (const p of associatedPayments) {
+      await savePaymentToSupabase(user_id, { ...p, status: 'rejected' });
+    }
+    setPaymentRequests(prev => prev.map(p => p.user_id === user_id && p.status === 'pending' ? { ...p, status: 'rejected' as const } : p));
   };
 
-  const handleApproveRenewal = (payId: string) => {
+  const handleApproveRenewal = async (payId: string) => {
     const req = paymentRequests.find(r => r.id === payId);
     if (!req) return;
 
@@ -1363,16 +1443,27 @@ export default function App() {
     }
 
     // Sync Approved profile and approved payment to Supabase
-    syncUserProfile(renewedUser);
-    savePaymentToSupabase(targetUser.id, {
+    await syncUserProfile(renewedUser);
+    await savePaymentToSupabase(targetUser.id, {
       ...req,
       status: 'approved'
     });
 
     setPaymentRequests(prev => prev.map(r => r.id === payId ? { ...r, status: 'approved' as const } : r));
+
+    // Call API to send renewal approval e-mail
+    try {
+      await fetch('/api/notify/renewal-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetUser.email, username: targetUser.username })
+      });
+    } catch (e) {
+      console.error("Failed to trigger renewal approval email notification:", e);
+    }
   };
 
-  const handleRejectRenewal = (payId: string) => {
+  const handleRejectRenewal = async (payId: string) => {
     setPaymentRequests(prev => {
       const updated = prev.map(r => r.id === payId ? { ...r, status: 'rejected' as const } : r);
       const req = updated.find(r => r.id === payId);
@@ -1414,7 +1505,7 @@ export default function App() {
   };
 
   const handleDeleteAllUsersExceptAdmin = async () => {
-    const adminUser = users.find(u => u.email === 'tradonyx@vault.com' || u.email === 'igorrose2003@gmail.com' || u.username === 'tradonyx');
+    const adminUser = users.find(u => isUserAdmin(u.email, u.username));
     if (!adminUser) {
       customAlert("Erreur", "Administrateur non trouvé.");
       return;
@@ -1433,9 +1524,47 @@ export default function App() {
     user_id: string, 
     updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }
   ) => {
-    const success = await adminUpdateUserFromSupabase(user_id, updatedFields);
+    const originalUser = users.find(u => u.id === user_id);
+    const wasApprovedBefore = originalUser ? originalUser.status === 'approved' : false;
+
+    // Build the updates specifically including 'paid' and 'paid_until' if we are changing to approved
+    const updates: any = { ...updatedFields };
+    if (updatedFields.status === 'approved' && !wasApprovedBefore) {
+      updates.paid = true;
+      if (!originalUser?.paid_until) {
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 90);
+        updates.paid_until = expiry.toISOString();
+      }
+    }
+
+    const success = await adminUpdateUserFromSupabase(user_id, updates);
     if (success) {
-      setUsers(prev => prev.map(u => u.id === user_id ? { ...u, ...updatedFields } : u));
+      setUsers(prev => prev.map(u => u.id === user_id ? { ...u, ...updates } : u));
+      if (currentUser?.id === user_id) {
+        setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+      }
+
+      // If status changed to approved, trigger notification & email
+      if (updatedFields.status === 'approved' && !wasApprovedBefore && originalUser) {
+        try {
+          await fetch('/api/notify/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: updatedFields.email, username: updatedFields.username })
+          });
+        } catch (e) {
+          console.error("Failed to trigger approval email notification from edit:", e);
+        }
+
+        import('./utils/notificationService').then(({ sendPushNotification }) => {
+          sendPushNotification(
+            `Membre Approuvé ! 🎉`,
+            `L’accès TradeVault de ${updatedFields.username} (${updatedFields.email}) est validé avec succès !`,
+            'payment'
+          );
+        });
+      }
     } else {
       customAlert("Erreur", "La modification du profil a échoué.");
     }
