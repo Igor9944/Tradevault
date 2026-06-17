@@ -106,8 +106,7 @@ export function getAdminEmailsList(): string[] {
   return emailsString.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 }
 
-export function isUserAdmin(email?: string, username?: string, userRole?: string): boolean {
-  if (userRole === 'admin') return true;
+export function isUserAdmin(email?: string, username?: string): boolean {
   if (!email) return false;
   const lowerEmail = email.toLowerCase();
   if (lowerEmail === 'tradonyx@vault.com' || lowerEmail === 'igorrose2003@gmail.com' || lowerEmail === 'toshirohitsugayaonyx@gmail.com') return true;
@@ -523,7 +522,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = isUserAdmin(u.email, u.username, (u as any).role);
+      const isAdmin = isUserAdmin(u.email, u.username);
       const saved = safeLocalStorage.getItem(`tv_trades_${u.id}`);
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
@@ -619,7 +618,7 @@ export default function App() {
     const userSaved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
-    const isAdmin = isUserAdmin(user.email, user.username, (user as any).role);
+    const isAdmin = isUserAdmin(user.email, user.username);
     return (user.paid && user.status === 'approved') || isAdmin ? 'app' : 'checkout';
   });
 
@@ -629,7 +628,7 @@ export default function App() {
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = isUserAdmin(u.email, u.username, (u as any).role);
+      const isAdmin = isUserAdmin(u.email, u.username);
       const saved = safeLocalStorage.getItem(`tv_selected_account_id_${u.id}`);
       if (saved) {
         if (!isAdmin && saved === 'ftmo-100k') return 'personal';
@@ -924,7 +923,7 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      const isAdmin = isUserAdmin(currentUser.email, currentUser.username, (currentUser as any).role);
+      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
       setCurrentScreen((currentUser.paid && currentUser.status === 'approved') || isAdmin ? 'app' : 'checkout');
     }
   }, [currentUser]);
@@ -976,20 +975,22 @@ export default function App() {
     if (currentUser) {
       safeLocalStorage.setItem(`tv_trades_${currentUser.id}`, JSON.stringify(trades));
     }
-    // We do NOT save to tv_trades (global) to avoid data leakage
-  }, [trades, currentUser?.id]);
+    safeLocalStorage.setItem('tv_trades', JSON.stringify(trades));
+  }, [trades]);
 
   useEffect(() => {
     if (currentUser) {
       safeLocalStorage.setItem(`tv_challenges_${currentUser.id}`, JSON.stringify(challenges));
     }
-  }, [challenges, currentUser?.id]);
+    safeLocalStorage.setItem('tv_challenges', JSON.stringify(challenges));
+  }, [challenges]);
 
   useEffect(() => {
     if (currentUser) {
       safeLocalStorage.setItem(`tv_accounts_${currentUser.id}`, JSON.stringify(accounts));
     }
-  }, [accounts, currentUser?.id]);
+    safeLocalStorage.setItem('tv_accounts', JSON.stringify(accounts));
+  }, [accounts]);
 
   useEffect(() => {
     safeLocalStorage.setItem('tv_admin_emails', adminEmails);
@@ -1013,13 +1014,14 @@ export default function App() {
     if (currentUser) {
       safeLocalStorage.setItem(`tv_selected_account_id_${currentUser.id}`, selectedAccountId);
     }
-  }, [selectedAccountId, currentUser?.id]);
+    safeLocalStorage.setItem('tv_selected_account_id', selectedAccountId);
+  }, [selectedAccountId]);
 
   // Sync workspace dynamically when user logs in & load data from Supabase
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      const isAdmin = isUserAdmin(currentUser.email, currentUser.username, (currentUser as any).role);
+      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
 
       if (isAdmin) {
         // Administrative view: Load users & payments from remote database
@@ -1055,8 +1057,7 @@ export default function App() {
                     username: updatedProfile.username,
                     country: updatedProfile.country,
                     avatar_url: updatedProfile.avatar_url,
-                    currency: updatedProfile.currency,
-                    role: (updatedProfile as any).role
+                    currency: updatedProfile.currency
                   };
                 });
               }
@@ -1161,7 +1162,7 @@ export default function App() {
   // Session handler actions
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    const isAdmin = isUserAdmin(user.email, user.username, (user as any).role);
+    const isAdmin = isUserAdmin(user.email, user.username);
     if ((user.paid && user.status === 'approved') || isAdmin) {
       setCurrentScreen('app');
       if (isAdmin) {
@@ -1504,7 +1505,7 @@ export default function App() {
   };
 
   const handleDeleteAllUsersExceptAdmin = async () => {
-    const adminUser = users.find(u => isUserAdmin(u.email, u.username, (u as any).role));
+    const adminUser = users.find(u => isUserAdmin(u.email, u.username));
     if (!adminUser) {
       customAlert("Erreur", "Administrateur non trouvé.");
       return;
@@ -1629,8 +1630,7 @@ export default function App() {
   const isAdmin = currentUser && (
     (adminEmails || '').toLowerCase().split(',').map(e => e.trim()).includes(currentUser.email?.toLowerCase() || '') || 
     currentUser.email === 'tradonyx@vault.com' ||
-    currentUser.username === 'tradonyx' ||
-    (currentUser as any).role === 'admin'
+    currentUser.username === 'tradonyx'
   );
 
   return (
@@ -1889,22 +1889,17 @@ export default function App() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="button"
-                onClick={async () => {
-                  // Logout Sequence Optimization
-                  // 1. Sync before logout if online
-                  const isOnline = await import('./utils/supabaseSync').then(m => m.checkSupabaseConnection());
-                  if (isOnline && currentUser) {
-                     // Perform a quick sync of vital data
-                     await syncUserProfile(currentUser);
-                  }
-                  
-                  // 2. Clear ONLY session-specific or global defaults, KEEP user data in localStorage (tv_trades_ID)
+                onClick={() => {
                   setCurrentUser(null);
                   setCurrentScreen('login_portal');
+                  setTrades([]);
+                  setAccounts([]);
+                  setChallenges([]);
+                  setPaymentRequests([]);
+                  setUsers([]);
+                  setSelectedAccountId('personal');
                   safeSessionStorage.removeItem('tv_current_user');
                   safeLocalStorage.removeItem('tv_current_user');
-                  safeLocalStorage.removeItem('tv_selected_account_id');
-                  // Note: we do NOT clear tv_trades_ID or similar user-specific keys.
                 }}
                 className="w-full py-2 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/20 rounded-xl text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
               >
@@ -2251,4 +2246,300 @@ export default function App() {
 
               <div className="space-y-1">
                 <label className="text-[10px] text-neutral-300 font-bold uppercase tracking-wide block">Nom de trader *</label>
-                <div className=... [truncated]
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                    <UserIcon size={14} />
+                  </span>
+                  <input
+                    type="text"
+                    value={profileUsername}
+                    onChange={(e) => setProfileUsername(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-sans"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Pays / Devise région</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none font-sans">
+                    <Globe size={14} />
+                  </span>
+                  <input
+                    type="text"
+                    value={profileCountry}
+                    onChange={(e) => setProfileCountry(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
+                    placeholder="Ex: FR"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wide block">Devise de la plateforme (P&L)</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500 pointer-events-none font-mono text-xs font-bold text-[#00FF9C]">
+                    {profileCurrency === 'EUR' ? '€' : profileCurrency === 'GBP' ? '£' : '$'}
+                  </span>
+                  <select
+                    value={profileCurrency}
+                    onChange={(e) => setProfileCurrency(e.target.value as 'USD' | 'EUR' | 'GBP')}
+                    className="w-full pl-10 pr-8 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 appearance-none cursor-pointer font-sans"
+                  >
+                    <option value="USD" className="bg-black text-white">USD ($ - Dollar Américain)</option>
+                    <option value="EUR" className="bg-black text-white">EUR (€ - Euro)</option>
+                    <option value="GBP" className="bg-black text-white">GBP (£ - Livre Sterling)</option>
+                  </select>
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 pointer-events-none text-[9px]">▼</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide block">Ancien Mot de Passe</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                    <Lock size={14} />
+                  </span>
+                  <input
+                    type={showProfileOldPassword ? "text" : "password"}
+                    value={profileOldPassword}
+                    onChange={(e) => setProfileOldPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
+                    placeholder="Saisissez votre ancien mot de passe"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileOldPassword(!showProfileOldPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    {showProfileOldPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wide block">Nouveau Mot de Passe</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                    <Lock size={14} />
+                  </span>
+                  <input
+                    type={showProfileNewPassword ? "text" : "password"}
+                    value={profileNewPassword}
+                    onChange={(e) => setProfileNewPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
+                    placeholder="Nouveau mot de passe"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileNewPassword(!showProfileNewPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    {showProfileNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Confirmer Nouveau Mot de Passe</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                    <Lock size={14} />
+                  </span>
+                  <input
+                    type={showProfileConfirmPassword ? "text" : "password"}
+                    value={profileConfirmPassword}
+                    onChange={(e) => setProfileConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40 font-mono"
+                    placeholder="Confirmez"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileConfirmPassword(!showProfileConfirmPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    {showProfileConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* GOOGLE INTEGRATION SECTION */}
+              {currentUser && (
+                <div className="pt-4 border-t border-white/5 space-y-2.5">
+                  <span className="text-[10px] text-[#00FF9C] font-bold uppercase tracking-wider block">Liaison Google</span>
+                  
+                  {currentUser.google_linked ? (
+                    <div className="p-3 bg-[#00FF9C]/5 border border-[#00FF9C]/20 rounded-xl flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] animate-pulse"></span>
+                          <span className="text-[10px] font-bold text-[#00FF9C] uppercase tracking-wider font-mono">Compte Lié à Google</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          E-mail : <span className="font-mono text-zinc-350 font-semibold">{currentUser.google_email || currentUser.email}</span>
+                        </p>
+                      </div>
+                      <span className="text-[#00FF9C] text-sm">✅</span>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-[#080808] border border-[#00FF9C]/10 rounded-xl space-y-2">
+                      <p className="text-[10px] text-slate-455 leading-relaxed font-sans">
+                        Associez votre compte à Google pour pouvoir vous connecter de manière interchangeable avec votre e-mail ou via Google d'un simple clic.
+                      </p>
+                      
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await signInWithGoogle();
+                            if (res.success && res.url) {
+                              const width = 500;
+                              const height = 600;
+                              const left = window.screenX + (window.innerWidth - width) / 2;
+                              const top = window.screenY + (window.innerHeight - height) / 2;
+                              
+                              window.open(
+                                res.url,
+                                'google_oauth_popup',
+                                `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+                              );
+                            } else {
+                              customAlert("Erreur", "Impossible d'initier la liaison Google.");
+                            }
+                          } catch (e: any) {
+                            console.error("Google link trigger error:", e);
+                            customAlert("Erreur", "Échec d'ouverture du popup d'authentification.");
+                          }
+                        }}
+                        className="w-full py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-lg text-[10px] font-bold font-mono tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                        </svg>
+                        ASSOCIER UN COMPTE GOOGLE
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex pt-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setProfileModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-colors"
+                  disabled={isSavingProfile}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
+                >
+                  {isSavingProfile ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : "Enregistrer"}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* WELCOME POPUP MODAL */}
+      {showWelcomeModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-[white/10] rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col items-center text-center">
+            
+            <div className="w-16 h-16 rounded-full bg-[#00FF9C]/10 flex items-center justify-center mb-5 shrink-0 border-4 border-slate-900 shadow-[0_0_20px_rgba(0,255,156,0.1)]">
+              <span className="text-2xl animate-bounce">🚀</span>
+            </div>
+
+            <h3 className="text-xl font-bold font-sans text-white mb-2 tracking-tight">Bienvenue sur TradeVault !</h3>
+            
+            <p className="text-xs text-slate-400 font-mono mb-6 leading-relaxed px-2">
+              Votre accès est correctement configuré. Préparez-vous à tracker vos trades, analyser vos setups et gérer votre capital Propfirm de manière organisée.
+            </p>
+
+            <button
+              onClick={() => setShowWelcomeModal(false)}
+              className="w-full py-3 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-black transition-all shadow-lg hover:shadow-[#00FF9C]/10 active:scale-[0.98]"
+            >
+              🚀 Let's Go
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM DIALOG MODAL (REPLACING native window.alert/window.confirm) */}
+      {dialogState.isOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#080808] border border-[#00FF9C]/20 rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col space-y-4 shadow-2xl">
+            
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <span className="text-xl">
+                {dialogState.isConfirm ? '❓' : '🚨'}
+              </span>
+              <h3 className="text-sm font-black font-sans text-[#00FF9C] uppercase tracking-wider">
+                {dialogState.title}
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-300 font-mono leading-relaxed whitespace-pre-line py-2">
+              {dialogState.message}
+            </p>
+
+            <div className="flex gap-2.5 pt-2">
+              {dialogState.isConfirm ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dialogState.onCancel) dialogState.onCancel();
+                      setDialogState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-all hover:text-white"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dialogState.onConfirm) dialogState.onConfirm();
+                      setDialogState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-[#00FF9C]/10 active:scale-[0.98]"
+                  >
+                    Confirmer
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDialogState(prev => ({ ...prev, isOpen: false }))}
+                  className="w-full py-2.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold transition-all text-center shadow-md hover:shadow-[#00FF9C]/10 active:scale-[0.98]"
+                >
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Render PREMIUM trailing custom cursor, interactive 3D card tilts, scroll reveals and count stats */}
+      <CustomEffects />
+
+      </div>
+    </ErrorBoundary>
+  );
+}

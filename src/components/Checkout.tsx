@@ -106,28 +106,21 @@ export default function Checkout({
         }
       }
 
-      // 2. Update status and profiles
-      const { supabase } = await import('../lib/supabase');
+      // 2. Register payment request & update progress securely via backend proxy (avoids direct client-side writes to tables user/profiles)
       try {
-        // Sync users
-        await supabase.from('users').update({ status: 'pending', avatar_url: user.avatar_url || null }).eq('id', user.id);
-        // Sync profiles as requested
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          full_name: user.username,
-          email: user.email,
-          status: 'pending',
-          payment_proof: publicUrl,
-          created_at: new Date().toISOString()
-        });
-      } catch (dbErr) {
-        console.warn("Database sync error (ignored):", dbErr);
-      }
-
-      try {
-        await registerPayment(user.id, subscriptionPrice, publicUrl);
+        const success = await registerPayment(user.id, subscriptionPrice, publicUrl);
+        if (!success) {
+          console.warn("Backend payment registration returned false, striving with client-side fallback...");
+          const { supabase: fallbackSupabase } = await import('../lib/supabase');
+          await fallbackSupabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            status: 'pending',
+            payment_proof: publicUrl
+          });
+        }
       } catch (e) {
-        console.warn("Payment registration failed:", e);
+        console.warn("Centralized payment registration failed:", e);
       }
 
       // 3. Trigger edge functions email

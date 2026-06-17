@@ -144,9 +144,9 @@ export async function signUpWithSupabase(
       throw new Error("Erreur lors de la récupération de l'identifiant utilisateur.");
     }
 
-    // 2. Insert profile
-    const { error: profileError } = await supabase
-      .from('profiles')
+    // 2. Insert user into public.users
+    const { error: userError } = await supabase
+      .from('users')
       .upsert({
         id: userId,
         email,
@@ -155,24 +155,41 @@ export async function signUpWithSupabase(
         avatar_url: regAvatar || null,
         status: 'pending',
         paid: false,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        payment_screenshot: paymentScreenshot
       });
 
-    if (profileError) {
-      console.warn("Profil update warning in signup:", profileError);
+    if (userError) {
+      console.warn("User update warning in signup:", userError);
     }
 
-    // 3. Store payment
+    // Double sync into public.profiles for backward compatibility
+    try {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email,
+          full_name: regUsername.trim(),
+          status: 'pending',
+          payment_proof: paymentScreenshot,
+          created_at: new Date().toISOString()
+        });
+    } catch (profErr) {
+      console.warn("Profiles table double sync ignored:", profErr);
+    }
+
+    // 3. Store payment into public.payments
     const { error: paymentError } = await supabase
-      .from('payment_requests')
+      .from('payments')
       .insert({
         id: generateUUID(),
         user_id: userId,
         amount: subscriptionPrice,
-        payment_proof: paymentScreenshot,
+        proof_file_url: paymentScreenshot,
         network: selectedNetwork,
-        crypto: selectedNetwork,
-        status: 'pending'
+        status: 'pending',
+        payment_date: new Date().toISOString()
       });
 
     if (paymentError) {
@@ -244,14 +261,49 @@ export async function signInWithSupabase(
       throw new Error("Authentification réussie mais identifiant introuvable.");
     }
 
-    // 2. Fetch public user profile record
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    // 2. Fetch public user profile record primarily from public.users
+    let profile: any = null;
+    let profileError: any = null;
+    try {
+      const { data: uData, error: uError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (!uError && uData) {
+        profile = uData;
+      } else {
+        profileError = uError;
+      }
+    } catch (e) {
+      profileError = e;
+    }
 
-    if (profileError) {
+    if (!profile) {
+      // Fallback to legacy profiles table
+      try {
+        const { data: pData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        if (pData) {
+          profile = {
+            id: pData.id,
+            email: pData.email,
+            username: pData.full_name || pData.email?.split('@')[0] || 'Trader',
+            status: pData.status,
+            country: 'FR',
+            paid: false,
+            created_at: pData.created_at
+          };
+        }
+      } catch (fallbackErr) {
+        console.warn("Legacy profiles fallback query issue:", fallbackErr);
+      }
+    }
+
+    if (profileError && !profile) {
       console.error("Error loaded profile from public.users:", profileError);
     }
 
@@ -287,11 +339,47 @@ export async function fetchUserProfile(userId: string): Promise<User | null> {
   try {
     const isOnline = await checkSupabaseConnection();
     if (!isOnline) return null;
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', ensureUUID(userId))
-      .maybeSingle();
+    let profile: any = null;
+    let error: any = null;
+    try {
+      const { data: uData, error: uError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', ensureUUID(userId))
+        .maybeSingle();
+      if (!uError && uData) {
+        profile = uData;
+      } else {
+        error = uError;
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    if (!profile) {
+      try {
+        const { data: pData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', ensureUUID(userId))
+          .maybeSingle();
+        if (pData) {
+          profile = {
+            id: pData.id,
+            email: pData.email,
+            username: pData.full_name || pData.email?.split('@')[0] || 'Trader',
+            status: pData.status,
+            country: 'FR',
+            paid: false,
+            created_at: pData.created_at
+          };
+          error = null;
+        }
+      } catch (fallbackErr) {
+        console.warn("Legacy profiles fallback query issue in fetchUserProfile:", fallbackErr);
+      }
+    }
+
     if (error || !profile) return null;
 
     return {
@@ -446,8 +534,9 @@ export async function saveAdminSettings(settings: AdminSettings): Promise<void> 
  * Sync user profile to DB (e.g. state changes)
  */
 export async function syncUserProfile(user: User): Promise<void> {
-  const profile: any = {
-    id: ensureUUID(user.id),
+  const uId = ensureUUID(user.id);
+  const userRow = {
+    id: uId,
     email: user.email,
     username: user.username,
     country: user.country,
@@ -455,11 +544,15 @@ export async function syncUserProfile(user: User): Promise<void> {
     paid: user.paid,
     paid_until: user.paid_until,
     avatar_url: user.avatar_url || null,
-    // Add support for modern schema columns
-    wallet_trc20: (user as any).wallet_trc20 || null,
-    wallet_bep20: (user as any).wallet_bep20 || null,
-    subscription_price: (user as any).subscription_price || null,
-    subscription_duration_days: (user as any).subscription_period || null
+  };
+
+  const profileRow = {
+    id: uId,
+    email: user.email,
+    full_name: user.username,
+    status: user.status,
+    payment_proof: user.payment_proof || null,
+    created_at: user.created_at || new Date().toISOString()
   };
 
   try {
@@ -469,30 +562,22 @@ export async function syncUserProfile(user: User): Promise<void> {
       return;
     }
 
-    const { error } = await supabase.from('profiles').upsert(profile);
-    
-    if (error) {
-      // Fallback if custom columns don't exist yet
-      if (error.code === '42703' || error.message.includes('column')) {
-        const legacyProfile = {
-          id: ensureUUID(user.id),
-          email: user.email,
-          username: user.username,
-          country: user.country,
-          status: user.status,
-          paid: user.paid,
-          paid_until: user.paid_until,
-          avatar_url: user.avatar_url || null
-        };
-        await supabase.from('profiles').upsert(legacyProfile);
-      } else {
-        throw error;
-      }
+    // 1. Sync public.users primarily
+    const { error: userError } = await supabase.from('users').upsert(userRow);
+    if (userError) {
+      console.warn("syncUserProfile users upsert error:", userError);
+    }
+
+    // 2. Sync public.profiles for compatibility
+    try {
+      await supabase.from('profiles').upsert(profileRow);
+    } catch (e) {
+      console.warn("Profiles table double sync ignored:", e);
     }
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] syncUserProfile failed, routing to proxy:", err);
     try {
-      await invokeProxy("syncUserProfile", { profile });
+      await invokeProxy("syncUserProfile", { profile: { ...userRow, payment_proof: user.payment_proof } });
     } catch (proxyErr) {
       console.error("Proxy syncUserProfile failed:", proxyErr);
     }
@@ -503,18 +588,42 @@ export async function syncUserProfile(user: User): Promise<void> {
  * Patch a specific set of fields for a user profile
  */
 export async function patchUserProfile(userId: string, updates: Partial<User>): Promise<void> {
+  const safeId = ensureUUID(userId);
   try {
     const isOnline = await checkSupabaseConnection();
     if (!isOnline) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', ensureUUID(userId));
+    // 1. Prepare userRow update
+    const userUpdates: any = {};
+    if ('email' in updates) userUpdates.email = updates.email;
+    if ('username' in updates) userUpdates.username = updates.username;
+    if ('country' in updates) userUpdates.country = updates.country;
+    if ('status' in updates) userUpdates.status = updates.status;
+    if ('paid' in updates) userUpdates.paid = updates.paid;
+    if ('paid_until' in updates) userUpdates.paid_until = updates.paid_until;
+    if ('avatar_url' in updates) userUpdates.avatar_url = updates.avatar_url;
+    if ('payment_proof' in updates) userUpdates.payment_screenshot = updates.payment_proof;
 
-    if (error) {
-       console.warn("patchUserProfile DB error:", error);
-       throw error;
+    if (Object.keys(userUpdates).length > 0) {
+      const { error: userErr } = await supabase.from('users').update(userUpdates).eq('id', safeId);
+      if (userErr) {
+        console.warn("patchUserProfile users update error:", userErr);
+      }
+    }
+
+    // 2. Prepare profileRow update
+    const profileUpdates: any = {};
+    if ('email' in updates) profileUpdates.email = updates.email;
+    if ('username' in updates) profileUpdates.full_name = updates.username;
+    if ('status' in updates) profileUpdates.status = updates.status;
+    if ('payment_proof' in updates) profileUpdates.payment_proof = updates.payment_proof;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      try {
+        await supabase.from('profiles').update(profileUpdates).eq('id', safeId);
+      } catch (e) {
+        console.warn("Profiles double patch ignored:", e);
+      }
     }
   } catch (err) {
     console.warn("patchUserProfile failed, routing to proxy...", err);
@@ -543,10 +652,10 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
 
   try {
     try {
-      const { data: aData } = await supabase.from('trading_accounts').select('*').eq('user_id', safeUserId);
+      const { data: aData } = await supabase.from('accounts').select('*').eq('user_id', safeUserId);
       const { data: tData } = await supabase.from('trades').select('*').eq('user_id', safeUserId);
       const { data: cData } = await supabase.from('challenges').select('*').eq('user_id', safeUserId);
-      const { data: pData } = await supabase.from('payment_requests').select('*').eq('user_id', safeUserId);
+      const { data: pData } = await supabase.from('payments').select('*').eq('user_id', safeUserId);
 
       accountsRaw = aData || [];
       tradesRaw = tData || [];
@@ -573,7 +682,7 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       id: a.id,
       user_id: a.user_id || safeUserId,
       name: a.name,
-      account_type: a.account_type as 'personal' | 'prop_firm' | 'demo',
+      account_type: (a.account_type || (a.type === 'propfirm' ? 'prop_firm' : a.type)) as 'personal' | 'prop_firm' | 'demo',
       capital: a.capital ? Number(a.capital) : undefined,
       target: a.target ? Number(a.target) : undefined,
       daily_loss: a.daily_loss ? Number(a.daily_loss) : undefined,
@@ -653,9 +762,9 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       email: '',
       amount: p.amount ? Number(p.amount) : 30,
       network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-      payment_proof: p.payment_proof || '',
+      payment_proof: p.proof_file_url || p.payment_proof || '',
       status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-      created_at: p.created_at || new Date().toISOString()
+      created_at: p.payment_date || p.created_at || new Date().toISOString()
     }));
 
     return { accounts, trades, challenges, paymentRequests };
@@ -695,6 +804,7 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
     id: safeId,
     user_id: safeUserId,
     name: account.name,
+    type: account.account_type === 'prop_firm' ? 'propfirm' : account.account_type,
     account_type: account.account_type,
     capital: account.capital || null,
     target: account.target || null,
@@ -703,7 +813,7 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
   };
 
   try {
-    await supabase.from('trading_accounts').upsert(row);
+    await supabase.from('accounts').upsert(row);
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] saveAccountToSupabase client call failed. Routing through proxy...", err);
     try {
@@ -718,7 +828,7 @@ export async function deleteAccountFromSupabase(accountId: string): Promise<void
   const safeId = ensureUUID(accountId);
   const userId = getCurrentUserId();
   try {
-    await supabase.from('trading_accounts').delete().eq('id', safeId);
+    await supabase.from('accounts').delete().eq('id', safeId);
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] deleteAccountFromSupabase client call failed. Routing through proxy...", err);
     try {
@@ -826,31 +936,41 @@ export async function savePaymentToSupabase(userId: string, payment: PaymentRequ
   };
 
   try {
-    await supabase.from('payment_requests').update(row).eq('id', safeId);
+    await supabase.from('payments').update(row).eq('id', safeId);
   } catch (err: any) {
     console.error("savePaymentToSupabase update error:", err);
   }
 }
 
 export async function registerPayment(userId: string, amount: number, proofUrl: string): Promise<boolean> {
+  const safeId = ensureUUID(userId);
   try {
-    const { error } = await supabase
-      .from('payment_requests')
-      .insert([{
-        user_id: ensureUUID(userId),
-        amount: amount,
-        payment_proof: proofUrl,
-        status: 'pending'
-      }]);
+    const res = await invokeProxy("registerPayment", { userId: safeId, amount, proofUrl });
+    return !!(res && res.success);
+  } catch (err: any) {
+    console.warn("[CLIENT_ROUTING] registerPayment client call failed. Routing through proxy...", err);
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .insert([{
+          id: generateUUID(),
+          user_id: safeId,
+          amount: amount,
+          proof_file_url: proofUrl,
+          network: 'TRC20',
+          status: 'pending',
+          payment_date: new Date().toISOString()
+        }]);
 
-    if (error) {
-      console.error("Erreur paiement :", error.message);
+      if (error) {
+        console.error("Erreur paiement client insert failed :", error.message);
+        return false;
+      }
+      return true;
+    } catch (fallbackErr) {
+      console.error("registerPayment direct DB insert failed:", fallbackErr);
       return false;
     }
-    return true;
-  } catch (err) {
-    console.error("Erreur paiement exception :", err);
-    return false;
   }
 }
 
@@ -862,7 +982,7 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
     let data: any[] = [];
     try {
       const { data: directData, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -892,6 +1012,7 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
       paid_until: p.paid_until || null,
       status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
       avatar_url: p.avatar_url || undefined,
+      payment_proof: p.payment_screenshot || p.payment_proof || undefined,
       created_at: p.created_at || new Date().toISOString()
     }));
   } catch (err) {
@@ -908,12 +1029,13 @@ export async function adminDeleteUserFromSupabase(userId: string): Promise<boole
   try {
     try {
       // Manually cascade deletes
-      await supabase.from('payment_requests').delete().eq('user_id', safeId);
+      await supabase.from('payments').delete().eq('user_id', safeId);
       await supabase.from('trades').delete().eq('user_id', safeId);
       await supabase.from('challenges').delete().eq('user_id', safeId);
-      await supabase.from('trading_accounts').delete().eq('user_id', safeId);
+      await supabase.from('accounts').delete().eq('user_id', safeId);
 
-      const { error } = await supabase.from('profiles').delete().eq('id', safeId);
+      await supabase.from('profiles').delete().eq('id', safeId);
+      const { error } = await supabase.from('users').delete().eq('id', safeId);
       if (error) throw error;
     } catch (clientErr: any) {
       console.warn("[CLIENT_ROUTING] adminDeleteUserFromSupabase client call failed. Routing through proxy...", clientErr);
@@ -947,8 +1069,18 @@ export async function adminUpdateUserFromSupabase(
   };
   try {
     try {
-      const { error } = await supabase.from('profiles').update(row).eq('id', safeId);
+      const { error } = await supabase.from('users').update(row).eq('id', safeId);
       if (error) throw error;
+
+      try {
+        await supabase.from('profiles').update({
+          full_name: updatedFields.username,
+          email: updatedFields.email,
+          status: updatedFields.status
+        }).eq('id', safeId);
+      } catch (profErr) {
+        console.warn("Profiles secondary update ignored:", profErr);
+      }
     } catch (clientErr: any) {
       console.warn("[CLIENT_ROUTING] adminUpdateUserFromSupabase client call failed. Routing through proxy...", clientErr);
       try {
@@ -974,15 +1106,15 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
     let payments: any[] = [];
     try {
       const { data: directData, error } = await supabase
-        .from('payment_requests')
+        .from('payments')
         .select(`
           *,
-          profiles!user_id (
+          users (
             email,
             username
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('payment_date', { ascending: false });
 
       if (error) {
         throw error;
@@ -1002,7 +1134,7 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
     }
 
     return (payments || []).map(p => {
-      const u = p.profiles || {};
+      const u = p.users || {};
       return {
         id: p.id,
         user_id: p.user_id,
@@ -1010,9 +1142,9 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
         email: u.email || 'trader@example.com',
         amount: p.amount ? Number(p.amount) : 30,
         network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-        payment_proof: p.payment_proof || '',
+        payment_proof: p.proof_file_url || p.payment_proof || '',
         status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-        created_at: p.created_at || new Date().toISOString()
+        created_at: p.payment_date || p.created_at || new Date().toISOString()
       };
     });
   } catch (err) {
