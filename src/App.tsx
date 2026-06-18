@@ -400,6 +400,12 @@ function JournalLoaderSkeleton() {
 }
 
 
+function canAccessApp(user: User | null): boolean {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  return user.status === 'approved' && user.subscription_status === 'premium_active';
+}
+
 export default function App() {
   const { lang, toggleLang, t, theme, toggleTheme } = useThemeLang();
   // Load initial persistent lists or fallback to seeded mock data
@@ -618,8 +624,7 @@ export default function App() {
     const userSaved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (!userSaved) return 'login_portal';
     const user: User = JSON.parse(userSaved);
-    const isAdmin = isUserAdmin(user.email, user.username);
-    return (user.paid && user.status === 'approved') || isAdmin ? 'app' : 'checkout';
+    return canAccessApp(user) ? 'app' : 'checkout';
   });
 
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
@@ -899,8 +904,7 @@ export default function App() {
                   setCurrentUser(activeUserToLog);
                   
                   // Navigate screen
-                  const canAccessApp = activeUserToLog.paid && activeUserToLog.status === 'approved';
-                  setCurrentScreen(canAccessApp ? 'app' : 'checkout');
+                  setCurrentScreen(canAccessApp(activeUserToLog) ? 'app' : 'checkout');
                   
                   (window as any).showCustomAlert?.('Succès', 'Connexion Google réussie !');
                 }
@@ -923,8 +927,7 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
-      setCurrentScreen((currentUser.paid && currentUser.status === 'approved') || isAdmin ? 'app' : 'checkout');
+      setCurrentScreen(canAccessApp(currentUser) ? 'app' : 'checkout');
     }
   }, [currentUser]);
 
@@ -938,12 +941,14 @@ export default function App() {
       import('./utils/supabaseSync').then(({ fetchUserProfile }) => {
         fetchUserProfile(currentUser.id)
           .then(updatedProfile => {
-            if (updatedProfile && updatedProfile.status === 'approved' && updatedProfile.paid) {
+            if (updatedProfile && updatedProfile.status === 'approved' && updatedProfile.subscription_status === 'premium_active') {
               setCurrentUser(prev => prev ? { 
                 ...prev, 
                 paid: true, 
-                status: 'approved', 
-                paid_until: updatedProfile.paid_until 
+                status: 'approved',
+                subscription_status: 'premium_active',
+                premium_expires_at: updatedProfile.premium_expires_at,
+                paid_until: updatedProfile.premium_expires_at 
               } : null);
               setCurrentScreen('app');
               (window as any).showCustomAlert?.("Accès Premium Activé ! 🎉", "Félicitations ! Votre compte TradeVault Premium a été approuvé et validé par l'administrateur. Bienvenue sur votre plateforme !");
@@ -1162,10 +1167,9 @@ export default function App() {
   // Session handler actions
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    const isAdmin = isUserAdmin(user.email, user.username);
-    if ((user.paid && user.status === 'approved') || isAdmin) {
+    if (canAccessApp(user)) {
       setCurrentScreen('app');
-      if (isAdmin) {
+      if (user.role === 'admin') {
         setActiveTab('admin');
       } else {
         setActiveTab('dashboard');

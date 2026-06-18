@@ -4,11 +4,15 @@ export interface Profile {
   email: string;
   password?: string; // local only
   country: string;
-  paid: boolean;
-  paid_until: string | null;
+  paid?: boolean; // DEPRECATED - use subscription_status
+  paid_until?: string | null; // DEPRECATED - use premium_expires_at
   created_at: string;
   payment_proof?: string; 
   status: 'pending' | 'approved' | 'rejected';
+  role: 'admin' | 'user';
+  subscription_status: 'pending' | 'premium_active' | 'blocked';
+  plan: 'free' | 'pro';
+  premium_expires_at: string | null;
   avatar_url?: string; 
   google_linked?: boolean;
   google_email?: string;

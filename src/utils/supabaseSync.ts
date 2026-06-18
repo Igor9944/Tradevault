@@ -49,8 +49,6 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     return false;
   } catch (err) {
     isSupabaseOnline = false;
-    // Silently log the connection failure instead of allowing it to crash the app
-    console.warn("[Supabase] Connection pre-flight failed (silently):", err);
     return false;
   }
 }
@@ -263,60 +261,54 @@ export async function signInWithSupabase(
       throw new Error("Authentification réussie mais identifiant introuvable.");
     }
 
-    // 2. Fetch public user profile record primarily from public.users
+    // 2. Fetch public user profile record primarily from public.profiles
     let profile: any = null;
     let profileError: any = null;
     try {
-      const { data: uData, error: uError } = await supabase
-        .from('users')
-        .select('*')
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id, 
+          email, 
+          full_name, 
+          username, 
+          role, 
+          status, 
+          subscription_status, 
+          plan, 
+          premium_expires_at, 
+          avatar_url, 
+          country, 
+          created_at
+        `)
         .eq('id', userId)
         .maybeSingle();
-      if (!uError && uData) {
-        profile = uData;
+      
+      if (!error && data) {
+        profile = data;
       } else {
-        profileError = uError;
+        profileError = error;
       }
     } catch (e) {
       profileError = e;
     }
 
-    if (!profile) {
-      // Fallback to legacy profiles table
-      try {
-        const { data: pData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle();
-        if (pData) {
-          profile = {
-            id: pData.id,
-            email: pData.email,
-            username: pData.full_name || pData.email?.split('@')[0] || 'Trader',
-            status: pData.status,
-            country: 'FR',
-            paid: false,
-            created_at: pData.created_at
-          };
-        }
-      } catch (fallbackErr) {
-        console.warn("Legacy profiles fallback query issue:", fallbackErr);
-      }
-    }
-
     if (profileError && !profile) {
-      console.error("Error loaded profile from public.users:", profileError);
+      console.error("Error loaded profile from public.profiles:", profileError);
     }
 
     const user: User = {
       id: userId,
-      username: profile?.username || authData.user.email?.split('@')[0] || 'Trader',
+      username: profile?.username || profile?.full_name || authData.user.email?.split('@')[0] || 'Trader',
       email: authData.user.email || email,
       country: profile?.country || 'FR',
-      paid: profile?.paid ?? false,
-      paid_until: profile?.paid_until || null,
-      status: profile?.status || 'approved', // fallback default
+      paid: profile?.subscription_status === 'premium_active', // legacy field mapped for compatibility
+      paid_until: profile?.premium_expires_at || null, // legacy field mapped
+      status: (profile?.status || 'pending') as 'approved' | 'pending' | 'rejected',
+      role: (profile?.role || 'user') as 'admin' | 'user',
+      subscription_status: (profile?.subscription_status || 'pending') as 'pending' | 'premium_active' | 'blocked',
+      plan: (profile?.plan || 'free') as 'free' | 'pro',
+      premium_expires_at: profile?.premium_expires_at || null,
       avatar_url: profile?.avatar_url || undefined,
       created_at: profile?.created_at || new Date().toISOString()
     };
@@ -344,13 +336,26 @@ export async function fetchUserProfile(userId: string): Promise<User | null> {
     let profile: any = null;
     let error: any = null;
     try {
-      const { data: uData, error: uError } = await supabase
-        .from('users')
-        .select('*')
+      const { data, error: uError } = await supabase
+        .from('profiles')
+        .select(`
+          id, 
+          email, 
+          full_name, 
+          username, 
+          role, 
+          status, 
+          subscription_status, 
+          plan, 
+          premium_expires_at, 
+          avatar_url, 
+          country, 
+          created_at
+        `)
         .eq('id', ensureUUID(userId))
         .maybeSingle();
-      if (!uError && uData) {
-        profile = uData;
+      if (!uError && data) {
+        profile = data;
       } else {
         error = uError;
       }
@@ -358,41 +363,21 @@ export async function fetchUserProfile(userId: string): Promise<User | null> {
       error = e;
     }
 
-    if (!profile) {
-      try {
-        const { data: pData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', ensureUUID(userId))
-          .maybeSingle();
-        if (pData) {
-          profile = {
-            id: pData.id,
-            email: pData.email,
-            username: pData.full_name || pData.email?.split('@')[0] || 'Trader',
-            status: pData.status,
-            country: 'FR',
-            paid: false,
-            created_at: pData.created_at
-          };
-          error = null;
-        }
-      } catch (fallbackErr) {
-        console.warn("Legacy profiles fallback query issue in fetchUserProfile:", fallbackErr);
-      }
-    }
-
     if (error || !profile) return null;
 
     return {
       id: userId,
-      username: profile.username || 'Trader',
+      username: profile.username || profile.full_name || 'Trader',
       email: profile.email || '',
       country: profile.country || 'FR',
-      paid: profile.paid ?? false,
-      paid_until: profile.paid_until || null,
+      paid: profile.subscription_status === 'premium_active',
+      paid_until: profile.premium_expires_at || null,
       created_at: profile.created_at || new Date().toISOString(),
-      status: profile.status || 'approved',
+      status: (profile.status || 'pending') as 'approved' | 'pending' | 'rejected',
+      role: (profile.role || 'user') as 'admin' | 'user',
+      subscription_status: (profile.subscription_status || 'pending') as 'pending' | 'premium_active' | 'blocked',
+      plan: (profile.plan || 'free') as 'free' | 'pro',
+      premium_expires_at: profile.premium_expires_at || null,
       avatar_url: profile.avatar_url || null,
       currency: profile.currency || 'USD'
     };
@@ -1242,12 +1227,16 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
     if (profile) {
       user = {
         id: userId,
-        username: profile.username || authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
+        username: profile.username || profile.full_name || authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
         email: userEmail || profile.email,
         country: profile.country || 'FR',
-        paid: profile.paid ?? false,
-        paid_until: profile.paid_until || null,
-        status: (profile.status || 'approved') as 'approved' | 'pending' | 'rejected',
+        paid: profile.subscription_status === 'premium_active',
+        paid_until: profile.premium_expires_at || null,
+        status: (profile.status || 'pending') as 'approved' | 'pending' | 'rejected',
+        role: (profile.role || 'user') as 'admin' | 'user',
+        subscription_status: (profile.subscription_status || 'pending') as 'pending' | 'premium_active' | 'blocked',
+        plan: (profile.plan || 'free') as 'free' | 'pro',
+        premium_expires_at: profile.premium_expires_at || null,
         avatar_url: profile.avatar_url || authUser.user_metadata?.avatar_url || undefined,
         created_at: profile.created_at || new Date().toISOString()
       };
@@ -1259,29 +1248,19 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
         id: ensureUUID(userId),
         email: userEmail,
         username: authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
+        full_name: authUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Trader',
         country: 'FR',
         status: 'pending',
-        paid: false,
-        paid_until: null,
+        role: 'user',
+        subscription_status: 'pending',
+        plan: 'free',
+        premium_expires_at: null,
         avatar_url: authUser.user_metadata?.avatar_url || null,
         created_at: new Date().toISOString()
       };
 
       try {
         await supabase.from('profiles').upsert(newProfile);
-        try {
-          // Double sync into 'profiles' table for compatibility as described in the DB guidelines
-          await supabase.from('profiles').upsert({
-            id: ensureUUID(userId),
-            full_name: newProfile.username,
-            email: userEmail,
-            status: 'pending',
-            payment_proof: null,
-            created_at: newProfile.created_at
-          });
-        } catch (profilesErr) {
-          console.warn("Profiles table double sync ignored:", profilesErr);
-        }
       } catch (insertErr) {
         console.warn("Client-side insert failed, routing through proxy:", insertErr);
         await invokeProxy("syncUserProfile", { profile: newProfile });
@@ -1292,10 +1271,14 @@ export async function handleSupabaseSession(session: any): Promise<{ success: bo
         username: newProfile.username,
         email: newProfile.email,
         country: newProfile.country,
-        paid: newProfile.paid,
-        paid_until: newProfile.paid_until,
-        status: newProfile.status as 'approved' | 'pending' | 'rejected',
-        avatar_url: newProfile.avatar_url || undefined,
+        paid: false,
+        paid_until: null,
+        status: 'pending',
+        role: 'user',
+        subscription_status: 'pending',
+        plan: 'free',
+        premium_expires_at: null,
+        avatar_url: newProfile.avatar_url || authUser.user_metadata?.avatar_url || undefined,
         created_at: newProfile.created_at
       };
     }
