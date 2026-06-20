@@ -534,7 +534,11 @@ export default function Portal({
         paid: true,
         paid_until: null,
         created_at: new Date().toISOString(),
-        status: 'approved'
+        status: 'approved',
+        role: 'admin',
+        subscription_status: 'premium_active',
+        plan: 'pro',
+        premium_expires_at: null
       };
       onLoginSuccess(adminAcc);
       displayToast('Connexion Admin réussie !', 'success');
@@ -644,9 +648,13 @@ export default function Portal({
           paid: false,
           paid_until: null,
           created_at: new Date().toISOString(),
-          payment_proof: payment_proof,
+          payment_proof: payment_proof || undefined,
           status: 'pending',
-          avatar_url: regAvatar || undefined
+          avatar_url: regAvatar || undefined,
+          role: 'user',
+          subscription_status: 'pending',
+          plan: 'free',
+          premium_expires_at: null
         };
         onRegisterPending(localUser);
       }

@@ -18,6 +18,10 @@ export const DEFAULT_USERS: User[] = [
     paid: true,
     paid_until: '2026-12-31T23:59:59.000Z',
     created_at: '2026-05-18T00:00:00.000Z',
-    status: 'approved'
+    status: 'approved',
+    role: 'admin',
+    subscription_status: 'premium_active',
+    plan: 'pro',
+    premium_expires_at: '2026-12-31T23:59:59.000Z'
   }
 ];

@@ -144,53 +144,44 @@ export async function signUpWithSupabase(
       throw new Error("Erreur lors de la récupération de l'identifiant utilisateur.");
     }
 
-    // 2. Insert user into public.users
-    const { error: userError } = await supabase
-      .from('users')
+    // 2. Insert profile into public.profiles
+    const { error: profileError } = await supabase
+      .from('profiles')
       .upsert({
         id: userId,
         email,
+        full_name: regUsername.trim(),
         username: regUsername.trim(),
         country: regCountry,
         avatar_url: regAvatar || null,
         status: 'pending',
-        paid: false,
-        created_at: new Date().toISOString(),
-        payment_screenshot: paymentScreenshot
+        subscription_status: 'pending',
+        plan: 'free',
+        payment_proof: paymentScreenshot,
+        created_at: new Date().toISOString()
       });
 
-    if (userError) {
-      console.warn("User update warning in signup:", userError);
+    if (profileError) {
+      console.warn("Profile setup warning in signup:", profileError);
     }
 
-    // Double sync into public.profiles for backward compatibility
-    try {
-      await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          email,
-          full_name: regUsername.trim(),
-          status: 'pending',
-          payment_proof: paymentScreenshot,
-          created_at: new Date().toISOString()
-        });
-    } catch (profErr) {
-      console.warn("Profiles table double sync ignored:", profErr);
-    }
-
-    // 3. Store payment into public.payments
+    // 3. Store payment request into public.payment_requests
     const { error: paymentError } = await supabase
-      .from('payments')
+      .from('payment_requests')
       .insert({
         id: generateUUID(),
         user_id: userId,
         amount: subscriptionPrice,
-        proof_file_url: paymentScreenshot,
+        screenshot_url: paymentScreenshot,
         network: selectedNetwork,
         status: 'pending',
-        payment_date: new Date().toISOString()
+        type: 'registration',
+        created_at: new Date().toISOString()
       });
+
+    if (paymentError) {
+      console.warn("Payment request warning in signup:", paymentError);
+    }
 
     if (paymentError) {
       console.warn("Payment log warning in signup:", paymentError);
@@ -206,7 +197,11 @@ export async function signUpWithSupabase(
       created_at: new Date().toISOString(),
       payment_proof: paymentScreenshot,
       status: 'pending',
-      avatar_url: regAvatar || undefined
+      avatar_url: regAvatar || undefined,
+      role: 'user',
+      subscription_status: 'pending',
+      plan: 'free',
+      premium_expires_at: null
     };
 
     return { success: true, user: newUser };
@@ -522,23 +517,17 @@ export async function saveAdminSettings(settings: AdminSettings): Promise<void> 
  */
 export async function syncUserProfile(user: User): Promise<void> {
   const uId = ensureUUID(user.id);
-  const userRow = {
-    id: uId,
-    email: user.email,
-    username: user.username,
-    country: user.country,
-    status: user.status,
-    paid: user.paid,
-    paid_until: user.paid_until,
-    avatar_url: user.avatar_url || null,
-  };
-
   const profileRow = {
     id: uId,
     email: user.email,
     full_name: user.username,
+    username: user.username,
     status: user.status,
+    subscription_status: user.subscription_status,
+    plan: user.plan,
+    premium_expires_at: user.premium_expires_at,
     payment_proof: user.payment_proof || null,
+    avatar_url: user.avatar_url || null,
     created_at: user.created_at || new Date().toISOString()
   };
 
@@ -549,22 +538,14 @@ export async function syncUserProfile(user: User): Promise<void> {
       return;
     }
 
-    // 1. Sync public.users primarily
-    const { error: userError } = await supabase.from('users').upsert(userRow);
-    if (userError) {
-      console.warn("syncUserProfile users upsert error:", userError);
-    }
-
-    // 2. Sync public.profiles for compatibility
-    try {
-      await supabase.from('profiles').upsert(profileRow);
-    } catch (e) {
-      console.warn("Profiles table double sync ignored:", e);
+    const { error } = await supabase.from('profiles').upsert(profileRow);
+    if (error) {
+      console.warn("syncUserProfile profiles upsert error:", error);
     }
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] syncUserProfile failed, routing to proxy:", err);
     try {
-      await invokeProxy("syncUserProfile", { profile: { ...userRow, payment_proof: user.payment_proof } });
+      await invokeProxy("syncUserProfile", { profile: profileRow });
     } catch (proxyErr) {
       console.error("Proxy syncUserProfile failed:", proxyErr);
     }
@@ -580,36 +561,23 @@ export async function patchUserProfile(userId: string, updates: Partial<User>): 
     const isOnline = await checkSupabaseConnection();
     if (!isOnline) return;
 
-    // 1. Prepare userRow update
-    const userUpdates: any = {};
-    if ('email' in updates) userUpdates.email = updates.email;
-    if ('username' in updates) userUpdates.username = updates.username;
-    if ('country' in updates) userUpdates.country = updates.country;
-    if ('status' in updates) userUpdates.status = updates.status;
-    if ('paid' in updates) userUpdates.paid = updates.paid;
-    if ('paid_until' in updates) userUpdates.paid_until = updates.paid_until;
-    if ('avatar_url' in updates) userUpdates.avatar_url = updates.avatar_url;
-    if ('payment_proof' in updates) userUpdates.payment_screenshot = updates.payment_proof;
-
-    if (Object.keys(userUpdates).length > 0) {
-      const { error: userErr } = await supabase.from('users').update(userUpdates).eq('id', safeId);
-      if (userErr) {
-        console.warn("patchUserProfile users update error:", userErr);
-      }
-    }
-
-    // 2. Prepare profileRow update
     const profileUpdates: any = {};
     if ('email' in updates) profileUpdates.email = updates.email;
-    if ('username' in updates) profileUpdates.full_name = updates.username;
+    if ('username' in updates) {
+      profileUpdates.username = updates.username;
+      profileUpdates.full_name = updates.username;
+    }
     if ('status' in updates) profileUpdates.status = updates.status;
+    if ('subscription_status' in updates) profileUpdates.subscription_status = updates.subscription_status;
+    if ('plan' in updates) profileUpdates.plan = updates.plan;
+    if ('premium_expires_at' in updates) profileUpdates.premium_expires_at = updates.premium_expires_at;
+    if ('avatar_url' in updates) profileUpdates.avatar_url = updates.avatar_url;
     if ('payment_proof' in updates) profileUpdates.payment_proof = updates.payment_proof;
 
     if (Object.keys(profileUpdates).length > 0) {
-      try {
-        await supabase.from('profiles').update(profileUpdates).eq('id', safeId);
-      } catch (e) {
-        console.warn("Profiles double patch ignored:", e);
+      const { error } = await supabase.from('profiles').update(profileUpdates).eq('id', safeId);
+      if (error) {
+        console.warn("patchUserProfile profiles update error:", error);
       }
     }
   } catch (err) {
@@ -639,10 +607,10 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
 
   try {
     try {
-      const { data: aData } = await supabase.from('accounts').select('*').eq('user_id', safeUserId);
+      const { data: aData } = await supabase.from('trading_accounts').select('*').eq('user_id', safeUserId);
       const { data: tData } = await supabase.from('trades').select('*').eq('user_id', safeUserId);
       const { data: cData } = await supabase.from('challenges').select('*').eq('user_id', safeUserId);
-      const { data: pData } = await supabase.from('payments').select('*').eq('user_id', safeUserId);
+      const { data: pData } = await supabase.from('payment_requests').select('*').eq('user_id', safeUserId);
 
       accountsRaw = aData || [];
       tradesRaw = tData || [];
@@ -651,7 +619,7 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
     } catch (clientErr: any) {
       console.warn("[CLIENT_ROUTING] Direct Supabase load failed. Routing to Server Proxy...", clientErr);
       try {
-        const res = await invokeProxy("loadUserData", { userId: safeUserId });
+        const res = await invokeProxy("loadUserData", { userId: safeUserId }); 
         if (res.success && res.data) {
           accountsRaw = res.data.accountsRaw || [];
           tradesRaw = res.data.tradesRaw || [];
@@ -700,14 +668,14 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       date: t.date,
       pair: t.pair,
       side: (t.direction || 'BUY') as 'BUY' | 'SELL',
-      entry: 0, 
-      exit: 0,
-      lots: 0.1,
-      fees: 0,
+      entry: t.entry ? Number(t.entry) : 0,
+      exit: t.exit ? Number(t.exit) : 0,
+      lots: t.lots ? Number(t.lots) : 0.01,
+      fees: t.fees ? Number(t.fees) : 0,
       pnl: t.pnl ? Number(t.pnl) : 0,
       setup: t.setup || '',
-      mindset: '',
-      notes: '',
+      mindset: t.mindset || '',
+      notes: t.notes || '',
       screenshot_url: t.screenshot_url || undefined,
       emotion: t.emotion,
       session: t.session,
@@ -745,13 +713,11 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
     const paymentRequests: PaymentRequest[] = (paymentsRaw || []).map(p => ({
       id: p.id,
       user_id: p.user_id,
-      username: '',
-      email: '',
       amount: p.amount ? Number(p.amount) : 30,
       network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-      payment_proof: p.proof_file_url || p.payment_proof || '',
+      payment_proof: p.screenshot_url || p.proof_file_url || p.payment_proof || '',
       status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-      created_at: p.payment_date || p.created_at || new Date().toISOString()
+      created_at: p.created_at || p.payment_date || new Date().toISOString()
     }));
 
     return { accounts, trades, challenges, paymentRequests };
@@ -791,7 +757,6 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
     id: safeId,
     user_id: safeUserId,
     name: account.name,
-    type: account.account_type === 'prop_firm' ? 'propfirm' : account.account_type,
     account_type: account.account_type,
     capital: account.capital || null,
     target: account.target || null,
@@ -800,7 +765,7 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
   };
 
   try {
-    await supabase.from('accounts').upsert(row);
+    await supabase.from('trading_accounts').upsert(row);
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] saveAccountToSupabase client call failed. Routing through proxy...", err);
     try {
@@ -815,7 +780,7 @@ export async function deleteAccountFromSupabase(accountId: string): Promise<void
   const safeId = ensureUUID(accountId);
   const userId = getCurrentUserId();
   try {
-    await supabase.from('accounts').delete().eq('id', safeId);
+    await supabase.from('trading_accounts').delete().eq('id', safeId);
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] deleteAccountFromSupabase client call failed. Routing through proxy...", err);
     try {
@@ -923,7 +888,7 @@ export async function savePaymentToSupabase(userId: string, payment: PaymentRequ
   };
 
   try {
-    await supabase.from('payments').update(row).eq('id', safeId);
+    await supabase.from('payment_requests').update(row).eq('id', safeId);
   } catch (err: any) {
     console.error("savePaymentToSupabase update error:", err);
   }
@@ -938,15 +903,16 @@ export async function registerPayment(userId: string, amount: number, proofUrl: 
     console.warn("[CLIENT_ROUTING] registerPayment client call failed. Routing through proxy...", err);
     try {
       const { error } = await supabase
-        .from('payments')
+        .from('payment_requests')
         .insert([{
           id: generateUUID(),
           user_id: safeId,
           amount: amount,
-          proof_file_url: proofUrl,
+          screenshot_url: proofUrl,
           network: 'TRC20',
           status: 'pending',
-          payment_date: new Date().toISOString()
+          type: 'registration',
+          created_at: new Date().toISOString()
         }]);
 
       if (error) {
@@ -969,7 +935,7 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
     let data: any[] = [];
     try {
       const { data: directData, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -995,11 +961,15 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
       username: p.username || p.full_name || 'Trader',
       email: p.email,
       country: p.country || 'FR',
-      paid: p.paid || false,
-      paid_until: p.paid_until || null,
+      paid: p.subscription_status === 'premium_active',
+      paid_until: p.premium_expires_at || null,
       status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
+      role: (p.role || 'user') as 'admin' | 'user',
+      subscription_status: (p.subscription_status || 'pending') as 'pending' | 'premium_active' | 'blocked',
+      plan: (p.plan || 'free') as 'free' | 'pro',
+      premium_expires_at: p.premium_expires_at || null,
       avatar_url: p.avatar_url || undefined,
-      payment_proof: p.payment_screenshot || p.payment_proof || undefined,
+      payment_proof: p.payment_proof || undefined,
       created_at: p.created_at || new Date().toISOString()
     }));
   } catch (err) {
@@ -1008,21 +978,17 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
   }
 }
 
-/**
- * Admin action to delete a user profile
- */
 export async function adminDeleteUserFromSupabase(userId: string): Promise<boolean> {
   const safeId = ensureUUID(userId);
   try {
     try {
       // Manually cascade deletes
-      await supabase.from('payments').delete().eq('user_id', safeId);
+      await supabase.from('payment_requests').delete().eq('user_id', safeId);
       await supabase.from('trades').delete().eq('user_id', safeId);
       await supabase.from('challenges').delete().eq('user_id', safeId);
-      await supabase.from('accounts').delete().eq('user_id', safeId);
+      await supabase.from('trading_accounts').delete().eq('user_id', safeId);
 
-      await supabase.from('profiles').delete().eq('id', safeId);
-      const { error } = await supabase.from('users').delete().eq('id', safeId);
+      const { error } = await supabase.from('profiles').delete().eq('id', safeId);
       if (error) throw error;
     } catch (clientErr: any) {
       console.warn("[CLIENT_ROUTING] adminDeleteUserFromSupabase client call failed. Routing through proxy...", clientErr);
@@ -1041,9 +1007,6 @@ export async function adminDeleteUserFromSupabase(userId: string): Promise<boole
   }
 }
 
-/**
- * Admin action to update a user profile
- */
 export async function adminUpdateUserFromSupabase(
   userId: string, 
   updatedFields: { username: string; email: string; status: 'pending' | 'approved' | 'rejected' }
@@ -1051,23 +1014,14 @@ export async function adminUpdateUserFromSupabase(
   const safeId = ensureUUID(userId);
   const row = {
     username: updatedFields.username,
+    full_name: updatedFields.username,
     email: updatedFields.email,
     status: updatedFields.status
   };
   try {
     try {
-      const { error } = await supabase.from('users').update(row).eq('id', safeId);
+      const { error } = await supabase.from('profiles').update(row).eq('id', safeId);
       if (error) throw error;
-
-      try {
-        await supabase.from('profiles').update({
-          full_name: updatedFields.username,
-          email: updatedFields.email,
-          status: updatedFields.status
-        }).eq('id', safeId);
-      } catch (profErr) {
-        console.warn("Profiles secondary update ignored:", profErr);
-      }
     } catch (clientErr: any) {
       console.warn("[CLIENT_ROUTING] adminUpdateUserFromSupabase client call failed. Routing through proxy...", clientErr);
       try {
@@ -1093,15 +1047,16 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
     let payments: any[] = [];
     try {
       const { data: directData, error } = await supabase
-        .from('payments')
+        .from('payment_requests')
         .select(`
           *,
-          users (
+          profiles (
             email,
-            username
+            username,
+            full_name
           )
         `)
-        .order('payment_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
         throw error;

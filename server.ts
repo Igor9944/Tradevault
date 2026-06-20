@@ -875,10 +875,10 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "loadUserData": {
         const { userId } = args;
-        const { data: accountsRaw, error: errA } = await serverSupabase.from('accounts').select('*').eq('user_id', userId);
+        const { data: accountsRaw, error: errA } = await serverSupabase.from('trading_accounts').select('*').eq('user_id', userId);
         const { data: tradesRaw, error: errT } = await serverSupabase.from('trades').select('*').eq('user_id', userId);
         const { data: challengesRaw, error: errC } = await serverSupabase.from('challenges').select('*').eq('user_id', userId);
-        const { data: paymentsRaw, error: errP } = await serverSupabase.from('payments').select('*').eq('user_id', userId);
+        const { data: paymentsRaw, error: errP } = await serverSupabase.from('payment_requests').select('*').eq('user_id', userId);
 
         if (errA || errT || errC || errP) {
           const errMsg = [errA, errT, errC, errP].filter(Boolean).map(e => e.message || String(e)).join(", ");
@@ -898,50 +898,35 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "syncUserProfile": {
         const { profile } = args;
-        const mappedUser = {
+        const mappedProfile = {
           id: profile.id,
           email: profile.email,
+          full_name: profile.username || profile.full_name,
           username: profile.username || profile.full_name,
-          country: profile.country,
           status: profile.status,
-          paid: profile.paid,
-          paid_until: profile.paid_until,
           avatar_url: profile.avatar_url,
-          payment_screenshot: profile.payment_proof || profile.payment_screenshot
+          payment_proof: profile.payment_proof || profile.payment_screenshot,
+          created_at: profile.created_at || new Date().toISOString()
         };
-        const { error: userError } = await serverSupabase.from('users').upsert(mappedUser);
-        if (userError) {
-          console.warn("[PROXY] syncUserProfile users upsert error:", userError);
-        }
-        try {
-          await serverSupabase.from('profiles').upsert({
-            id: profile.id,
-            email: profile.email,
-            full_name: profile.username || profile.full_name,
-            status: profile.status,
-            payment_proof: profile.payment_proof || profile.payment_screenshot,
-            created_at: profile.created_at || new Date().toISOString()
-          });
-        } catch (e) {
-          console.warn("[PROXY] Profiles sync ignored:", e);
+        const { error } = await serverSupabase.from('profiles').upsert(mappedProfile);
+        if (error) {
+          console.warn("[PROXY] syncUserProfile profiles upsert error:", error);
+          return res.json({ success: false, error: error.message });
         }
         return res.json({ success: true });
       }
 
       case "saveAccount": {
         const { row } = args;
-        const dbRow = {
-          ...row,
-          type: row.type || (row.account_type === 'prop_firm' ? 'propfirm' : row.account_type)
-        };
-        const { error } = await serverSupabase.from('accounts').upsert(dbRow);
+        // Map legacy 'accounts' fields if necessary, but here we use trading_accounts
+        const { error } = await serverSupabase.from('trading_accounts').upsert(row);
         if (error) throw error;
         return res.json({ success: true });
       }
 
       case "deleteAccount": {
         const { userId, accountId } = args;
-        const { error } = await serverSupabase.from('accounts').delete().eq('id', accountId).eq('user_id', userId);
+        const { error } = await serverSupabase.from('trading_accounts').delete().eq('id', accountId).eq('user_id', userId);
         if (error) throw error;
         return res.json({ success: true });
       }
@@ -976,47 +961,53 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "savePayment": {
         const { row } = args;
-        const { error } = await serverSupabase.from('payments').update({ status: row.status }).eq('id', row.id);
+        const { error } = await serverSupabase.from('payment_requests').update({ status: row.status }).eq('id', row.id);
         if (error) throw error;
 
         if (row.status === 'approved') {
           try {
-            await serverSupabase.from('users').update({ status: 'approved', paid: true, paid_until: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() }).eq('id', row.user_id);
-            await serverSupabase.from('profiles').update({ status: 'approved' }).eq('id', row.user_id);
+            const expiryDate = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
+            await serverSupabase.from('profiles').update({ 
+              status: 'approved', 
+              subscription_status: 'premium_active',
+              premium_expires_at: expiryDate
+            }).eq('id', row.user_id);
 
             const { data: userProfile } = await serverSupabase
-              .from('users')
-              .select('*')
+              .from('profiles')
+              .select('username, full_email, email, full_name, subscription_status')
               .eq('id', row.user_id)
               .maybeSingle();
 
             if (userProfile && userProfile.email) {
-              const wasAlreadyPaid = userProfile.paid || userProfile.status === 'approved';
+              const wasAlreadyPaid = userProfile.subscription_status === 'premium_active';
               if (wasAlreadyPaid) {
-                await triggerEmailOnRenewalReceipt(userProfile.username || 'Trader', userProfile.email, row.amount || 30, row.network || 'TRC20');
+                await triggerEmailOnRenewalReceipt(userProfile.username || userProfile.full_name || 'Trader', userProfile.email, row.amount || 30, row.network || 'TRC20');
               } else {
-                await triggerEmailOnApproval(userProfile.username || 'Trader', userProfile.email);
+                await triggerEmailOnApproval(userProfile.username || userProfile.full_name || 'Trader', userProfile.email);
               }
             }
           } catch (err) {
-            console.error("Failed to query user for approval email trigger:", err);
+            console.error("Failed to update profile or trigger approval email:", err);
           }
         } else if (row.status === 'rejected') {
           try {
-            await serverSupabase.from('users').update({ status: 'rejected' }).eq('id', row.user_id);
-            await serverSupabase.from('profiles').update({ status: 'rejected' }).eq('id', row.user_id);
+            await serverSupabase.from('profiles').update({ 
+              status: 'rejected',
+              subscription_status: 'blocked'
+            }).eq('id', row.user_id);
 
             const { data: userProfile } = await serverSupabase
-              .from('users')
-              .select('*')
+              .from('profiles')
+              .select('username, email, full_name')
               .eq('id', row.user_id)
               .maybeSingle();
 
             if (userProfile && userProfile.email) {
-              await triggerEmailOnRejection(userProfile.username || 'Trader', userProfile.email);
+              await triggerEmailOnRejection(userProfile.username || userProfile.full_name || 'Trader', userProfile.email);
             }
           } catch (err) {
-            console.error("Failed to query user for rejection email trigger:", err);
+            console.error("Failed to update profile or trigger rejection email:", err);
           }
         }
 
@@ -1026,77 +1017,63 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
       case "registerPayment": {
         const { userId, amount, proofUrl, network } = args;
         const paymentId = randomUUID();
-        // Insert payment request securely from the backend (with elevated Service Role Key privileges)
+        
         const { error: paymentError } = await serverSupabase
-          .from('payments')
+          .from('payment_requests')
           .insert({
             id: paymentId,
             user_id: userId,
             amount: amount,
-            proof_file_url: proofUrl,
+            screenshot_url: proofUrl,
             network: network || 'TRC20',
             status: 'pending',
-            payment_date: new Date().toISOString()
+            type: 'registration',
+            created_at: new Date().toISOString()
           });
         if (paymentError) throw paymentError;
 
-        // Update profiles status to pending securely from the backend
         await serverSupabase
-          .from('users')
+          .from('profiles')
           .update({
             status: 'pending',
-            payment_screenshot: proofUrl
+            payment_proof: proofUrl
           })
           .eq('id', userId);
-
-        try {
-          await serverSupabase
-            .from('profiles')
-            .update({
-              status: 'pending',
-              payment_proof: proofUrl
-            })
-            .eq('id', userId);
-        } catch (profErr) {
-          console.warn("Profiles proxy secondary status update ignored:", profErr);
-        }
         
-        // Also fire off email notification notifying site admins of custom payment submission
         try {
           const { data: userProfile } = await serverSupabase
-            .from('users')
-            .select('*')
+            .from('profiles')
+            .select('username, email, full_name')
             .eq('id', userId)
             .maybeSingle();
           if (userProfile && userProfile.email) {
-            await triggerEmailsOnSignup(userProfile.username || 'Trader', userProfile.email, proofUrl, amount, network || 'TRC20');
+            await triggerEmailsOnSignup(userProfile.username || userProfile.full_name || 'Trader', userProfile.email, proofUrl, amount, network || 'TRC20');
           }
         } catch (mailErr) {
-          console.warn("Mail dispatch error on payment insertion (ignored):", mailErr);
+          console.warn("Mail dispatch error on payment registration (ignored):", mailErr);
         }
 
         return res.json({ success: true });
       }
 
       case "adminLoadAllUsers": {
-        const { data, error } = await serverSupabase.from('users').select('*').order('created_at', { ascending: false });
+        const { data, error } = await serverSupabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (error) throw error;
-        // Map users table columns back to expected properties
         const mappedData = (data || []).map(p => ({
           ...p,
-          payment_proof: p.payment_screenshot || p.payment_proof || null
+          username: p.username || p.full_name || 'Trader',
+          payment_proof: p.payment_proof || null
         }));
         return res.json({ success: true, data: mappedData });
       }
 
       case "adminDeleteUser": {
         const { userId } = args;
-        await serverSupabase.from('payments').delete().eq('user_id', userId);
+        await serverSupabase.from('payment_requests').delete().eq('user_id', userId);
         await serverSupabase.from('trades').delete().eq('user_id', userId);
         await serverSupabase.from('challenges').delete().eq('user_id', userId);
-        await serverSupabase.from('accounts').delete().eq('user_id', userId);
-        await serverSupabase.from('profiles').delete().eq('id', userId);
-        const { error } = await serverSupabase.from('users').delete().eq('id', userId);
+        await serverSupabase.from('trading_accounts').delete().eq('user_id', userId);
+        const { error } = await serverSupabase.from('profiles').delete().eq('id', userId);
         if (error) throw error;
         return res.json({ success: true });
       }
@@ -1106,26 +1083,17 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         
         let oldStatus = "";
         try {
-          const { data: current } = await serverSupabase.from('users').select('status').eq('id', userId).maybeSingle();
+          const { data: current } = await serverSupabase.from('profiles').select('status').eq('id', userId).maybeSingle();
           if (current) oldStatus = current.status;
         } catch (errPrev) {}
 
-        const { error } = await serverSupabase.from('users').update({
+        const { error } = await serverSupabase.from('profiles').update({
           username,
+          full_name: username,
           email,
           status
         }).eq('id', userId);
         if (error) throw error;
-
-        try {
-          await serverSupabase.from('profiles').update({
-            full_name: username,
-            email,
-            status
-          }).eq('id', userId);
-        } catch (profErr) {
-          console.warn("Profiles secondary admin update ignored:", profErr);
-        }
 
         if (status && status !== oldStatus) {
           if (status === 'approved') {
@@ -1139,15 +1107,16 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "adminLoadAllPayments": {
         const { data, error } = await serverSupabase
-          .from('payments')
+          .from('payment_requests')
           .select(`
             *,
-            users (
+            profiles (
               email,
-              username
+              username,
+              full_name
             )
           `)
-          .order('payment_date', { ascending: false });
+          .order('created_at', { ascending: false });
         if (error) throw error;
         return res.json({ success: true, data });
       }
@@ -1374,9 +1343,9 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
     try {
       const payload = req.body;
  
-      if (payload.table === "users" && payload.type === "INSERT") {
+      if (payload.table === "profiles" && payload.type === "INSERT") {
         const newUser = payload.record;
-      } else if (payload.table === "payments" && payload.type === "UPDATE") {
+      } else if (payload.table === "payment_requests" && payload.type === "UPDATE") {
         const newRecord = payload.record;
         const oldRecord = payload.old_record;
       }
