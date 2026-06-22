@@ -144,7 +144,7 @@ export async function signUpWithSupabase(
       throw new Error("Erreur lors de la récupération de l'identifiant utilisateur.");
     }
 
-    // 2. Insert profile into public.profiles
+    // 2. Créer le profil dans public.profiles (table active, source unique)
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({
@@ -155,17 +155,19 @@ export async function signUpWithSupabase(
         country: regCountry,
         avatar_url: regAvatar || null,
         status: 'pending',
+        role: 'user',
         subscription_status: 'pending',
         plan: 'free',
+        premium_expires_at: null,
         payment_proof: paymentScreenshot,
         created_at: new Date().toISOString()
       });
 
     if (profileError) {
-      console.warn("Profile setup warning in signup:", profileError);
+      console.warn("Profile upsert warning in signup:", profileError);
     }
 
-    // 3. Store payment request into public.payment_requests
+    // 3. Enregistrer la demande de paiement dans public.payment_requests
     const { error: paymentError } = await supabase
       .from('payment_requests')
       .insert({
@@ -180,11 +182,7 @@ export async function signUpWithSupabase(
       });
 
     if (paymentError) {
-      console.warn("Payment request warning in signup:", paymentError);
-    }
-
-    if (paymentError) {
-      console.warn("Payment log warning in signup:", paymentError);
+      console.warn("Payment request log warning in signup:", paymentError);
     }
 
     const newUser: User = {
@@ -197,11 +195,11 @@ export async function signUpWithSupabase(
       created_at: new Date().toISOString(),
       payment_proof: paymentScreenshot,
       status: 'pending',
-      avatar_url: regAvatar || undefined,
       role: 'user',
       subscription_status: 'pending',
       plan: 'free',
-      premium_expires_at: null
+      premium_expires_at: null,
+      avatar_url: regAvatar || undefined
     };
 
     return { success: true, user: newUser };
@@ -394,58 +392,25 @@ export interface AdminSettings {
 }
 
 /**
- * Load global system settings from persistent profiles row
+ * Load global system settings from public.admin_settings (table dédiée, ligne unique id=1)
  */
 export async function loadAdminSettings(): Promise<AdminSettings | null> {
   try {
     const isOnline = await checkSupabaseConnection();
     if (!isOnline) return null;
     const { data, error } = await supabase
-      .from('profiles')
+      .from('admin_settings')
       .select('*')
-      .eq('id', '00000000-0000-0000-0000-0000000000ff')
+      .eq('id', 1)
       .maybeSingle();
     if (error || !data) return null;
 
-    let price = 30;
-    let period = 3;
-    if (data.currency && data.currency.includes('|')) {
-      const parts = data.currency.split('|');
-      price = parseFloat(parts[0]) || 30;
-      period = parseInt(parts[1], 10) || 3;
-    }
-
-    let adminEmails = data.email || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
-    let adminWalletTRC20 = data.country || 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV';
-    let adminWalletBEP20 = data.avatar_url || '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0';
-
-    // Support new elegant custom schema columns if they exist
-    if ('wallet_trc20' in data && data.wallet_trc20 !== null) {
-      adminWalletTRC20 = data.wallet_trc20;
-    }
-    if ('wallet_bep20' in data && data.wallet_bep20 !== null) {
-      adminWalletBEP20 = data.wallet_bep20;
-    }
-    if ('subscription_price' in data && data.subscription_price !== null) {
-      price = parseFloat(data.subscription_price) || price;
-    }
-    if ('subscription_duration_days' in data && data.subscription_duration_days !== null) {
-      period = parseInt(data.subscription_duration_days, 10) || period;
-    }
-    if ('admin_emails' in data && data.admin_emails !== null) {
-      if (Array.isArray(data.admin_emails)) {
-        adminEmails = data.admin_emails.join(', ');
-      } else if (typeof data.admin_emails === 'string') {
-        adminEmails = data.admin_emails;
-      }
-    }
-
     return {
-      adminEmails,
-      adminWalletTRC20,
-      adminWalletBEP20,
-      subscriptionPrice: price,
-      subscriptionPeriod: period
+      adminEmails: data.notification_emails || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+      adminWalletTRC20: data.usdt_trc20_address || 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
+      adminWalletBEP20: data.usdt_bep20_address || '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
+      subscriptionPrice: data.subscription_price ? parseFloat(data.subscription_price) : 30,
+      subscriptionPeriod: data.subscription_duration_months ?? 3
     };
   } catch (err) {
     console.warn("loadAdminSettings error:", err);
@@ -454,59 +419,23 @@ export async function loadAdminSettings(): Promise<AdminSettings | null> {
 }
 
 /**
- * Save global system settings to persistent profiles row
+ * Save global system settings to public.admin_settings (table dédiée, ligne unique id=1)
  */
 export async function saveAdminSettings(settings: AdminSettings): Promise<void> {
   try {
     const isOnline = await checkSupabaseConnection();
     if (!isOnline) return;
 
-    // Try modern schema format first
-    const profileNewSchema = {
-      id: '00000000-0000-0000-0000-0000000000ff',
-      username: 'system_settings_v001',
-      // Legacy columns fallback
-      email: settings.adminEmails,
-      country: settings.adminWalletTRC20,
-      avatar_url: settings.adminWalletBEP20,
-      currency: `${settings.subscriptionPrice}|${settings.subscriptionPeriod}`,
-      paid: true,
-      paid_until: null,
-      status: 'approved',
-      created_at: new Date().toISOString(),
-      // Custom columns
-      wallet_trc20: settings.adminWalletTRC20,
-      wallet_bep20: settings.adminWalletBEP20,
+    const { error } = await supabase.from('admin_settings').upsert({
+      id: 1,
+      notification_emails: settings.adminEmails,
+      usdt_trc20_address: settings.adminWalletTRC20,
+      usdt_bep20_address: settings.adminWalletBEP20,
       subscription_price: settings.subscriptionPrice,
-      subscription_duration_days: settings.subscriptionPeriod,
-      admin_emails: settings.adminEmails.split(',').map(e => e.trim()).filter(Boolean)
-    };
-
-    const { error: newSchemaError } = await supabase.from('profiles').upsert(profileNewSchema);
-    
-    // If Supabase complains about non-existent columns (undefined_column 42703), fallback safely to legacy mapping
-    if (newSchemaError) {
-      const code = (newSchemaError as any).code || '';
-      const message = newSchemaError.message || '';
-      if (code === '42703' || message.includes('column') || message.includes('exist')) {
-        const profileFallback = {
-          id: '00000000-0000-0000-0000-0000000000ff',
-          username: 'system_settings_v001',
-          email: settings.adminEmails,
-          country: settings.adminWalletTRC20,
-          avatar_url: settings.adminWalletBEP20,
-          currency: `${settings.subscriptionPrice}|${settings.subscriptionPeriod}`,
-          paid: true,
-          paid_until: null,
-          status: 'approved',
-          created_at: new Date().toISOString()
-        };
-        const { error: fallbackError } = await supabase.from('profiles').upsert(profileFallback);
-        if (fallbackError) throw fallbackError;
-      } else {
-        throw newSchemaError;
-      }
-    }
+      subscription_duration_months: settings.subscriptionPeriod,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
   } catch (err) {
     console.warn("saveAdminSettings error:", err);
   }
@@ -522,12 +451,14 @@ export async function syncUserProfile(user: User): Promise<void> {
     email: user.email,
     full_name: user.username,
     username: user.username,
+    country: user.country,
     status: user.status,
-    subscription_status: user.subscription_status,
-    plan: user.plan,
-    premium_expires_at: user.premium_expires_at,
-    payment_proof: user.payment_proof || null,
+    role: user.role || 'user',
+    subscription_status: user.subscription_status || 'pending',
+    plan: user.plan || 'free',
+    premium_expires_at: user.premium_expires_at || null,
     avatar_url: user.avatar_url || null,
+    payment_proof: user.payment_proof || null,
     created_at: user.created_at || new Date().toISOString()
   };
 
@@ -563,11 +494,10 @@ export async function patchUserProfile(userId: string, updates: Partial<User>): 
 
     const profileUpdates: any = {};
     if ('email' in updates) profileUpdates.email = updates.email;
-    if ('username' in updates) {
-      profileUpdates.username = updates.username;
-      profileUpdates.full_name = updates.username;
-    }
+    if ('username' in updates) { profileUpdates.full_name = updates.username; profileUpdates.username = updates.username; }
+    if ('country' in updates) profileUpdates.country = updates.country;
     if ('status' in updates) profileUpdates.status = updates.status;
+    if ('role' in updates) profileUpdates.role = updates.role;
     if ('subscription_status' in updates) profileUpdates.subscription_status = updates.subscription_status;
     if ('plan' in updates) profileUpdates.plan = updates.plan;
     if ('premium_expires_at' in updates) profileUpdates.premium_expires_at = updates.premium_expires_at;
@@ -668,14 +598,14 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
       date: t.date,
       pair: t.pair,
       side: (t.direction || 'BUY') as 'BUY' | 'SELL',
-      entry: t.entry ? Number(t.entry) : 0,
-      exit: t.exit ? Number(t.exit) : 0,
-      lots: t.lots ? Number(t.lots) : 0.01,
-      fees: t.fees ? Number(t.fees) : 0,
+      entry: 0, 
+      exit: 0,
+      lots: 0.1,
+      fees: 0,
       pnl: t.pnl ? Number(t.pnl) : 0,
       setup: t.setup || '',
-      mindset: t.mindset || '',
-      notes: t.notes || '',
+      mindset: '',
+      notes: '',
       screenshot_url: t.screenshot_url || undefined,
       emotion: t.emotion,
       session: t.session,
@@ -713,6 +643,8 @@ export async function loadUserDataFromSupabase(userId: string): Promise<{
     const paymentRequests: PaymentRequest[] = (paymentsRaw || []).map(p => ({
       id: p.id,
       user_id: p.user_id,
+      username: '',
+      email: '',
       amount: p.amount ? Number(p.amount) : 30,
       network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
       payment_proof: p.screenshot_url || p.proof_file_url || p.payment_proof || '',
@@ -757,11 +689,12 @@ export async function saveAccountToSupabase(userId: string, account: Account): P
     id: safeId,
     user_id: safeUserId,
     name: account.name,
-    account_type: account.account_type,
+    type: account.account_type,
     capital: account.capital || null,
     target: account.target || null,
     daily_loss: account.daily_loss || null,
-    global_loss: account.global_loss || null
+    global_loss: account.global_loss || null,
+    challenge_status: account.challenge_status || 'not_started'
   };
 
   try {
@@ -1076,17 +1009,17 @@ export async function adminLoadAllPaymentsFromSupabase(): Promise<PaymentRequest
     }
 
     return (payments || []).map(p => {
-      const u = p.users || {};
+      const u = p.profiles || {};
       return {
         id: p.id,
         user_id: p.user_id,
-        username: u.username || 'Trader',
+        username: u.username || u.full_name || 'Trader',
         email: u.email || 'trader@example.com',
         amount: p.amount ? Number(p.amount) : 30,
         network: (p.network || 'TRC20') as 'TRC20' | 'BEP20',
-        payment_proof: p.proof_file_url || p.payment_proof || '',
+        payment_proof: p.screenshot_url || p.proof_file_url || p.payment_proof || '',
         status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
-        created_at: p.payment_date || p.created_at || new Date().toISOString()
+        created_at: p.created_at || p.payment_date || new Date().toISOString()
       };
     });
   } catch (err) {

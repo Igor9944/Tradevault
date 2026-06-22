@@ -102,18 +102,11 @@ const ResetPassword = safeLazy(() => import('./components/ResetPassword'));
 export function getAdminEmailsList(): string[] {
   const envEmails = import.meta.env.VITE_ADMIN_EMAILS;
   const localStorageEmails = safeLocalStorage.getItem('tv_admin_emails');
-  const emailsString = envEmails || localStorageEmails || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
+  const emailsString = envEmails || localStorageEmails || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
   return emailsString.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 }
 
-export function isUserAdmin(email?: string, username?: string): boolean {
-  if (!email) return false;
-  const lowerEmail = email.toLowerCase();
-  if (lowerEmail === 'tradonyx@vault.com' || lowerEmail === 'igorrose2003@gmail.com' || lowerEmail === 'toshirohitsugayaonyx@gmail.com') return true;
-  if (username && username.toLowerCase() === 'tradonyx') return true;
-  const adminEmails = getAdminEmailsList();
-  return adminEmails.includes(lowerEmail);
-}
+// Admin est désormais déterminé strictement par profiles.role côté DB (voir user.role === 'admin').
 
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
@@ -525,11 +518,11 @@ export default function App() {
   }, []);
 
   const [trades, setTrades] = useState<Trade[]>(() => {
+    const saved = safeLocalStorage.getItem('tv_trades');
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = isUserAdmin(u.email, u.username);
-      const saved = safeLocalStorage.getItem(`tv_trades_${u.id}`);
+      const isAdmin = u.role === 'admin';
       if (saved) {
         const parsed = JSON.parse(saved) as Trade[];
         if (!isAdmin && parsed.some(t => t.id === 't1' || t.id === 't2' || t.id === 't3')) {
@@ -539,7 +532,6 @@ export default function App() {
       }
       return [];
     }
-    const saved = safeLocalStorage.getItem('tv_trades');
     return saved ? JSON.parse(saved) : DEFAULT_TRADES;
   });
 
@@ -591,7 +583,7 @@ export default function App() {
   });
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
-    return import.meta.env.VITE_ADMIN_EMAILS || safeLocalStorage.getItem('tv_admin_emails') || 'tradonyx@vault.com,igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
+    return import.meta.env.VITE_ADMIN_EMAILS || safeLocalStorage.getItem('tv_admin_emails') || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
   });
 
   const [adminWalletTRC20, setAdminWalletTRC20] = useState<string>(() => {
@@ -630,18 +622,17 @@ export default function App() {
   const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
+    const saved = safeLocalStorage.getItem('tv_selected_account_id');
     const savedUser = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
     if (savedUser) {
       const u = JSON.parse(savedUser) as User;
-      const isAdmin = isUserAdmin(u.email, u.username);
-      const saved = safeLocalStorage.getItem(`tv_selected_account_id_${u.id}`);
+      const isAdmin = u.role === 'admin';
       if (saved) {
         if (!isAdmin && saved === 'ftmo-100k') return 'personal';
         return saved;
       }
       return 'personal';
     }
-    const saved = safeLocalStorage.getItem('tv_selected_account_id');
     return saved || 'personal';
   });
 
@@ -1026,7 +1017,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       const uId = currentUser.id;
-      const isAdmin = isUserAdmin(currentUser.email, currentUser.username);
+      const isAdmin = currentUser.role === 'admin';
 
       if (isAdmin) {
         // Administrative view: Load users & payments from remote database
@@ -1509,7 +1500,7 @@ export default function App() {
   };
 
   const handleDeleteAllUsersExceptAdmin = async () => {
-    const adminUser = users.find(u => isUserAdmin(u.email, u.username));
+    const adminUser = users.find(u => u.role === 'admin');
     if (!adminUser) {
       customAlert("Erreur", "Administrateur non trouvé.");
       return;
@@ -1630,12 +1621,8 @@ export default function App() {
     }
   };
 
-  // Check if current user is of Admin role
-  const isAdmin = currentUser && (
-    (adminEmails || '').toLowerCase().split(',').map(e => e.trim()).includes(currentUser.email?.toLowerCase() || '') || 
-    currentUser.email === 'tradonyx@vault.com' ||
-    currentUser.username === 'tradonyx'
-  );
+  // Vérification stricte du rôle admin — source unique : profiles.role (DB)
+  const isAdmin = currentUser?.role === 'admin';
 
   return (
     <ErrorBoundary>
@@ -1652,7 +1639,6 @@ export default function App() {
             adminWalletBEP20={adminWalletBEP20}
             subscriptionPrice={subscriptionPrice}
             subscriptionPeriod={subscriptionPeriod}
-            adminEmails={adminEmails}
             onResetPasswordSuccess={handleResetPasswordSuccess}
           />
         </React.Suspense>

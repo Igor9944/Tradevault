@@ -229,26 +229,24 @@ if (rawServerUrl && rawServerUrl.includes('supabase.com/dashboard/project/')) {
   rawServerUrl = `https://${rawServerUrl}.supabase.co`;
 }
 const supabaseUrl = rawServerUrl;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseServiceKey = serviceRoleKey || supabaseAnonKey;
 let serverSupabase: any = null;
 let dbReachabilityPromise: Promise<boolean> | null = null;
 
-if (supabaseUrl && supabaseServiceKey) {
+if (supabaseUrl && !serviceRoleKey) {
+  addLog("[FATAL] SUPABASE_SERVICE_ROLE_KEY is missing. Backend privileged operations (admin approval, RLS-restricted writes) cannot run safely on the anon key. Refusing to start with a degraded client.");
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for server.ts to start. Set it in your environment (Netlify/Vercel env vars or .env) before deploying.");
+}
+
+if (supabaseUrl && serviceRoleKey) {
   try {
-    serverSupabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    if (serviceRoleKey) {
-      addLog("[SUPABASE] Initialized database client with Service Role Key for elevated backend privileges.");
-    } else {
-      addLog("[SECURITY WARNING] SUPABASE_SERVICE_ROLE_KEY is missing. Falling back to ANON KEY.");
-    }
+    serverSupabase = createClient(supabaseUrl, serviceRoleKey);
+    addLog("[SUPABASE] Initialized database client with Service Role Key for elevated backend privileges.");
     
     // Perform non-blocking async reachability check
     dbReachabilityPromise = fetch(`${supabaseUrl}/rest/v1/`, {
       method: "GET",
-      headers: { "apikey": supabaseServiceKey }
+      headers: { "apikey": serviceRoleKey }
     }).then(response => {
       if (response.ok || response.status === 401 || response.status === 400 || response.status === 404) {
         return true;
@@ -270,20 +268,20 @@ export async function getAdminEmails(): Promise<string[]> {
   const envEmails = process.env.ADMIN_EMAILS;
   const defaultEmails = envEmails 
     ? envEmails.split(',').map((e: string) => e.trim()).filter(Boolean) 
-    : ["igorrose2003@gmail.com", "tradonyx@vault.com", "toshirohitsugayaonyx@gmail.com"];
+    : ["igorrose2003@gmail.com", "toshirohitsugayaonyx@gmail.com"];
   if (!serverSupabase) return defaultEmails;
   try {
     const { data, error } = await serverSupabase
-      .from('profiles')
-      .select('email')
-      .eq('id', '00000000-0000-0000-0000-0000000000ff')
+      .from('admin_settings')
+      .select('notification_emails')
+      .eq('id', 1)
       .maybeSingle();
     
-    if (error || !data || !data.email) {
+    if (error || !data || !data.notification_emails) {
       return defaultEmails;
     }
     
-    const parsed = data.email
+    const parsed = data.notification_emails
       .split(',')
       .map((e: string) => e.trim())
       .filter((e: string) => e.includes('@'));
@@ -321,17 +319,6 @@ let inMemoryUsers: any[] = [
     paid: true,
     paid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
     created_at: new Date().toISOString()
-  },
-  {
-    id: "user_toshiro",
-    email: "tradonyx@vault.com",
-    username: "Toshiro Hitsugaya",
-    country: "DE",
-    avatar_url: null,
-    status: "approved",
-    paid: true,
-    paid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
     id: "user_test",
@@ -740,56 +727,45 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
           return res.json({ success: false, error: "Erreur d'identifiant d'API auth." });
         }
 
-        // 2. Insert user into public.users
-        const { error: userError } = await serverSupabase
-          .from('users')
+        // 2. Créer le profil dans public.profiles
+        const { error: profileError } = await serverSupabase
+          .from('profiles')
           .upsert({
             id: userId,
             email,
+            full_name: username.trim(),
             username: username.trim(),
             country: country,
             avatar_url: regAvatar || null,
             status: 'pending',
-            paid: false,
-            created_at: new Date().toISOString(),
-            payment_screenshot: paymentScreenshot
+            role: 'user',
+            subscription_status: 'pending',
+            plan: 'free',
+            premium_expires_at: null,
+            payment_proof: paymentScreenshot,
+            created_at: new Date().toISOString()
           });
 
-        if (userError) {
-          console.warn("[PROXY_SIGNUP] User insert issue:", userError);
+        if (profileError) {
+          console.warn("[PROXY_SIGNUP] Profile upsert issue:", profileError);
         }
 
-        // Double sync into public.profiles for backward compatibility
-        try {
-          await serverSupabase
-            .from('profiles')
-            .upsert({
-              id: userId,
-              email,
-              full_name: username.trim(),
-              status: 'pending',
-              payment_proof: paymentScreenshot,
-              created_at: new Date().toISOString()
-            });
-        } catch (profErr) {
-          console.warn("[PROXY_SIGNUP] Profiles table double sync ignored:", profErr);
-        }
-
-        // 3. Store payment into public.payments
+        // 3. Enregistrer la demande de paiement dans public.payment_requests
         const { error: paymentError } = await serverSupabase
-          .from('payments')
+          .from('payment_requests')
           .insert({
             id: randomUUID(),
             user_id: userId,
             amount: subscriptionPrice || 30,
-            proof_file_url: paymentScreenshot,
+            screenshot_url: paymentScreenshot,
             network: selectedNetwork || 'TRC20',
             status: 'pending',
-            payment_date: new Date().toISOString()
+            type: 'registration',
+            created_at: new Date().toISOString()
           });
 
         if (paymentError) {
-          console.warn("[PROXY_SIGNUP] Payment insert issue:", paymentError);
+          console.warn("[PROXY_SIGNUP] Payment request insert issue:", paymentError);
         }
 
         // Trigger Resend email deliverability on signup
@@ -861,12 +837,16 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
           success: true,
           user: {
             id: userId,
-            username: profile?.username || authData.user.email?.split('@')[0] || 'Trader',
+            username: profile?.username || profile?.full_name || authData.user.email?.split('@')[0] || 'Trader',
             email: authData.user.email || email,
             country: profile?.country || 'FR',
-            paid: profile?.paid ?? false,
-            paidUntil: profile?.paid_until || null,
-            status: profile?.status || 'approved',
+            role: profile?.role || 'user',
+            status: profile?.status || 'pending',
+            subscription_status: profile?.subscription_status || 'pending',
+            plan: profile?.plan || 'free',
+            premium_expires_at: profile?.premium_expires_at || null,
+            paid: profile?.subscription_status === 'premium_active',
+            paidUntil: profile?.premium_expires_at || null,
             avatar: profile?.avatar_url || undefined,
             createdAt: profile?.created_at || new Date().toISOString()
           }
@@ -898,28 +878,42 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       case "syncUserProfile": {
         const { profile } = args;
-        const mappedProfile = {
+        const profileRow = {
           id: profile.id,
           email: profile.email,
-          full_name: profile.username || profile.full_name,
           username: profile.username || profile.full_name,
+          full_name: profile.username || profile.full_name,
+          country: profile.country,
           status: profile.status,
+          role: profile.role || 'user',
+          subscription_status: profile.subscription_status || 'pending',
+          plan: profile.plan || 'free',
+          premium_expires_at: profile.premium_expires_at || null,
           avatar_url: profile.avatar_url,
           payment_proof: profile.payment_proof || profile.payment_screenshot,
           created_at: profile.created_at || new Date().toISOString()
         };
-        const { error } = await serverSupabase.from('profiles').upsert(mappedProfile);
-        if (error) {
-          console.warn("[PROXY] syncUserProfile profiles upsert error:", error);
-          return res.json({ success: false, error: error.message });
+        const { error: profileError } = await serverSupabase.from('profiles').upsert(profileRow);
+        if (profileError) {
+          console.warn("[PROXY] syncUserProfile profiles upsert error:", profileError);
         }
         return res.json({ success: true });
       }
 
       case "saveAccount": {
         const { row } = args;
-        // Map legacy 'accounts' fields if necessary, but here we use trading_accounts
-        const { error } = await serverSupabase.from('trading_accounts').upsert(row);
+        const dbRow = {
+          id: row.id,
+          user_id: row.user_id,
+          name: row.name,
+          type: row.account_type || row.type,
+          capital: row.capital ?? null,
+          target: row.target ?? null,
+          daily_loss: row.daily_loss ?? null,
+          global_loss: row.global_loss ?? null,
+          challenge_status: row.challenge_status || 'not_started'
+        };
+        const { error } = await serverSupabase.from('trading_accounts').upsert(dbRow);
         if (error) throw error;
         return res.json({ success: true });
       }
@@ -966,21 +960,20 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
         if (row.status === 'approved') {
           try {
-            const expiryDate = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
-            await serverSupabase.from('profiles').update({ 
-              status: 'approved', 
+            await serverSupabase.from('profiles').update({
+              status: 'approved',
               subscription_status: 'premium_active',
-              premium_expires_at: expiryDate
+              premium_expires_at: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString()
             }).eq('id', row.user_id);
 
             const { data: userProfile } = await serverSupabase
-              .from('profiles')
-              .select('username, full_email, email, full_name, subscription_status')
-              .eq('id', row.user_id)
-              .maybeSingle();
+               .from('profiles')
+               .select('*')
+               .eq('id', row.user_id)
+               .maybeSingle();
 
             if (userProfile && userProfile.email) {
-              const wasAlreadyPaid = userProfile.subscription_status === 'premium_active';
+              const wasAlreadyPaid = userProfile.subscription_status === 'premium_active' || userProfile.status === 'approved';
               if (wasAlreadyPaid) {
                 await triggerEmailOnRenewalReceipt(userProfile.username || userProfile.full_name || 'Trader', userProfile.email, row.amount || 30, row.network || 'TRC20');
               } else {
@@ -988,26 +981,26 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
               }
             }
           } catch (err) {
-            console.error("Failed to update profile or trigger approval email:", err);
+            console.error("Failed to query profile for approval email trigger:", err);
           }
         } else if (row.status === 'rejected') {
           try {
-            await serverSupabase.from('profiles').update({ 
+            await serverSupabase.from('profiles').update({
               status: 'rejected',
               subscription_status: 'blocked'
             }).eq('id', row.user_id);
 
             const { data: userProfile } = await serverSupabase
               .from('profiles')
-              .select('username, email, full_name')
-              .eq('id', row.user_id)
-              .maybeSingle();
+               .select('*')
+               .eq('id', row.user_id)
+               .maybeSingle();
 
             if (userProfile && userProfile.email) {
               await triggerEmailOnRejection(userProfile.username || userProfile.full_name || 'Trader', userProfile.email);
             }
           } catch (err) {
-            console.error("Failed to update profile or trigger rejection email:", err);
+            console.error("Failed to query profile for rejection email trigger:", err);
           }
         }
 
@@ -1017,7 +1010,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
       case "registerPayment": {
         const { userId, amount, proofUrl, network } = args;
         const paymentId = randomUUID();
-        
+        // Insert payment request securely from the backend (with elevated Service Role Key privileges)
         const { error: paymentError } = await serverSupabase
           .from('payment_requests')
           .insert({
@@ -1027,11 +1020,12 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
             screenshot_url: proofUrl,
             network: network || 'TRC20',
             status: 'pending',
-            type: 'registration',
+            type: 'renewal',
             created_at: new Date().toISOString()
           });
         if (paymentError) throw paymentError;
 
+        // Update profile status to pending securely from the backend
         await serverSupabase
           .from('profiles')
           .update({
@@ -1040,17 +1034,18 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
           })
           .eq('id', userId);
         
+        // Also fire off email notification notifying site admins of custom payment submission
         try {
           const { data: userProfile } = await serverSupabase
             .from('profiles')
-            .select('username, email, full_name')
+            .select('*')
             .eq('id', userId)
             .maybeSingle();
           if (userProfile && userProfile.email) {
             await triggerEmailsOnSignup(userProfile.username || userProfile.full_name || 'Trader', userProfile.email, proofUrl, amount, network || 'TRC20');
           }
         } catch (mailErr) {
-          console.warn("Mail dispatch error on payment registration (ignored):", mailErr);
+          console.warn("Mail dispatch error on payment insertion (ignored):", mailErr);
         }
 
         return res.json({ success: true });
@@ -1062,7 +1057,8 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         const mappedData = (data || []).map(p => ({
           ...p,
           username: p.username || p.full_name || 'Trader',
-          payment_proof: p.payment_proof || null
+          payment_proof: p.payment_proof || null,
+          paid: p.subscription_status === 'premium_active'
         }));
         return res.json({ success: true, data: mappedData });
       }
@@ -1118,7 +1114,16 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
           `)
           .order('created_at', { ascending: false });
         if (error) throw error;
-        return res.json({ success: true, data });
+        const mappedData = (data || []).map(p => {
+          const u = p.profiles || {};
+          return {
+            ...p,
+            username: u.username || u.full_name || 'Trader',
+            email: u.email || 'trader@example.com',
+            payment_proof: p.screenshot_url || p.proof_file_url || p.payment_proof || ''
+          };
+        });
+        return res.json({ success: true, data: mappedData });
       }
 
       default:

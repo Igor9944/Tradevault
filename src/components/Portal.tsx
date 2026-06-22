@@ -355,7 +355,6 @@ interface PortalProps {
   adminWalletBEP20?: string;
   subscriptionPrice?: number;
   subscriptionPeriod?: number;
-  adminEmails?: string;
   onResetPasswordSuccess?: (email: string, newPass: string) => void;
 }
 
@@ -367,7 +366,6 @@ export default function Portal({
   adminWalletBEP20 = '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
   subscriptionPrice = 30,
   subscriptionPeriod = 3,
-  adminEmails = 'tradonyx@vault.com',
   onResetPasswordSuccess
 }: PortalProps) {
   const { lang, toggleLang, t } = useThemeLang();
@@ -508,88 +506,68 @@ export default function Portal({
       return;
     }
 
-    const isAdminPass = loginPassword === 'otradnyx@2027';
-    const cleanAdminEmails = (adminEmails || '').toLowerCase().split(',').map(e => e.trim()).filter(Boolean);
-    const isAdminUser = identifier === 'tradonyx@vault.com' || 
-                        identifier === 'igorrose2003@gmail.com' || 
-                        cleanAdminEmails.includes(identifier);
-
-    if (isAdminUser && isAdminPass) {
-      // Determine elegant default username
-      let adminUsername = 'tradonyx';
-      if (identifier === 'igorrose2003@gmail.com') {
-        adminUsername = 'igorrose';
-      } else {
-        const parts = identifier.split('@');
-        if (parts.length > 0 && parts[0] !== 'admin') {
-          adminUsername = parts[0];
-        }
-      }
-
-      const adminAcc: User = {
-        id: 'admin',
-        username: adminUsername,
-        email: identifier,
-        country: 'FR',
-        paid: true,
-        paid_until: null,
-        created_at: new Date().toISOString(),
-        status: 'approved',
-        role: 'admin',
-        subscription_status: 'premium_active',
-        plan: 'pro',
-        premium_expires_at: null
-      };
-      onLoginSuccess(adminAcc);
-      displayToast('Connexion Admin réussie !', 'success');
-      setLoginLoading(false);
-      return;
-    }
-
     try {
-      const res = await signInWithSupabase(loginEmail, loginPassword);
-      if (res.success && res.user) {
-        if (res.user.status === 'pending') {
-          displayToast('Votre inscription est en attente de validation.', 'info');
-          setLoginLoading(false);
-          return;
-        }
-        if (res.user.status === 'rejected') {
-          displayToast('Votre inscription a été rejetée.', 'error');
-          setLoginLoading(false);
-          return;
-        }
-        onLoginSuccess(res.user);
-        displayToast('Connexion réussie via Supabase ! Code pro validé.', 'success');
+      // 1. Authentification via Supabase Auth (source de vérité unique)
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password: loginPassword,
+      });
+
+      if (authError || !authData.user) {
+        displayToast('Identifiants invalides.', 'error');
         setLoginLoading(false);
         return;
-      } else {
-        const matchedUser = users.find(u => 
-          u.email.toLowerCase() === identifier || 
-          (u.username && u.username.toLowerCase() === identifier)
-        );
-
-        if (matchedUser) {
-          if (matchedUser.password === loginPassword) {
-            if (matchedUser.status === 'pending') {
-              displayToast('Inscription en attente de vérification.', 'info');
-            } else if (matchedUser.status === 'rejected') {
-              displayToast('Cette inscription a été rejetée.', 'error');
-            } else {
-              onLoginSuccess(matchedUser);
-              displayToast('Connexion réussie (Fallback Local) !', 'success');
-            }
-          } else {
-            displayToast('Mot de passe incorrect.', 'error');
-          }
-        } else {
-          displayToast(res.error || 'Identifiants incorrects ou compte introuvable.', 'error');
-        }
-        setLoginLoading(false);
       }
+
+      // 2. Lecture du profil en base (role, status, subscription_status)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, username, role, status, subscription_status, plan, premium_expires_at, avatar_url, country, created_at')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        displayToast('Profil introuvable. Contactez un administrateur.', 'error');
+        setLoginLoading(false);
+        return;
+      }
+
+      // 3. Blocage selon le statut
+      if (profile.status === 'pending') {
+        displayToast('Votre inscription est en attente de validation.', 'info');
+        setLoginLoading(false);
+        return;
+      }
+      if (profile.status === 'rejected') {
+        displayToast('Votre inscription a été rejetée.', 'error');
+        setLoginLoading(false);
+        return;
+      }
+
+      // 4. Construction de l'objet User depuis la DB (pas de valeurs en dur)
+      const loggedUser: User = {
+        id: profile.id,
+        username: profile.username || profile.full_name || identifier.split('@')[0],
+        email: profile.email || identifier,
+        role: (profile.role as 'admin' | 'user') || 'user',
+        status: profile.status as 'approved' | 'pending' | 'rejected',
+        subscription_status: (profile.subscription_status as 'pending' | 'premium_active' | 'blocked') || 'pending',
+        plan: (profile.plan as 'free' | 'pro') || 'free',
+        premium_expires_at: profile.premium_expires_at || null,
+        avatar_url: profile.avatar_url || authData.user.user_metadata?.avatar_url,
+        country: profile.country || 'FR',
+        created_at: profile.created_at,
+      };
+
+      onLoginSuccess(loggedUser);
+      displayToast(
+        loggedUser.role === 'admin' ? 'Connexion Admin réussie !' : 'Connexion réussie !',
+        'success'
+      );
+      setLoginLoading(false);
     } catch (err: any) {
       console.error(err);
-      displayToast("Erreur de connexion.", 'error');
+      displayToast('Erreur de connexion.', 'error');
       setLoginLoading(false);
     }
   };
@@ -650,11 +628,11 @@ export default function Portal({
           created_at: new Date().toISOString(),
           payment_proof: payment_proof || undefined,
           status: 'pending',
-          avatar_url: regAvatar || undefined,
           role: 'user',
           subscription_status: 'pending',
           plan: 'free',
-          premium_expires_at: null
+          premium_expires_at: null,
+          avatar_url: regAvatar || undefined
         };
         onRegisterPending(localUser);
       }

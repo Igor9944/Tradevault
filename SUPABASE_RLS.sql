@@ -121,46 +121,35 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger Function pour créer automatiquement le profil après identification auth.users
+-- SÉCURITÉ : aucun email en dur. L'admin est accordé une seule fois manuellement
+-- en base (UPDATE profiles SET role='admin') sur un compte déjà existant, jamais
+-- automatiquement à l'inscription -- ces emails sont publics dans ce repo.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  user_email text;
 BEGIN
-  INSERT INTO public.profiles (
-    id, 
-    email, 
-    username, 
-    full_name, 
-    role, 
-    status, 
-    subscription_status, 
-    plan, 
-    created_at
-  )
+  user_email := COALESCE(new.email, new.raw_user_meta_data->>'email');
+  INSERT INTO public.profiles (id, email, username, full_name, role, status, subscription_status, plan, created_at)
   VALUES (
     new.id,
-    new.email,
-    split_part(new.email, '@', 1),
-    split_part(new.email, '@', 1),
-    CASE
-      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'admin'
-      ELSE 'user'
-    END,
-    CASE
-      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'approved'
-      ELSE 'pending'
-    END,
-    CASE
-      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'premium_active'
-      ELSE 'pending'
-    END,
-    CASE
-      WHEN new.email IN ('igorrose2003@gmail.com', 'tradonyx@vault.com', 'toshirohitsugayaonyx@gmail.com') THEN 'pro'
-      ELSE 'free'
-    END,
+    user_email,
+    split_part(user_email, '@', 1),
+    split_part(user_email, '@', 1),
+    'user',
+    'pending',
+    'pending',
+    'free',
     timezone('utc'::text, now())
-  );
+  )
+  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Liaison sécurisée du trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -169,13 +158,27 @@ AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 
--- 3. VERROUILLAGE DE LA SÉCURITÉ RLS (Row Level Security)
+-- === ADMIN_SETTINGS (Table dédiée, ligne unique id=1) ===
+CREATE TABLE IF NOT EXISTS public.admin_settings (
+    id INT PRIMARY KEY DEFAULT 1,
+    notification_emails TEXT DEFAULT 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+    usdt_trc20_address TEXT DEFAULT 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
+    usdt_bep20_address TEXT DEFAULT '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
+    subscription_price NUMERIC DEFAULT 30,
+    subscription_duration_months INT DEFAULT 3,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    CONSTRAINT col_id_check CHECK (id = 1)
+);
+
+
+-- 3. VERROUILLAGE SÉCURITÉ RLS
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trading_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 
 
 -- 4. DÉCLARATION DES POLITIQUES D'ACCÈS SÉCURISÉES (POLICIES)
@@ -238,3 +241,16 @@ DROP POLICY IF EXISTS "Admin can completely manage payments" ON public.payment_r
 CREATE POLICY "Users can view own payments" ON public.payment_requests FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own payments" ON public.payment_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admin can completely manage payments" ON public.payment_requests FOR ALL USING (public.is_admin());
+
+-- === ADMIN_SETTINGS ===
+DROP POLICY IF EXISTS "Enable read access for all auth users" ON public.admin_settings;
+CREATE POLICY "Enable read access for all auth users" ON public.admin_settings FOR SELECT USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Admin can completely manage admin_settings" ON public.admin_settings;
+CREATE POLICY "Admin can completely manage admin_settings" ON public.admin_settings FOR ALL USING (public.is_admin());
+
+-- Insertion initiale des paramètres admin par défaut
+INSERT INTO public.admin_settings (id, notification_emails, usdt_trc20_address, usdt_bep20_address, subscription_price, subscription_duration_months)
+VALUES (1, 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com', 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV', '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0', 30, 3)
+ON CONFLICT (id) DO NOTHING;
+
