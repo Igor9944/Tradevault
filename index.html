@@ -22,6 +22,11 @@
     </div>
     <script>
       function showGlobalError(message) {
+        var lower = String(message || '').toLowerCase();
+        if (!message || lower.indexOf('script error') !== -1) {
+          console.warn("[Global Safety] Ignored generic cross-origin script error:", message);
+          return;
+        }
         var root = document.getElementById('root');
         var fallback = document.getElementById('global-error-fallback');
         var details = document.getElementById('global-error-details');
@@ -30,10 +35,35 @@
           details.innerText = message;
         }
       }
+
+      // Prevent default logging of cross-origin script errors
+      window.onerror = function(message, source, lineno, colno, error) {
+        var lower = String(message || '').toLowerCase();
+        if (lower.indexOf('script error') !== -1) {
+          console.warn("[Global Safety] Prevented default error reporting for generic cross-origin script error.");
+          return true; // True prevents the fire of the default event handler
+        }
+        return false;
+      };
+
       window.addEventListener('error', function(event) {
+        var lower = String(event.message || '').toLowerCase();
+        if (lower.indexOf('script error') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         showGlobalError(event.error ? event.error.stack : event.message);
       });
+
       window.addEventListener('unhandledrejection', function(event) {
+        var reasonStr = String(event.reason ? (event.reason.stack || event.reason.message || event.reason) : '');
+        var lower = reasonStr.toLowerCase();
+        if (lower.indexOf('script error') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         showGlobalError(event.reason ? (event.reason.stack || event.reason) : 'Unhandled Promise Rejection');
       });
     </script>

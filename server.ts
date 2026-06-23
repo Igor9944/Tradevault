@@ -1010,6 +1010,15 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
       case "registerPayment": {
         const { userId, amount, proofUrl, network } = args;
         const paymentId = randomUUID();
+
+        // Détermine si c'est la 1ère soumission (registration) ou un renouvellement,
+        // en comptant les payment_requests déjà existantes pour cet utilisateur.
+        const { count: priorPaymentsCount } = await serverSupabase
+          .from('payment_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId);
+        const paymentType = (priorPaymentsCount && priorPaymentsCount > 0) ? 'renewal' : 'registration';
+
         // Insert payment request securely from the backend (with elevated Service Role Key privileges)
         const { error: paymentError } = await serverSupabase
           .from('payment_requests')
@@ -1020,7 +1029,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
             screenshot_url: proofUrl,
             network: network || 'TRC20',
             status: 'pending',
-            type: 'renewal',
+            type: paymentType,
             created_at: new Date().toISOString()
           });
         if (paymentError) throw paymentError;

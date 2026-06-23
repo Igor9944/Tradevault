@@ -69,12 +69,14 @@ import { ThemeLanguageProvider } from './utils/themeLanguageContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Analytics } from '@vercel/analytics/react';
 
+const isVercel = typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeLanguageProvider>
         <App />
-        <Analytics />
+        {isVercel && <Analytics />}
       </ThemeLanguageProvider>
     </ErrorBoundary>
   </StrictMode>,

@@ -835,6 +835,12 @@ export async function registerPayment(userId: string, amount: number, proofUrl: 
   } catch (err: any) {
     console.warn("[CLIENT_ROUTING] registerPayment client call failed. Routing through proxy...", err);
     try {
+      const { count: priorPaymentsCount } = await supabase
+        .from('payment_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', safeId);
+      const paymentType = (priorPaymentsCount && priorPaymentsCount > 0) ? 'renewal' : 'registration';
+
       const { error } = await supabase
         .from('payment_requests')
         .insert([{
@@ -844,7 +850,7 @@ export async function registerPayment(userId: string, amount: number, proofUrl: 
           screenshot_url: proofUrl,
           network: 'TRC20',
           status: 'pending',
-          type: 'registration',
+          type: paymentType,
           created_at: new Date().toISOString()
         }]);
 
