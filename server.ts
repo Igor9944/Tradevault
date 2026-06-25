@@ -925,6 +925,13 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         return res.json({ success: true });
       }
 
+      case "updateUserRole": {
+        const { targetUserId, role } = args;
+        const { error } = await serverSupabase.from('profiles').update({ role }).eq('id', targetUserId);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
       case "saveTrade": {
         const { row } = args;
         const { error } = await serverSupabase.from('trades').upsert(row);

@@ -5,7 +5,7 @@ import { ChevronDown, Trash2 } from 'lucide-react';
 interface Account {
   id: string;
   name: string;
-  // add other fields if necessary
+  account_type?: 'personal' | 'prop_firm' | 'demo';
 }
 
 interface AccountSelectorProps {
@@ -29,7 +29,22 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getAccountTypeLabel = (type?: string) => {
+    switch (type) {
+      case 'personal': return 'Personnel';
+      case 'prop_firm': return 'Prop Firm';
+      case 'demo': return 'Démo';
+      default: return '';
+    }
+  };
+
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+
+  const getAccountDisplay = (acc?: Account) => {
+    if (!acc) return 'Sélectionner...';
+    const label = getAccountTypeLabel(acc.account_type);
+    return label ? `${acc.name} (${label})` : acc.name;
+  };
 
   return (
     <div className="relative" ref={containerRef} id="tour-account-selector">
@@ -37,7 +52,7 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between bg-black border border-zinc-900 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#00FF9C] font-semibold truncate"
       >
-        <span className="truncate">{selectedAccount?.name || 'Sélectionner...'}</span>
+        <span className="truncate">{getAccountDisplay(selectedAccount)}</span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -64,7 +79,11 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
                 }}
               >
                 <span className={`text-xs ${selectedAccountId === acc.id ? 'text-[#00FF9C] font-bold' : 'text-neutral-300'}`}>
-                  {acc.name}
+                  {acc.name} {acc.account_type && (
+                    <span className="text-[10px] text-zinc-500 font-mono ml-1">
+                      ({getAccountTypeLabel(acc.account_type)})
+                    </span>
+                  )}
                 </span>
                 {onDelete && (
                   <button

@@ -76,6 +76,8 @@ const getPremiumStatus = (trader: any) => {
 };
 
 interface AdminProps {
+  currentUser?: User;
+  onUpdateUserRole?: (targetUserId: string, newRole: 'admin' | 'user') => void;
   users: User[];
   onApproveUser: (user_id: string) => void;
   onRejectUser: (user_id: string) => void;
@@ -96,6 +98,8 @@ interface AdminProps {
 }
 
 export default function Admin({ 
+  currentUser,
+  onUpdateUserRole,
   users, 
   onApproveUser, 
   onRejectUser, 
@@ -643,7 +647,7 @@ export default function Admin({
                         ) : (
                           <>
                             <span className="font-bold text-white">{trader.username}</span>
-                            {trader.email === 'admin@tradevault.com' && (
+                            {trader.role === 'admin' && (
                               <span className="text-[8.5px] font-bold text-[#00FF9C] bg-[#00FF9C]/10 px-1.5 py-0.5 rounded border border-[#00FF9C]/20 uppercase tracking-widest">Admin</span>
                             )}
                           </>
@@ -740,6 +744,36 @@ export default function Admin({
                               className="px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                             >
                               <Check size={11} /> Approuver
+                            </button>
+                          )}
+                          {currentUser?.role === 'admin' && trader.email !== 'admin@tradevault.com' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const isTargetAdmin = trader.role === 'admin';
+                                const newRole = isTargetAdmin ? 'user' : 'admin';
+                                const actionTitle = isTargetAdmin ? 'Rétrograder' : 'Promouvoir Admin';
+                                const confirmMsg = isTargetAdmin 
+                                  ? `Voulez-vous rétrograder "${trader.username}" au rang de simple utilisateur ?`
+                                  : `Voulez-vous promouvoir "${trader.username}" au rang d'administrateur ?`;
+                                
+                                customConfirm(
+                                  actionTitle,
+                                  confirmMsg,
+                                  () => {
+                                    if (onUpdateUserRole) {
+                                      onUpdateUserRole(trader.id, newRole);
+                                    }
+                                  }
+                                );
+                              }}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-all ${
+                                trader.role === 'admin'
+                                  ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20'
+                                  : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20'
+                              }`}
+                            >
+                              {trader.role === 'admin' ? 'Rétrograder' : 'Promouvoir Admin'}
                             </button>
                           )}
                           <button

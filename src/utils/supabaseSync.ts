@@ -917,6 +917,29 @@ export async function adminLoadAllUsersFromSupabase(): Promise<User[]> {
   }
 }
 
+export async function updateUserRole(targetUserId: string, newRole: 'admin' | 'user'): Promise<boolean> {
+  const safeId = ensureUUID(targetUserId);
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', safeId);
+    if (error) {
+      throw error;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn("[CLIENT_ROUTING] updateUserRole client call failed. Routing through proxy...", err);
+    try {
+      const res = await invokeProxy("updateUserRole", { targetUserId: safeId, role: newRole });
+      return !!res.success;
+    } catch (proxyErr) {
+      console.error("Proxy updateUserRole failed:", proxyErr);
+      return false;
+    }
+  }
+}
+
 export async function adminDeleteUserFromSupabase(userId: string): Promise<boolean> {
   const safeId = ensureUUID(userId);
   try {

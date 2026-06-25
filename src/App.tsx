@@ -755,7 +755,7 @@ export default function App() {
 
   // New account form fields
   const [newAccName, setNewAccName] = useState('');
-  const [newAccType, setNewAccType] = useState<'personal' | 'prop_firm'>('personal');
+  const [newAccType, setNewAccType] = useState<'personal' | 'prop_firm' | 'demo'>('personal');
   const [newAccCapital, setNewAccCapital] = useState('100000');
   const [newAccTarget, setNewAccTarget] = useState('8');
   const [newAccDailyLoss, setNewAccDailyLoss] = useState('5');
@@ -1565,6 +1565,28 @@ export default function App() {
     }
   };
 
+  const handleUpdateUserRole = async (targetUserId: string, newRole: 'admin' | 'user') => {
+    try {
+      const { updateUserRole: updateRoleFn, adminLoadAllUsersFromSupabase } = await import('./utils/supabaseSync');
+      const success = await updateRoleFn(targetUserId, newRole);
+      if (success) {
+        const updatedUsers = await adminLoadAllUsersFromSupabase();
+        if (updatedUsers && updatedUsers.length > 0) {
+          setUsers(updatedUsers);
+          const updatedTarget = updatedUsers.find(u => u.id === targetUserId);
+          if (updatedTarget && updatedTarget.role === newRole) {
+            customAlert("Succès", `Le rôle de l'utilisateur a été mis à jour avec succès en "${newRole}".`);
+            return;
+          }
+        }
+      }
+      customAlert("Erreur", "Le changement de rôle a échoué ou n'est pas autorisé.");
+    } catch (err) {
+      console.error("Failed to update user role:", err);
+      customAlert("Erreur", "Impossible de mettre à jour le rôle.");
+    }
+  };
+
   // Add account helper
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1979,6 +2001,8 @@ export default function App() {
             {activeTab === 'admin' && isAdmin && (
               <React.Suspense fallback={<AdminLoaderSkeleton />}>
                 <Admin 
+                  currentUser={currentUser!}
+                  onUpdateUserRole={handleUpdateUserRole}
                   users={users} 
                   onApproveUser={handleApproveUser} 
                   onRejectUser={handleRejectUser} 
@@ -2072,8 +2096,9 @@ export default function App() {
                   onChange={(e) => setNewAccType(e.target.value as any)}
                   className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]/40"
                 >
-                  <option value="personal">Compte Personnel Standard</option>
-                  <option value="prop_firm">Challenge Evaluation Propfirm</option>
+                  <option value="personal">Personnel</option>
+                  <option value="prop_firm">Prop Firm</option>
+                  <option value="demo">Démo</option>
                 </select>
               </div>
 
