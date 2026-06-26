@@ -702,6 +702,38 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
       return res.json(mockResult);
     }
 
+    // SÉCURITÉ : ces actions exposent ou modifient les données de TOUS les utilisateurs
+    // (liste complète des profils, suppression de compte, changement de rôle, approbation
+    // de paiement). Elles doivent être appelées par un admin authentifié, jamais en aveugle.
+    const ADMIN_ONLY_ACTIONS = new Set([
+      "updateUserRole",
+      "adminLoadAllUsers",
+      "adminDeleteUser",
+      "adminUpdateUser",
+      "adminLoadAllPayments",
+      "savePayment"
+    ]);
+
+    if (ADMIN_ONLY_ACTIONS.has(action)) {
+      const authHeader = req.headers.authorization || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!token) {
+        return res.status(401).json({ success: false, error: "Authentification requise." });
+      }
+      const { data: callerData, error: callerErr } = await serverSupabase.auth.getUser(token);
+      if (callerErr || !callerData?.user) {
+        return res.status(401).json({ success: false, error: "Session invalide." });
+      }
+      const { data: callerProfile, error: profileErr } = await serverSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', callerData.user.id)
+        .maybeSingle();
+      if (profileErr || callerProfile?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: "Accès admin requis." });
+      }
+    }
+
     switch (action) {
       case "signUp": {
         const { email, password, username, country, paymentScreenshot, selectedNetwork, subscriptionPrice, regAvatar } = args;

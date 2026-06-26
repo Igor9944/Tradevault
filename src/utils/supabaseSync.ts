@@ -81,10 +81,14 @@ export function generateUUID(): string {
 
 // Client-side helper to hit the safe server-side Supabase proxy
 async function invokeProxy(action: string, args: any): Promise<any> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+
   const response = await fetch('/api/supabase/proxy', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     },
     body: JSON.stringify({ action, arguments: args })
   });
