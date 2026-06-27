@@ -626,7 +626,7 @@ export default function Admin({
             <tbody className="divide-y divide-zinc-800/20">
               {users.map((trader) => {
                 // Let's make approved users online, plus the main admin is always online!
-                const isOnline = trader.email === 'admin@tradevault.com' || trader.status === 'approved';
+                const isOnline = trader.status === 'approved';
                 const isEditing = trader.id === editingUserId;
                 return (
                   <tr key={trader.id} className="hover:bg-slate-900/30 text-slate-300">
@@ -708,9 +708,7 @@ export default function Admin({
                       </div>
                     </td>
                     <td className="p-3 whitespace-nowrap text-center">
-                      {trader.email === 'admin@tradevault.com' ? (
-                        <span className="text-[10px] text-slate-500 italic font-sans">Compte Système</span>
-                      ) : isEditing ? (
+                      {isEditing ? (
                         <div className="flex justify-center gap-1.5">
                           <button
                             type="button"
@@ -746,7 +744,7 @@ export default function Admin({
                               <Check size={11} /> Approuver
                             </button>
                           )}
-                          {currentUser?.role === 'admin' && trader.email !== 'admin@tradevault.com' && (
+                          {currentUser?.role === 'admin' && trader.id !== currentUser?.id && (
                             <button
                               type="button"
                               onClick={() => {
