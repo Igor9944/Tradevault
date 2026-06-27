@@ -187,7 +187,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     <div className="space-y-6 text-slate-200">
       
       {/* Search and Filters Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#080808] p-4 rounded-2xl border border-zinc-900 relative">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[var(--bg-secondary)] p-4 rounded-2xl border border-white/[0.06] relative">
         <div className="md:col-span-4 relative">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-300">
             <Search size={16} />
@@ -197,7 +197,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('search_pair_placeholder')}
-            className="w-full pl-9 pr-4 py-2 bg-[#050505] border border-zinc-900 rounded-xl text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+            className="w-full pl-9 pr-4 py-2 bg-[#050505] border border-white/[0.06] rounded-xl text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
           />
         </div>
 
@@ -205,7 +205,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           <select
             value={setupFilter}
             onChange={(e) => setSetupFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-[#050505] border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
+            className="w-full px-3 py-2 bg-[#050505] border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
           >
             <option value="">{t('all_setups')}</option>
             {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -216,7 +216,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           <select
             value={pnlFilter}
             onChange={(e) => setPnlFilter(e.target.value as any)}
-            className="w-full px-3 py-2 bg-[#050505] border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
+            className="w-full px-3 py-2 bg-[#050505] border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
           >
             <option value="all">{t('all_results')}</option>
             <option value="win">{t('only_gains')}</option>
@@ -229,7 +229,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
             type="button"
             id="tour-add-trade"
             onClick={handleOpenNew}
-            className="w-full py-2 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg shadow-[#00FF9C]/10"
+            className="w-full py-2 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg shadow-[#3DDC97]/10"
           >
             <Plus size={14} /> {t('add_trade')}
           </button>
@@ -255,7 +255,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   damping: 30,
                   layout: { type: "spring", stiffness: 350, damping: 30 }
                 }}
-                className="bg-[#080808] rounded-2xl border border-zinc-900 overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#00FF9C]/40 transition-all duration-300 p-4 space-y-4"
+                className="bg-[var(--bg-secondary)] rounded-2xl border border-white/[0.06] overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#3DDC97]/40 transition-all duration-300 p-4 space-y-4"
               >
                 
                 {/* Card top */}
@@ -264,7 +264,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-extrabold text-white font-mono">{t.pair}</span>
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold font-mono ${
-                        t.side === 'BUY' ? 'bg-emerald-500/10 text-[#00FF9C]' : 'bg-rose-500/10 text-rose-400'
+                        t.side === 'BUY' ? 'bg-emerald-500/10 text-[#52D17C]' : 'bg-rose-500/10 text-rose-400'
                       }`}>
                         {t.side}
                       </span>
@@ -276,7 +276,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   
                   {/* Result Tag Badge */}
                   <div className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${
-                    t.pnl >= 0 ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/25' : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
+                    t.pnl >= 0 ? 'bg-[#52D17C]/10 text-[#52D17C] border border-[#52D17C]/25' : 'bg-rose-500/10 text-[#E8544F] border border-rose-500/25'
                   }`}>
                     {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
                   </div>
@@ -286,7 +286,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 {t.screenshot_url && (
                   <div 
                     onClick={() => setActiveLightboxImage(t.screenshot_url!)}
-                    className="h-32 bg-[#080808] border border-zinc-900 rounded-xl overflow-hidden cursor-zoom-in group relative"
+                    className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-xl overflow-hidden cursor-zoom-in group relative"
                   >
                     <img src={t.screenshot_url} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
                     <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
@@ -296,7 +296,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 )}
 
                 {/* Data grid */}
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-[#080808]/40 p-2.5 rounded-xl border border-zinc-800/40">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-[var(--bg-secondary)]/40 p-2.5 rounded-xl border border-white/[0.06]">
                   <div>
                     <span className="text-[10px] text-slate-500 block uppercase">Entrée :</span>
                     <span className="text-slate-200 font-bold">{t.entry || '—'}</span>
@@ -317,7 +317,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
                 {/* Setup and mindset tags */}
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/15">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-[#3DDC97]/10 text-[#3DDC97] border border-[#3DDC97]/15">
                     🏷️ {t.setup}
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-300 border border-amber-500/10">
@@ -327,7 +327,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
                 {/* Observations notes */}
                 {t.notes && (
-                  <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-[#00FF9C]">
+                  <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-[#3DDC97]">
                     "{t.notes}"
                   </p>
                 )}
@@ -378,7 +378,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
       {/* PREMIUM MODAL: CREATION & EDITION FORM */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="max-w-xl w-full bg-[#0c0c0e] rounded-2xl border border-zinc-850 p-6 md:p-8 space-y-5 animate-scale-in relative">
+          <div className="max-w-xl w-full bg-[#0c0c0e] rounded-2xl border border-white/[0.06] p-6 md:p-8 space-y-5 animate-scale-in relative">
             
             <div className="flex justify-between items-center border-b border-zinc-800/40 pb-4">
               <h4 className="text-base font-black font-mono text-white tracking-widest uppercase">
@@ -387,7 +387,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
               <button 
                 type="button" 
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#0c0c0e] border border-zinc-800 flex items-center justify-center text-slate-400 hover:text-white"
+                className="w-8 h-8 rounded-full bg-[#0c0c0e] border border-white/[0.06] flex items-center justify-center text-slate-400 hover:text-white"
               >
                 <X size={16} />
               </button>
@@ -401,7 +401,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     type="datetime-local"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
                     required
                   />
                 </div>
@@ -413,7 +413,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={pair}
                     onChange={(e) => setPair(e.target.value)}
                     placeholder="EUR/USD, BTC/USDT, GOLD"
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
                     required
                   />
                 </div>
@@ -423,12 +423,12 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] text-slate-300 font-semibold font-mono block">DIRECTION (*)</label>
-                  <div className="flex bg-black p-1 border border-zinc-900 rounded-xl">
+                  <div className="flex bg-black p-1 border border-white/[0.06] rounded-xl">
                     <button
                       type="button"
                       onClick={() => setSide('BUY')}
                       className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        side === 'BUY' ? 'bg-[#00FF9C]/20 text-[#00FF9C] border border-[#00FF9C]/20' : 'text-slate-500 hover:text-slate-300'
+                        side === 'BUY' ? 'bg-[#52D17C]/20 text-[#52D17C] border border-[#52D17C]/20' : 'text-slate-500 hover:text-slate-300'
                       }`}
                     >
                       BUY
@@ -453,7 +453,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={entry}
                     onChange={(e) => setEntry(e.target.value)}
                     placeholder="1.08250"
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
                   />
                 </div>
 
@@ -465,7 +465,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={exit}
                     onChange={(e) => setExit(e.target.value)}
                     placeholder="1.08500"
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
                   />
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={lots}
                     onChange={(e) => setLots(e.target.value)}
                     placeholder="1.00 lot"
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
                   />
                 </div>
 
@@ -492,7 +492,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={fees}
                     onChange={(e) => setFees(e.target.value)}
                     placeholder="7.50"
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
                   />
                 </div>
 
@@ -504,7 +504,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                     value={pnl}
                     onChange={(e) => setPnl(e.target.value)}
                     placeholder="Ex: +150 ou -40"
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 text-white placeholder-zinc-650 text-xs font-bold focus:outline-none focus:border-[#00FF9C] font-mono"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-zinc-650 text-xs font-bold focus:outline-none focus:border-[#3DDC97] font-mono"
                     required
                   />
                 </div>
@@ -517,7 +517,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   <select
                     value={setup}
                     onChange={(e) => setSetup(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
                   >
                     {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -528,7 +528,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   <select
                     value={mindset}
                     onChange={(e) => setMindset(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white text-xs focus:outline-none focus:border-[#00FF9C]"
+                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
                   >
                     {MINDSETS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -552,14 +552,14 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   }}
                   rows={2}
                   placeholder="Expliquez la structure du marché et la raison de votre entrée / sortie..."
-                  className="w-full px-4 py-2.5 bg-black border border-zinc-900 rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#00FF9C] leading-relaxed font-sans"
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] leading-relaxed font-sans"
                 />
               </div>
 
               {/* Interactive screenshot drag are file */}
-              <div className="space-y-1 bg-black p-4 border border-zinc-900 rounded-xl">
+              <div className="space-y-1 bg-black p-4 border border-white/[0.06] rounded-xl">
                 <label className="text-[11px] text-slate-300 font-bold font-mono uppercase block mb-1">Capture d'écran de Graphique (Optionnel)</label>
-                <div className="relative border border-dashed border-zinc-800 hover:border-[#00FF9C]/50 rounded-lg p-3 text-center transition-all cursor-pointer">
+                <div className="relative border border-dashed border-zinc-800 hover:border-[#3DDC97]/50 rounded-lg p-3 text-center transition-all cursor-pointer">
                   <input
                     type="file"
                     accept="image/*"
@@ -574,8 +574,8 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                   ) : (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <img src={screenshot} alt="Screenshot loading" className="w-10 h-10 object-cover rounded border border-[#00FF9C]/40" />
-                        <span className="text-[11px] text-[#00FF9C] font-mono">trade_snapshot_saved.png</span>
+                        <img src={screenshot} alt="Screenshot loading" className="w-10 h-10 object-cover rounded border border-[#3DDC97]/40" />
+                        <span className="text-[11px] text-[#3DDC97] font-mono">trade_snapshot_saved.png</span>
                       </div>
                       <button 
                         type="button" 
@@ -600,7 +600,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="flex-1 py-2.5 bg-[#00FF9C] hover:bg-[#00D180] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md shadow-[#00FF9C]/10 transition-all duration-300"
+                  className="flex-1 py-2.5 bg-[#3DDC97] hover:bg-[#2BB87E] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md shadow-[#3DDC97]/10 transition-all duration-300"
                 >
                   {isSaving ? (
                     <>

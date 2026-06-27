@@ -60,9 +60,9 @@ export default function Calendar({ trades }: CalendarProps) {
     <div className="space-y-6 text-slate-200">
       
       {/* Calendar Header Card */}
-      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 flex items-center justify-between">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <CalendarIcon className="text-[#00FF9C]" size={20} />
+          <CalendarIcon className="text-[#3DDC97]" size={20} />
           <div>
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">Calendrier des Performances</h3>
             <p className="text-[10px] text-neutral-300">Cliquez sur un jour coloré pour auditer l'historique complet de vos sessions de trading.</p>
@@ -92,10 +92,10 @@ export default function Calendar({ trades }: CalendarProps) {
       </div>
 
       {/* Grid calendar */}
-      <div className="bg-[#080808] rounded-2xl border border-zinc-900 p-4 font-mono select-none shadow-md">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl border border-white/[0.06] p-4 font-mono select-none shadow-md">
         
         {/* Weekly Header row labels */}
-        <div className="grid grid-cols-7 gap-1 border-b border-zinc-900 pb-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+        <div className="grid grid-cols-7 gap-1 border-b border-white/[0.06] pb-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
           <span>Lun</span>
           <span>Mar</span>
           <span>Mer</span>
@@ -109,30 +109,30 @@ export default function Calendar({ trades }: CalendarProps) {
         <div className="grid grid-cols-7 gap-1.5 mt-3">
           {dayCells.map((cell, idx) => {
             if (!cell.dayNumber) {
-              return <div key={`empty-${idx}`} className="aspect-square bg-black/30 border border-zinc-900/30 rounded-xl"></div>;
+              return <div key={`empty-${idx}`} className="aspect-square bg-black/30 border border-white/[0.04] rounded-xl"></div>;
             }
 
             const dayTrades = trades.filter(t => t.date.startsWith(cell.dateString));
             const dayPnl = dayTrades.reduce((sum, t) => sum + t.pnl, 0);
 
             // Determine cell background colors based on net values
-            let bgClass = 'bg-black border-zinc-900/60 hover:border-zinc-750';
+            let bgClass = 'bg-black border-white/[0.06] hover:border-white/[0.15]';
             let textClass = 'text-slate-400';
             let pnlColor = 'text-slate-400';
 
             if (dayTrades.length > 0) {
               if (dayPnl > 0) {
-                bgClass = 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50';
-                textClass = 'text-emerald-300 font-bold';
-                pnlColor = 'text-emerald-400 font-bold';
+                bgClass = 'bg-[#52D17C]/10 border-[#52D17C]/30 hover:bg-[#52D17C]/20 hover:border-[#52D17C]/50';
+                textClass = 'text-[#52D17C] font-bold';
+                pnlColor = 'text-[#52D17C] font-bold';
               } else if (dayPnl < 0) {
-                bgClass = 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20 hover:border-rose-500/50';
-                textClass = 'text-rose-300 font-bold';
-                pnlColor = 'text-rose-400 font-bold';
+                bgClass = 'bg-[#E8544F]/10 border-[#E8544F]/30 hover:bg-[#E8544F]/20 hover:border-[#E8544F]/50';
+                textClass = 'text-[#E8544F] font-bold';
+                pnlColor = 'text-[#E8544F] font-bold';
               } else {
-                bgClass = 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/50';
-                textClass = 'text-amber-300 font-bold';
-                pnlColor = 'text-amber-400 font-bold';
+                bgClass = 'bg-[#E8A23D]/10 border-[#E8A23D]/30 hover:bg-[#E8A23D]/20 hover:border-[#E8A23D]/50';
+                textClass = 'text-[#E8A23D] font-bold';
+                pnlColor = 'text-[#E8A23D] font-bold';
               }
             }
 
@@ -144,7 +144,7 @@ export default function Calendar({ trades }: CalendarProps) {
                 onClick={() => { if (dayTrades.length > 0) setSelectedDayString(cell.dateString); }}
                 className={`aspect-square rounded-xl border p-2 flex flex-col justify-between transition-all relative ${
                   dayTrades.length > 0 ? 'cursor-pointer' : 'cursor-default'
-                } ${bgClass} ${isSelected ? 'ring-2 ring-[#00FF9C] ring-offset-2 ring-offset-black' : ''}`}
+                } ${bgClass} ${isSelected ? 'ring-2 ring-[#3DDC97] ring-offset-2 ring-offset-black' : ''}`}
               >
                 <span className={`text-xs block ${textClass}`}>{cell.dayNumber}</span>
                 
@@ -167,8 +167,8 @@ export default function Calendar({ trades }: CalendarProps) {
 
       {/* DETAILED DAILY BREAKDOWN PANEL ON CLICK */}
       {selectedDayString ? (
-        <div className="bg-[#080808] rounded-2xl border border-zinc-900 p-6 space-y-4 animate-scale-in">
-          <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl border border-white/[0.06] p-6 space-y-4 animate-scale-in">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
             <div className="space-y-0.5">
               <h4 className="text-sm font-black font-mono text-white tracking-widest uppercase">
                 Analyse du {new Date(selectedDayString).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -177,7 +177,7 @@ export default function Calendar({ trades }: CalendarProps) {
             </div>
             
             <div className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono border ${
-              selectedDayNetPnl >= 0 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+              selectedDayNetPnl >= 0 ? 'bg-[#52D17C]/10 border-[#52D17C]/30 text-[#52D17C]' : 'bg-[#E8544F]/10 border-[#E8544F]/30 text-[#E8544F]'
             }`}>
               Bilan Net : {selectedDayNetPnl >= 0 ? '+' : ''}${selectedDayNetPnl.toFixed(2)}
             </div>
@@ -188,11 +188,11 @@ export default function Calendar({ trades }: CalendarProps) {
               const dateObj = new Date(t.date);
               const formattedTime = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               return (
-                <div key={t.id} className="p-4 rounded-xl bg-black border border-zinc-900 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                <div key={t.id} className="p-4 rounded-xl bg-black border border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
                   
                   <div className="flex items-start md:items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg font-mono font-bold text-[10px] flex items-center justify-center tracking-tighter shrink-0 ${
-                      t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                      t.side === 'BUY' ? 'bg-[#52D17C]/10 text-[#52D17C]' : 'bg-[#E8544F]/10 text-[#E8544F]'
                     }`}>
                       {t.side}
                     </div>
@@ -201,7 +201,7 @@ export default function Calendar({ trades }: CalendarProps) {
                         <span className="font-extrabold text-white font-mono text-xs">{t.pair}</span>
                         <span className="font-mono text-[10px] text-slate-400">à {formattedTime}</span>
                       </div>
-                      <span className="text-[10px] text-[#00FF9C] block font-semibold tracking-wider uppercase">🏷️ Setup: {t.setup}</span>
+                      <span className="text-[10px] text-[#3DDC97] block font-semibold tracking-wider uppercase">🏷️ Setup: {t.setup}</span>
                     </div>
                   </div>
 
@@ -223,7 +223,7 @@ export default function Calendar({ trades }: CalendarProps) {
 
                   {/* Net Profit column */}
                   <div className="flex items-center md:items-end flex-row md:flex-col justify-between md:justify-center gap-1.5 border-t border-slate-900 md:border-none pt-2 md:pt-0 shrink-0">
-                    <span className={`font-mono font-extrabold text-sm ${t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <span className={`font-mono font-extrabold text-sm ${t.pnl >= 0 ? 'text-[#52D17C]' : 'text-[#E8544F]'}`}>
                       {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
                     </span>
                     {t.notes && (
@@ -240,7 +240,7 @@ export default function Calendar({ trades }: CalendarProps) {
 
         </div>
       ) : (
-        <div className="p-4 rounded-xl border border-[#00FF9C]/10 bg-[#00FF9C]/5 text-slate-350 flex gap-2 text-xs">
+        <div className="p-4 rounded-xl border border-[#3DDC97]/10 bg-[#3DDC97]/5 text-slate-350 flex gap-2 text-xs">
           <Info size={16} className="shrink-0 mt-0.5" />
           <span>Aide : Pour voir les détails, veuillez cliquer sur l'un des jours colorés du calendrier qui contient des transactions.</span>
         </div>

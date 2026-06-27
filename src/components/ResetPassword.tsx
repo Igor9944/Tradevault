@@ -57,20 +57,20 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
   return (
     <div className="flex-1 min-h-screen flex items-center justify-center relative p-4 bg-black">
       {/* Dynamic Background visual details */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#00FF9C]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#3DDC97]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#3DDC97]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-[#080808] backdrop-blur-md rounded-2xl border border-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden relative z-10 transition-all">
+      <div className="w-full max-w-md bg-[var(--bg-secondary)] backdrop-blur-md rounded-2xl border border-white/[0.06] shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden relative z-10 transition-all">
         {/* Sleek top loader accent bar */}
         {loading && (
-          <div className="absolute top-0 inset-x-0 h-1 bg-[#00FF9C] animate-pulse"></div>
+          <div className="absolute top-0 inset-x-0 h-1 bg-[#3DDC97] animate-pulse"></div>
         )}
 
         <div className="p-8 space-y-6 text-center">
           {/* Logo Header */}
           <div className="space-y-1">
             <h2 className="text-2xl font-black tracking-tight text-white uppercase font-display">
-              TRADE<span className="text-[#00FF9C] drop-shadow-[0_0_10px_rgba(0,255,156,0.3)]">VAULT</span>
+              TRADE<span className="text-[#3DDC97] drop-shadow-[0_0_10px_rgba(61,220,151,0.15)]">VAULT</span>
             </h2>
             <span className="text-[9px] font-mono tracking-widest text-[#475569] block uppercase">MODIFICATION DES ACCÈS SECURISÉS</span>
           </div>
@@ -81,8 +81,8 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
               animate={{ opacity: 1, scale: 1 }}
               className="space-y-6 py-4"
             >
-              <div className="w-16 h-16 rounded-full bg-[#00FF9C]/10 border-2 border-[#00FF9C]/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(0,255,156,0.1)]">
-                <ShieldCheck size={28} className="text-[#00FF9C]" />
+              <div className="w-16 h-16 rounded-full bg-[#3DDC97]/10 border-2 border-[#3DDC97]/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(61,220,151,0.05)]">
+                <ShieldCheck size={28} className="text-[#3DDC97]" />
               </div>
               
               <div className="space-y-2">
@@ -95,7 +95,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
               <button
                 type="button"
                 onClick={onBackToLogin}
-                className="w-full py-3.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                className="w-full py-3.5 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all shadow-md active:scale-[0.98] cursor-pointer"
               >
                 RETOURNER À L'ACCÈS MEMBRE
               </button>
@@ -126,7 +126,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Minimum 8 caractères"
-                    className="w-full pl-10 pr-10 py-2.5 bg-black border border-zinc-900 focus:border-[#00FF9C]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 bg-black border border-white/[0.06] focus:border-[#3DDC97]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
                     required
                     disabled={loading}
                   />
@@ -152,7 +152,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Resaisir à l'identique"
-                    className="w-full pl-10 pr-10 py-2.5 bg-black border border-zinc-900 focus:border-[#00FF9C]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 bg-black border border-white/[0.06] focus:border-[#3DDC97]/40 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none transition-all"
                     required
                     disabled={loading}
                   />
@@ -170,13 +170,13 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
               {newPassword.length > 0 && (
                 <div className="space-y-2 py-1.5 px-0.5">
                   <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                    <span className={`w-1.5 h-1.5 rounded-full ${newPassword.length >= 8 ? 'bg-[#00FF9C]' : 'bg-red-500'}`}></span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${newPassword.length >= 8 ? 'bg-[#52D17C]' : 'bg-red-500'}`}></span>
                     <span className={newPassword.length >= 8 ? 'text-white/60' : 'text-red-400'}>
                       Minimum 8 caractères ({newPassword.length}/8)
                     </span>
                   </div>
                   {newPassword === confirmPassword && newPassword.length >= 8 && (
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#00FF9C]">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#52D17C]">
                       <Check size={11} /> Mots de passe concordants
                     </div>
                   )}
@@ -187,7 +187,7 @@ export default function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-[#00FF9C] hover:bg-[#00D180] text-black disabled:bg-zinc-900 disabled:text-zinc-600 rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6"
+                className="w-full py-4 bg-[#3DDC97] hover:bg-[#2BB87E] text-black disabled:bg-zinc-900 disabled:text-zinc-600 rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6"
               >
                 {loading ? (
                   <>

@@ -158,9 +158,9 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
       <div className="space-y-6">
         
         {/* Preference Settings Panel Container */}
-        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 shadow-md">
-          <div className="flex items-center gap-2 mb-4 border-b border-zinc-900 pb-3">
-            <Settings className="text-[#00FF9C]" size={18} />
+        <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] shadow-md">
+          <div className="flex items-center gap-2 mb-4 border-b border-white/[0.06] pb-3">
+            <Settings className="text-[#3DDC97]" size={18} />
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase">
               Gestion des Préférences Push
             </h3>
@@ -173,10 +173,10 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
           <div className="space-y-4">
             
             {/* Preferences 1: Payments */}
-            <div className="flex items-center justify-between p-4 bg-black border border-zinc-900 rounded-xl hover:border-[#00FF9C]/20 transition-all">
+            <div className="flex items-center justify-between p-4 bg-black border border-white/[0.06] rounded-xl hover:border-[#3DDC97]/20 transition-all">
               <div className="space-y-1 pr-4">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 font-mono uppercase">
-                  <DollarSign size={14} className="text-[#00FF9C]" /> Confirmations d'Accès & Inscription
+                  <DollarSign size={14} className="text-[#3DDC97]" /> Confirmations d'Accès & Inscription
                 </span>
                 <p className="text-[11px] text-neutral-400 leading-normal">
                   Alertes instantanées après activation de votre paiement unique à $10.
@@ -188,7 +188,7 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
                 type="button"
                 onClick={() => handleTogglePreference('payments')}
                 className={`w-11 h-6 rounded-full p-0.5 transition-all outline-none ${
-                  preferences.payments ? 'bg-[#00FF9C]' : 'bg-zinc-800'
+                  preferences.payments ? 'bg-[#3DDC97]' : 'bg-zinc-800'
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-all ${
@@ -198,10 +198,10 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
             </div>
 
             {/* Preferences 2: Trading Alerts */}
-            <div className="flex items-center justify-between p-4 bg-black border border-zinc-900 rounded-xl hover:border-[#00FF9C]/20 transition-all">
+            <div className="flex items-center justify-between p-4 bg-black border border-white/[0.06] rounded-xl hover:border-[#3DDC97]/20 transition-all">
               <div className="space-y-1 pr-4">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 font-mono uppercase">
-                  <TrendingUp size={14} className="text-[#00FF9C]" /> Alertes de Trading (Breakouts & Drawdowns)
+                  <TrendingUp size={14} className="text-[#3DDC97]" /> Alertes de Trading (Breakouts & Drawdowns)
                 </span>
                 <p className="text-[11px] text-neutral-400 leading-normal">
                   Rappels automatiques de dépassement d'objectif et limites de blocages Propfirm.
@@ -212,7 +212,7 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
                 type="button"
                 onClick={() => handleTogglePreference('tradingAlerts')}
                 className={`w-11 h-6 rounded-full p-0.5 transition-all outline-none ${
-                  preferences.tradingAlerts ? 'bg-[#00FF9C]' : 'bg-zinc-800'
+                  preferences.tradingAlerts ? 'bg-[#3DDC97]' : 'bg-zinc-800'
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-all ${
@@ -222,10 +222,10 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
             </div>
 
             {/* Preferences 3: Updates */}
-            <div className="flex items-center justify-between p-4 bg-black border border-zinc-900 rounded-xl hover:border-[#00FF9C]/20 transition-all">
+            <div className="flex items-center justify-between p-4 bg-black border border-white/[0.06] rounded-xl hover:border-[#3DDC97]/20 transition-all">
               <div className="space-y-1 pr-4">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 font-mono uppercase">
-                  <Sparkles size={14} className="text-[#00FF9C]" /> Mises à jour Importantes de l'App
+                  <Sparkles size={14} className="text-[#3DDC97]" /> Mises à jour Importantes de l'App
                 </span>
                 <p className="text-[11px] text-neutral-400 leading-normal">
                   Soyez averti des évolutions de l'interface et du déploiement de nouvelles paires.
@@ -236,7 +236,7 @@ export default function NotificationCenter({ onNotificationSent }: NotificationC
                 type="button"
                 onClick={() => handleTogglePreference('updates')}
                 className={`w-11 h-6 rounded-full p-0.5 transition-all outline-none ${
-                  preferences.updates ? 'bg-[#00FF9C]' : 'bg-zinc-800'
+                  preferences.updates ? 'bg-[#3DDC97]' : 'bg-zinc-800'
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-all ${

@@ -10,11 +10,11 @@ interface LogoProps {
 export function DefaultLogoAvatar({ className = 'w-10 h-10', style }: { className?: string, style?: React.CSSProperties }) {
   return (
     <div 
-      className={`overflow-hidden shrink-0 flex items-center justify-center bg-black/40 border border-[#00FF9C]/20 rounded-xl select-none shadow-[0_0_15px_rgba(0,255,156,0.1)] ${className}`} 
+      className={`overflow-hidden shrink-0 flex items-center justify-center bg-black/40 border border-[#3DDC97]/20 rounded-xl select-none shadow-[0_0_15px_rgba(61,220,151,0.1)] ${className}`} 
       style={style}
     >
-      <span className="font-display font-black text-[#00A86B] tracking-tighter" style={{ fontSize: '1em' }}>
-        T<span className="text-[#00FF9C]">V</span>
+      <span className="font-display font-black text-[#2BB87E] tracking-tighter" style={{ fontSize: '1em' }}>
+        T<span className="text-[#3DDC97]">V</span>
       </span>
     </div>
   );

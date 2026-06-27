@@ -236,50 +236,50 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
     <div className="space-y-6 text-slate-200">
 
       {/* METRICS BREAKDOWN CARD MATRIX */}
-      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">
-        <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-zinc-900 pb-3">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06]">
+        <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-white/[0.06] pb-3">
           Statistiques Avancées
         </h3>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-center">
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-neutral-300 block uppercase mb-1">PROFIT FACTOR</span>
             <span className="text-xl font-black text-white">{profitFactor}</span>
           </div>
 
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Gain Moyen</span>
-            <span className="text-xl font-black text-emerald-400">+${avgWin.toFixed(2)}</span>
+            <span className="text-xl font-black text-[#52D17C]">+${avgWin.toFixed(2)}</span>
           </div>
 
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Perte Moyenne</span>
             <span className="text-xl font-black text-rose-400">-${avgLoss.toFixed(2)}</span>
           </div>
 
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Gains Totaux</span>
-            <span className="text-xl font-black text-emerald-400">+${totalWinsSum.toFixed(2)}</span>
+            <span className="text-xl font-black text-[#52D17C]">+${totalWinsSum.toFixed(2)}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-center mt-4">
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Meilleur Gain</span>
-            <span className="text-xl font-bold text-emerald-400">+${maxWin.toFixed(2)}</span>
+            <span className="text-xl font-bold text-[#52D17C]">+${maxWin.toFixed(2)}</span>
           </div>
 
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Pire Perte</span>
             <span className="text-xl font-bold text-rose-400">-${Math.abs(maxLoss).toFixed(2)}</span>
           </div>
 
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Série Victorieuse Max</span>
             <span className="text-xl font-bold text-white">{longestWinStreak} Trades</span>
           </div>
 
-          <div className="bg-[#050505] p-4 border border-zinc-900 rounded-xl">
+          <div className="bg-[#050505] p-4 border border-white/[0.06] rounded-xl">
             <span className="text-[10px] text-slate-500 block uppercase mb-1">Série Perdante Max</span>
             <span className="text-xl font-bold text-white">{longestLossStreak} Trades</span>
           </div>
@@ -290,7 +290,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* WEAKDAY NET BAR CHART */}
-        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 shadow-md">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] shadow-md">
           <h4 className="text-xs font-black font-mono text-white tracking-widest uppercase mb-4">
             📈 P&L Net Cumulé par Jour de la Semaine
           </h4>
@@ -299,12 +299,12 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
               <BarChart data={weekdayTotals} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#059669" stopOpacity={0.7} />
+                    <stop offset="5%" stopColor="#52D17C" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="#2BB87E" stopOpacity={0.7} />
                   </linearGradient>
                   <linearGradient id="colorLoss" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f87171" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#dc2626" stopOpacity={0.7} />
+                    <stop offset="5%" stopColor="#E8544F" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="#D8433E" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="white/10" vertical={false} />
@@ -327,7 +327,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
         </div>
 
         {/* SETUP WIN vs LOSS RATIOS */}
-        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 shadow-md">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] shadow-md">
           <h4 className="text-xs font-black font-mono text-white tracking-widest uppercase mb-4">
             🏷️ Taux de Succès par Concept de Stratégie Setup
           </h4>
@@ -336,12 +336,12 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
               <BarChart data={setupChartData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorVictoires" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#047857" stopOpacity={0.8} />
+                    <stop offset="5%" stopColor="#52D17C" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="#2BB87E" stopOpacity={0.8} />
                   </linearGradient>
                   <linearGradient id="colorDefaites" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#be123c" stopOpacity={0.8} />
+                    <stop offset="5%" stopColor="#E8544F" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="#D8433E" stopOpacity={0.8} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
@@ -363,7 +363,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
       </div>
 
       {/* GLOBAL ARCHIVE DATA TABLE WITH TRI AND DATABASE RESET / BACKUPS */}
-      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 space-y-4 shadow-md">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] space-y-4 shadow-md">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 gap-4">
           <div className="space-y-0.5">
             <h4 className="text-sm font-black font-mono text-white tracking-widest uppercase">
@@ -393,7 +393,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
             <button
               type="button"
               onClick={handleExportCSV}
-              className="py-1.5 px-3 rounded-xl border border-white/5 text-emerald-300 hover:bg-emerald-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
+              className="py-1.5 px-3 rounded-xl border border-white/5 text-[#52D17C] hover:bg-[#52D17C]/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
             >
               <ArrowDownToLine size={13} /> Export CSV
             </button>
@@ -420,7 +420,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                   onResetTrades();
                 });
               }}
-              className="py-1.5 px-3 rounded-xl border border-red-900/30 text-red-400 hover:bg-red-500/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
+              className="py-1.5 px-3 rounded-xl border border-red-900/30 text-[#E8544F] hover:bg-[#E8544F]/10 text-xs font-bold font-sans flex items-center gap-1 shrink-0"
             >
               <RotateCcw size={13} /> Réinitialiser
             </button>
@@ -428,47 +428,47 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
         </div>
 
         {/* Dense Table markup with sorts */}
-        <div className="overflow-x-auto border border-zinc-900 rounded-xl bg-slate-950/30">
+        <div className="overflow-x-auto border border-white/[0.06] rounded-xl bg-slate-950/30">
           <table className="w-full text-left border-collapse font-mono text-[11px]">
             <thead>
-              <tr className="bg-slate-950 border-b border-zinc-900 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                <th onClick={() => toggleSort('date')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
+              <tr className="bg-slate-950 border-b border-white/[0.06] text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                <th onClick={() => toggleSort('date')} className="p-3 cursor-pointer hover:text-[#3DDC97]">
                   <div className="flex items-center gap-1">Date {sortField === 'date' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
-                <th onClick={() => toggleSort('pair')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
+                <th onClick={() => toggleSort('pair')} className="p-3 cursor-pointer hover:text-[#3DDC97]">
                   <div className="flex items-center gap-1">Paire {sortField === 'pair' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
-                <th onClick={() => toggleSort('side')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
+                <th onClick={() => toggleSort('side')} className="p-3 cursor-pointer hover:text-[#3DDC97]">
                   <div className="flex items-center gap-1">Sens {sortField === 'side' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
                 <th className="p-3">Entrée</th>
                 <th className="p-3">Sortie</th>
                 <th className="p-3">Lots</th>
-                <th onClick={() => toggleSort('pnl')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
+                <th onClick={() => toggleSort('pnl')} className="p-3 cursor-pointer hover:text-[#3DDC97]">
                   <div className="flex items-center gap-1">P&L Net {sortField === 'pnl' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
-                <th onClick={() => toggleSort('setup')} className="p-3 cursor-pointer hover:text-[#00FF9C]">
+                <th onClick={() => toggleSort('setup')} className="p-3 cursor-pointer hover:text-[#3DDC97]">
                   <div className="flex items-center gap-1">Setup / Strat {sortField === 'setup' && (sortDirection === 'asc' ? <SortAsc size={12} /> : <SortDesc size={12} />)}</div>
                 </th>
                 <th className="p-3">Observations notes</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-900">
+            <tbody className="divide-y divide-white/[0.06]">
               {sortedAllTime.length > 0 ? (
                 sortedAllTime.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-900/40 text-slate-300">
                     <td className="p-3 whitespace-nowrap text-slate-400">{t.date}</td>
                     <td className="p-3 font-bold text-white whitespace-nowrap">{t.pair}</td>
-                    <td className={`p-3 whitespace-nowrap font-bold ${t.side === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <td className={`p-3 whitespace-nowrap font-bold ${t.side === 'BUY' ? 'text-[#52D17C]' : 'text-[#E8544F]'}`}>
                       {t.side}
                     </td>
                     <td className="p-3 whitespace-nowrap">{t.entry || '—'}</td>
                     <td className="p-3 whitespace-nowrap">{t.exit || '—'}</td>
                     <td className="p-3 whitespace-nowrap">{t.lots}</td>
-                    <td className={`p-3 font-extrabold whitespace-nowrap ${t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <td className={`p-3 font-extrabold whitespace-nowrap ${t.pnl >= 0 ? 'text-[#52D17C]' : 'text-[#E8544F]'}`}>
                       {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
                     </td>
-                    <td className="p-3 whitespace-nowrap text-[#00FF9C]">{t.setup}</td>
+                    <td className="p-3 whitespace-nowrap text-[#3DDC97]">{t.setup}</td>
                     <td className="p-3 text-slate-400 max-w-[200px] truncate italic" title={t.notes}>
                       {t.notes || '—'}
                     </td>

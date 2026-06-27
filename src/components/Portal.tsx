@@ -199,7 +199,7 @@ function TradingDevicesSimulator() {
   return (
     <div className="relative w-full py-12 px-4 flex flex-col items-center justify-center overflow-hidden min-h-[360px] bg-[#080808] rounded-2xl border border-white/5 mt-4">
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none overflow-hidden pb-4">
-        <svg className="w-full h-full text-[#00FF9C]" viewBox="0 0 800 400" fill="currentColor">
+        <svg className="w-full h-full text-[#3DDC97]" viewBox="0 0 800 400" fill="currentColor">
           <pattern id="dot-grid" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
             <circle cx="2" cy="2" r="1.2" fill="currentColor" />
           </pattern>
@@ -207,9 +207,9 @@ function TradingDevicesSimulator() {
         </svg>
       </div>
 
-      <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-[#00FF9C]/5 border border-[#00FF9C]/20 rounded-full px-2.5 py-0.5 text-[9px] text-[#00FF9C] font-mono tracking-wider">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] block animate-ping shrink-0"></span>
-        <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] block absolute left-2.5 shrink-0"></span>
+      <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-[#3DDC97]/5 border border-[#3DDC97]/20 rounded-full px-2.5 py-0.5 text-[9px] text-[#3DDC97] font-mono tracking-wider">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] block animate-ping shrink-0"></span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] block absolute left-2.5 shrink-0"></span>
         <span className="ml-[6px]">ENGINE STREAMING • VERIFIED</span>
       </div>
 
@@ -223,7 +223,7 @@ function TradingDevicesSimulator() {
               {candles.map((candle, idx) => (
                 <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full relative group">
                   <div 
-                    className={`absolute w-[1.2px] ${candle.type === 'up' ? 'bg-[#00FF9C]' : 'bg-[#FF4D4D]'}`}
+                    className={`absolute w-[1.2px] ${candle.type === 'up' ? 'bg-[#52D17C]' : 'bg-[#E8544F]'}`}
                     style={{
                       height: `${candle.high - candle.low}%`,
                       bottom: `${candle.low}%`,
@@ -231,7 +231,7 @@ function TradingDevicesSimulator() {
                   />
                   <div 
                     className={`w-[4.5px] rounded-[1px] relative ${
-                      candle.type === 'up' ? 'bg-[#00FF9C] shadow-[0_0_8px_rgba(0,255,156,0.3)]' : 'bg-[#FF4D4D]'
+                      candle.type === 'up' ? 'bg-[#52D17C] shadow-[0_0_8px_rgba(82,209,124,0.35)]' : 'bg-[#E8544F]'
                     }`}
                     style={{
                       height: `${Math.max(4, Math.abs(candle.close - candle.open))}%`,
@@ -241,7 +241,7 @@ function TradingDevicesSimulator() {
 
                   {idx === 2 && (
                     <div className="absolute z-20 animate-bounce" style={{ bottom: `${Math.max(candle.high + 6, 68)}%` }}>
-                      <div className="bg-[#FF4D4D] text-[6px] font-black text-black px-1 py-0.5 rounded tracking-wider font-mono">
+                      <div className="bg-[#E8544F] text-[6px] font-black text-black px-1 py-0.5 rounded tracking-wider font-mono">
                         S
                       </div>
                     </div>
@@ -249,7 +249,7 @@ function TradingDevicesSimulator() {
 
                   {idx === 6 && (
                     <div className="absolute z-20 animate-bounce" style={{ bottom: `${Math.max(candle.high + 6, 75)}%` }}>
-                      <div className="bg-[#00FF9C] text-[6px] font-black text-black px-1 py-0.5 rounded tracking-wider font-mono">
+                      <div className="bg-[#52D17C] text-[6px] font-black text-black px-1 py-0.5 rounded tracking-wider font-mono">
                         B
                       </div>
                     </div>
@@ -258,7 +258,7 @@ function TradingDevicesSimulator() {
               ))}
             </div>
 
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 z-0 font-mono tracking-[0.2em] text-[#00FF9C] text-xs font-bold">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 z-0 font-mono tracking-[0.2em] text-[#3DDC97] text-xs font-bold">
               TRADEVAULT
             </div>
           </div>
@@ -273,10 +273,10 @@ function TradingDevicesSimulator() {
 export const UsdtTrc20Icon = () => (
   <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0" referrerPolicy="no-referrer">
     <circle cx="50" cy="50" r="45" fill="#141414" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
-    <circle cx="50" cy="50" r="39" fill="none" stroke="#00FF9C" strokeWidth="1.5" strokeDasharray="2,2" />
-    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#00FF9C" />
+    <circle cx="50" cy="50" r="39" fill="none" stroke="#3DDC97" strokeWidth="1.5" strokeDasharray="2,2" />
+    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#3DDC97" />
     <ellipse cx="50" cy="48" rx="27" ry="7.5" fill="none" stroke="#ffffff" strokeWidth="2.5" />
-    <circle cx="78" cy="78" r="15" fill="#FF4D4D" />
+    <circle cx="78" cy="78" r="15" fill="#E8544F" />
     <path d="M 78,69 L 86,83 H 70 Z" fill="#ffffff" transform="scale(0.85) translate(13, 11)" />
   </svg>
 );
@@ -284,10 +284,10 @@ export const UsdtTrc20Icon = () => (
 export const UsdtBep20Icon = () => (
   <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0" referrerPolicy="no-referrer">
     <circle cx="50" cy="50" r="45" fill="#141414" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
-    <circle cx="50" cy="50" r="39" fill="none" stroke="#00FF9C" strokeWidth="1.5" strokeDasharray="2,2" />
-    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#00FF9C" />
+    <circle cx="50" cy="50" r="39" fill="none" stroke="#3DDC97" strokeWidth="1.5" strokeDasharray="2,2" />
+    <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#3DDC97" />
     <ellipse cx="50" cy="48" rx="27" ry="7.5" fill="none" stroke="#ffffff" strokeWidth="2.5" />
-    <circle cx="78" cy="78" r="15" fill="#FFB300" />
+    <circle cx="78" cy="78" r="15" fill="#E8A23D" />
     <path d="M 78,70 L 83,75 L 78,80 L 73,75 Z" fill="#000000" />
   </svg>
 );
@@ -323,8 +323,8 @@ const LiveHeroChart = () => {
         <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="heroLiveColor" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.2}/>
-              <stop offset="95%" stopColor="#00FF9C" stopOpacity={0}/>
+              <stop offset="5%" stopColor="#3DDC97" stopOpacity={0.2}/>
+              <stop offset="95%" stopColor="#3DDC97" stopOpacity={0}/>
             </linearGradient>
             <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="3" result="blur"/>
@@ -334,7 +334,7 @@ const LiveHeroChart = () => {
           <Area 
             type="monotone" 
             dataKey="price" 
-            stroke="#00FF9C" 
+            stroke="#3DDC97" 
             strokeWidth={2} 
             fillOpacity={1} 
             fill="url(#heroLiveColor)" 
@@ -751,8 +751,8 @@ export default function Portal({
       {/* Global Toast */}
       {toastMessage && (
         <div className={`fixed top-8 right-8 z-55 p-4 rounded-xl flex items-center gap-3 border shadow-2xl backdrop-blur-md transition-all animate-fade-in ${
-          toastMessage.type === 'success' ? 'bg-[#00FF9C]/10 border-[#00FF9C] text-[#00FF9C]' : 
-          toastMessage.type === 'error' ? 'bg-[#FF4D4D]/10 border-[#FF4D4D] text-[#FF4D4D]' :
+          toastMessage.type === 'success' ? 'bg-[#52D17C]/10 border-[#52D17C] text-[#52D17C]' : 
+          toastMessage.type === 'error' ? 'bg-[#E8544F]/10 border-[#E8544F] text-[#E8544F]' :
           'bg-white/5 border-white/20 text-white'
         }`}>
           <div className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></div>
@@ -768,14 +768,14 @@ export default function Portal({
       }`}>
         <div className="flex items-center gap-3">
           <span className="text-lg md:text-xl font-black font-display tracking-tight leading-none text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">
-            TRADE<span className="text-[#00FF9C]">VAULT</span>
+            TRADE<span className="text-[#3DDC97]">VAULT</span>
           </span>
         </div>
 
         <div className="hidden md:flex items-center gap-8 text-[11px] font-mono tracking-wider text-white/50">
           <button onClick={() => scrollSectionToId('features')} className="hover:text-white underline-hover cursor-pointer">FIDÉLITÉ STATS</button>
           <button onClick={() => scrollSectionToId('showcase')} className="hover:text-white underline-hover cursor-pointer">PROPFIRM PREVIEW</button>
-          <button onClick={() => scrollSectionToId('portal-card-segment')} className="hover:text-white underline-hover cursor-pointer font-bold text-[#00FF9C]">ACCÉDER</button>
+          <button onClick={() => scrollSectionToId('portal-card-segment')} className="hover:text-white underline-hover cursor-pointer font-bold text-[#3DDC97]">ACCÉDER</button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -794,7 +794,7 @@ export default function Portal({
         <div></div> {/* Spacer */}
 
         <div className="text-center space-y-8 max-w-5xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 text-[9px] font-mono tracking-[0.2em] text-[#00FF9C] uppercase">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 text-[9px] font-mono tracking-[0.2em] text-[#3DDC97] uppercase">
             <Sparkles size={10} /> THE NEXT GENERATION OF POSITIONS AUDITING
           </div>
 
@@ -802,7 +802,7 @@ export default function Portal({
             {/* Clamp large typographic display */}
             <h1 className="text-4xl min-[480px]:text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black tracking-tight leading-[0.9] text-white select-none relative z-10">
               <span className="block opacity-90">VAULT YOUR TRADES IN</span>
-              <span className="block text-[#00FF9C] drop-shadow-[0_0_15px_rgba(0,255,156,0.15)] mt-1.5 font-bold">PURE UNBIASED CLARITY.</span>
+              <span className="block text-[#3DDC97] drop-shadow-[0_0_15px_rgba(61,220,151,0.08)] mt-1.5 font-bold">PURE UNBIASED CLARITY.</span>
             </h1>
             
             {/* Real-time background trace stretching edge-to-edge */}
@@ -817,7 +817,7 @@ export default function Portal({
             <button 
               type="button"
               onClick={() => scrollSectionToId('portal-card-segment')}
-              className="px-8 py-3.5 bg-[#00FF9C] text-black hover:bg-[#00D180] hover:text-black rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-[0_0_30px_rgba(0,255,156,0.2)] active:scale-95 cursor-pointer"
+              className="px-8 py-3.5 bg-[#3DDC97] text-black hover:bg-[#2BB87E] hover:text-black rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-[0_0_30px_rgba(61,220,151,0.15)] active:scale-95 cursor-pointer"
             >
               DÉMARRER MA GESTION ↗
             </button>
@@ -836,20 +836,20 @@ export default function Portal({
           <div className="animate-ticker text-[10px] font-mono tracking-wider font-medium text-white/50 uppercase">
             {/* Double copies for seamless endless loop scroll */}
             <div className="flex items-center gap-16 shrink-0 pr-16">
-              <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#00FF9C]">$88,432.20 (+4.25%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#52D17C]">$88,432.20 (+4.25%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">ETH / USDT</strong> <span className="text-rose-400">$3,450.15 (-1.12%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#00FF9C]">$182.40 (+12.40%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">FTM / USDT</strong> <span className="text-[#00FF9C]">$0.925 (+15.20%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#00FF9C]">$612.80 (+0.85%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#00FF9C]">$0.145 (+3.12%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#52D17C]">$182.40 (+12.40%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">FTM / USDT</strong> <span className="text-[#52D17C]">$0.925 (+15.20%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#52D17C]">$612.80 (+0.85%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#52D17C]">$0.145 (+3.12%)</span></span>
             </div>
             <div className="flex items-center gap-16 shrink-0 pr-16">
-              <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#00FF9C]">$88,432.20 (+4.25%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">BTC / USDT</strong> <span className="text-[#52D17C]">$88,432.20 (+4.25%)</span></span>
               <span className="flex items-center gap-1.5"><strong className="text-white">ETH / USDT</strong> <span className="text-rose-400">$3,450.15 (-1.12%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#00FF9C]">$182.40 (+12.40%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">FTM / USDT</strong> <span className="text-[#00FF9C]">$0.925 (+15.20%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#00FF9C]">$612.80 (+0.85%)</span></span>
-              <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#00FF9C]">$0.145 (+3.12%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">SOL / USDT</strong> <span className="text-[#52D17C]">$182.40 (+12.40%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">FTM / USDT</strong> <span className="text-[#52D17C]">$0.925 (+15.20%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">BNB / USDT</strong> <span className="text-[#52D17C]">$612.80 (+0.85%)</span></span>
+              <span className="flex items-center gap-1.5"><strong className="text-white">TRX / USDT</strong> <span className="text-[#52D17C]">$0.145 (+3.12%)</span></span>
             </div>
           </div>
         </div>
@@ -859,7 +859,7 @@ export default function Portal({
       <section id="showcase" className="w-full py-24 px-6 max-w-7xl mx-auto z-20">
         <div className="space-y-12">
           <div className="max-w-xl space-y-3">
-            <span className="text-[9px] font-mono tracking-[0.25em] text-[#00FF9C] uppercase block font-bold">MONITOR PROPFIRMS TARGETS</span>
+            <span className="text-[9px] font-mono tracking-[0.25em] text-[#3DDC97] uppercase block font-bold">MONITOR PROPFIRMS TARGETS</span>
             <h2 className="text-3xl sm:text-4xl font-display font-black text-white uppercase tracking-tight">PREMIUM BUILT-IN HARNESS.</h2>
             <p className="text-xs text-white/40 font-sans leading-relaxed">
               Never breach daily drawdown rules again. Explore standard seed targets or tilt these cards to verify limits dynamically in high contrast layout.
@@ -869,10 +869,10 @@ export default function Portal({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 three-d-perspective">
             
             {/* Challenge Card 1: FTMO */}
-            <div className="tilt-card bg-[#080808] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#00FF9C]/30 transition-all">
+            <div className="tilt-card bg-[var(--bg-secondary)] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#3DDC97]/30 transition-all">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-mono text-[#00FF9C] bg-[#00FF9C]/5 border border-[#00FF9C]/20 px-2.5 py-1 rounded-full uppercase">FTMO HARNESS</span>
+                  <span className="text-[10px] font-mono text-[#3DDC97] bg-[#3DDC97]/5 border border-[#3DDC97]/20 px-2.5 py-1 rounded-full uppercase">FTMO HARNESS</span>
                   <span className="text-[11px] font-mono text-white/30">ID: FTMO-100K</span>
                 </div>
                 <h3 className="text-xl font-display font-bold text-white uppercase">Sovereign 100K Capital</h3>
@@ -883,7 +883,7 @@ export default function Portal({
               <div className="flex justify-between items-baseline pt-4 border-t border-white/5">
                 <div>
                   <span className="text-[9px] font-mono text-white/30 block uppercase">LIMIT RULE</span>
-                  <span className="text-xs font-mono font-bold text-[#00FF9C]">$5,000 drawdown</span>
+                  <span className="text-xs font-mono font-bold text-[#3DDC97]">$5,000 drawdown</span>
                 </div>
                 <div className="text-right">
                   <span className="text-[9px] font-mono text-white/30 block uppercase">TARGET</span>
@@ -893,10 +893,10 @@ export default function Portal({
             </div>
 
             {/* Challenge Card 2: Personal */}
-            <div className="tilt-card bg-[#080808] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#00FF9C]/30 transition-all">
+            <div className="tilt-card bg-[var(--bg-secondary)] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#3DDC97]/30 transition-all">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-mono text-[#00FF9C] bg-[#00FF9C]/5 border border-[#00FF9C]/20 px-2.5 py-1 rounded-full uppercase">UNRESTRICTED</span>
+                  <span className="text-[10px] font-mono text-[#3DDC97] bg-[#3DDC97]/5 border border-[#3DDC97]/20 px-2.5 py-1 rounded-full uppercase">UNRESTRICTED</span>
                   <span className="text-[11px] font-mono text-white/30">ID: USER-SPOT</span>
                 </div>
                 <h3 className="text-xl font-display font-bold text-white uppercase">Personal Spot Portfolio</h3>
@@ -917,10 +917,10 @@ export default function Portal({
             </div>
 
             {/* Challenge Card 3: CustomEvaluation */}
-            <div className="tilt-card bg-[#080808] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#00FF9C]/30 transition-all">
+            <div className="tilt-card bg-[var(--bg-secondary)] border border-white/5 rounded-2xl p-6 flex flex-col justify-between h-[300px] select-none hover:border-[#3DDC97]/30 transition-all">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-mono text-[#00FF9C] bg-[#00FF9C]/5 border border-[#00FF9C]/20 px-2.5 py-1 rounded-full uppercase">CUSTOM FIRM</span>
+                  <span className="text-[10px] font-mono text-[#3DDC97] bg-[#3DDC97]/5 border border-[#3DDC97]/20 px-2.5 py-1 rounded-full uppercase">CUSTOM FIRM</span>
                   <span className="text-[11px] font-mono text-white/30">ID: MY-EVAL-200K</span>
                 </div>
                 <h3 className="text-xl font-display font-bold text-white uppercase">Prop firm Evaluation</h3>
@@ -935,7 +935,7 @@ export default function Portal({
                 </div>
                 <div className="text-right">
                   <span className="text-[9px] font-mono text-white/30 block uppercase">TARGET</span>
-                  <span className="text-sm font-mono font-bold text-[#00FF9C]">Variable goal</span>
+                  <span className="text-sm font-mono font-bold text-[#3DDC97]">Variable goal</span>
                 </div>
               </div>
             </div>
@@ -952,8 +952,8 @@ export default function Portal({
           <div className="col-span-1 lg:col-span-7 p-6 md:p-10 flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <span className="text-lg font-black font-display tracking-tight leading-none text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">
-                  TRADE<span className="text-[#00FF9C]">VAULT</span>
+                <span className="text-lg font-black font-display tracking-tight leading-none text-white drop-shadow-[0_0_15px_rgba(61,220,151,0.4)]">
+                  TRADE<span className="text-[#3DDC97]">VAULT</span>
                 </span>
               </div>
 
@@ -965,12 +965,12 @@ export default function Portal({
               </p>
 
               {/* Inscription / Connexion Tabs */}
-              <div className="flex bg-[#080808] p-1 rounded-full mb-6 border border-white/5 max-w-sm">
+              <div className="flex bg-[var(--bg-secondary)] p-1 rounded-full mb-6 border border-white/5 max-w-sm">
                 <button
                   type="button"
                   onClick={() => { setActiveTab('login'); setForgotResult(null); }}
                   className={`flex-1 py-2 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase transition-all ${
-                    activeTab === 'login' ? 'bg-[#00FF9C] text-black shadow-md' : 'text-white/40 hover:text-white'
+                    activeTab === 'login' ? 'bg-[#3DDC97] text-black shadow-md' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   Connexion
@@ -979,7 +979,7 @@ export default function Portal({
                   type="button"
                   onClick={() => { setActiveTab('register'); setRegMethod('choice'); setForgotResult(null); }}
                   className={`flex-1 py-2 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase transition-all ${
-                    activeTab === 'register' ? 'bg-[#00FF9C] text-black shadow-md' : 'text-white/40 hover:text-white'
+                    activeTab === 'register' ? 'bg-[#3DDC97] text-black shadow-md' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   Inscription
@@ -997,7 +997,7 @@ export default function Portal({
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       placeholder="votre@email.com ou pseudo"
-                      className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#00FF9C] transition-all"
+                      className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#3DDC97] transition-all"
                       required
                     />
                   </div>
@@ -1008,7 +1008,7 @@ export default function Portal({
                       <button
                         type="button"
                         onClick={() => setForgotOpen(true)}
-                        className="text-[10px] font-mono text-[#00FF9C] hover:text-[#00FF9C]/80 bg-transparent py-0 px-0 underline cursor-pointer"
+                        className="text-[10px] font-mono text-[#3DDC97] hover:text-[#3DDC97]/80 bg-transparent py-0 px-0 underline cursor-pointer"
                       >
                         OUBLIÉ ?
                       </button>
@@ -1019,7 +1019,7 @@ export default function Portal({
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#00FF9C] pr-12 transition-all"
+                        className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#3DDC97] pr-12 transition-all"
                         required
                       />
                       <button
@@ -1035,7 +1035,7 @@ export default function Portal({
                   <button
                     type="submit"
                     disabled={loginLoading}
-                    className="w-full py-4 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6 disabled:opacity-50"
+                    className="w-full py-4 bg-[#3DDC97] text-black hover:bg-[#2BB87E] rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all shadow-lg text-center cursor-pointer mt-6 disabled:opacity-50"
                   >
                     {loginLoading ? "CHARGEMENT..." : <>IDENTIFIER MON COMPTE <ArrowRight size={13} /></>}
                   </button>
@@ -1054,7 +1054,7 @@ export default function Portal({
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={googleLoading}
-                    className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#00FF9C]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group disabled:opacity-50"
+                    className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase border border-white/5 hover:border-[#3DDC97]/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer group disabled:opacity-50"
                   >
                     <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -1084,7 +1084,7 @@ export default function Portal({
                             value={forgotEmail}
                             onChange={(e) => setForgotEmail(e.target.value)}
                             placeholder="votre@email.com"
-                            className="w-full px-4 py-3 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#00FF9C] transition-all"
+                            className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/25 focus:outline-none focus:border-[#3DDC97] transition-all"
                             required
                           />
                         </div>
@@ -1099,7 +1099,7 @@ export default function Portal({
                           </button>
                           <button
                             type="submit"
-                            className="flex-1 py-3 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
+                            className="flex-1 py-3 bg-[#3DDC97] text-black hover:bg-[#2BB87E] rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer"
                             disabled={resetLoading}
                           >
                             {resetLoading ? 'ENVOI...' : 'ENVOYER'}
@@ -1109,8 +1109,8 @@ export default function Portal({
                     </>
                   ) : (
                     <div className="space-y-5 text-center py-4 bg-[#050508]/60 p-4 border border-white/5 rounded-xl">
-                      <div className="w-12 h-12 rounded-full bg-[#00FF9C]/10 border border-[#00FF9C]/30 flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(0,255,156,0.15)]">
-                        <Check size={20} className="text-[#00FF9C]" />
+                      <div className="w-12 h-12 rounded-full bg-[#52D17C]/10 border border-[#52D17C]/30 flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(82,209,124,0.15)]">
+                        <Check size={20} className="text-[#52D17C]" />
                       </div>
                       
                       <div className="space-y-1.5">
@@ -1125,7 +1125,7 @@ export default function Portal({
                       <button
                         type="button"
                         onClick={() => { setForgotOpen(false); setResetStep(1); }}
-                        className="w-full py-2.5 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase transition-all cursor-pointer block text-center"
+                        className="w-full py-2.5 bg-[#3DDC97] text-black hover:bg-[#2BB87E] rounded-xl text-[9px] font-mono font-bold tracking-widest uppercase transition-all cursor-pointer block text-center"
                       >
                         REVENIR À LA CONNEXION
                       </button>
@@ -1146,7 +1146,7 @@ export default function Portal({
                           value={regUsername}
                           onChange={(e) => setRegUsername(e.target.value)}
                           placeholder="Ex: Alexander_F"
-                          className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
+                          className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#3DDC97]"
                           required
                         />
                       </div>
@@ -1158,7 +1158,7 @@ export default function Portal({
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
                           placeholder="nom@exemple.com"
-                          className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
+                          className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#3DDC97]"
                           required
                         />
                       </div>
@@ -1172,7 +1172,7 @@ export default function Portal({
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
                           placeholder="Min. 8 caractères"
-                          className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
+                          className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#3DDC97]"
                           required
                         />
                       </div>
@@ -1184,23 +1184,23 @@ export default function Portal({
                           value={regConfirm}
                           onChange={(e) => setRegConfirm(e.target.value)}
                           placeholder="Vérification"
-                          className="w-full px-4 py-2.5 bg-[#080808] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#00FF9C]"
+                          className="w-full px-4 py-2.5 bg-[var(--bg-secondary)] border border-white/5 rounded-xl text-xs font-mono text-white placeholder-white/20 focus:outline-none focus:border-[#3DDC97]"
                           required
                         />
                       </div>
                     </div>
 
                     {/* Payment capture requirements in dark style */}
-                    <div className="space-y-2 bg-[#080808] p-4 rounded-xl border border-white/5">
+                    <div className="space-y-2 bg-[var(--bg-secondary)] p-4 rounded-xl border border-white/5">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-mono font-bold text-[#00FF9C] tracking-wider">📸 PREUVE DE PAIEMENT REQUIS</span>
-                        <span className="text-[8px] bg-[#FF4D4D]/10 border border-[#FF4D4D]/25 text-[#FF4D4D] px-2 py-0.5 rounded-full font-mono uppercase font-bold">Obligatoire</span>
+                        <span className="text-[10px] font-mono font-bold text-[#3DDC97] tracking-wider">📸 PREUVE DE PAIEMENT REQUIS</span>
+                        <span className="text-[8px] bg-[#E8544F]/10 border border-[#E8544F]/25 text-[#E8544F] px-2 py-0.5 rounded-full font-mono uppercase font-bold">Obligatoire</span>
                       </div>
                       <p className="text-[10px] text-white/40 leading-relaxed font-sans mb-3">
                         L'activation est soumise à un règlement d'abonnement de <strong className="text-white">${subscriptionPrice} USDT</strong> pour une durée d'utilisation de {subscriptionPeriod} mois, vers une adresse sur votre droite.
                       </p>
 
-                      <div className="border border-dashed border-white/10 bg-black rounded-lg p-3 text-center transition-all hover:border-[#00FF9C]/40 relative cursor-pointer">
+                      <div className="border border-dashed border-white/10 bg-black rounded-lg p-3 text-center transition-all hover:border-[#3DDC97]/40 relative cursor-pointer">
                         <input
                           type="file"
                           id="reg-screenshot-upload-premium"
@@ -1218,7 +1218,7 @@ export default function Portal({
                           <div className="flex items-center justify-between pointer-events-none">
                             <div className="flex items-center gap-2">
                               <img src={payment_proof} alt="Preuve" className="w-8 h-8 object-cover rounded border border-white/10" />
-                              <span className="text-[10px] text-[#00FF9C] font-mono">Preuve_chargee.jpg</span>
+                              <span className="text-[10px] text-[#3DDC97] font-mono">Preuve_chargee.jpg</span>
                             </div>
                             <button 
                               type="button" 
@@ -1234,7 +1234,7 @@ export default function Portal({
 
                     <button
                       type="submit"
-                      className="w-full py-3.5 bg-[#00FF9C] text-black hover:bg-[#00D180] rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all text-center cursor-pointer shadow-[0_0_15px_rgba(0,255,156,0.15)]"
+                      className="w-full py-3.5 bg-[#3DDC97] text-black hover:bg-[#2BB87E] rounded-xl text-[10px] font-mono font-bold tracking-widest uppercase transition-all text-center cursor-pointer shadow-[0_0_15px_rgba(61,220,151,0.15)]"
                     >
                       SOUMETTRE MON INSCRIPTION ET PREUVE
                     </button>
@@ -1248,8 +1248,8 @@ export default function Portal({
           {/* RIGHT COLUMN: Subscription pricing and address */}
           <div className="col-span-1 lg:col-span-5 p-6 md:p-8 bg-black/60 border-l border-white/5 flex flex-col justify-between overflow-hidden relative">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-[9px] text-[#00FF9C] font-mono tracking-wider uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9C] block animate-pulse"></span> PROPFIRM EVAL HARNESS
+              <div className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-[9px] text-[#3DDC97] font-mono tracking-wider uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] block animate-pulse"></span> PROPFIRM EVAL HARNESS
               </div>
 
               {activeTab === 'login' ? (
@@ -1264,7 +1264,7 @@ export default function Portal({
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-display font-black text-white uppercase tracking-tight">CONSIGNES DE DOTATION</h3>
-                    <p className="text-xs text-[#00FF9C] font-mono tracking-wider mt-1 font-bold">OFFRE MEMBRES PRO</p>
+                    <p className="text-xs text-[#3DDC97] font-mono tracking-wider mt-1 font-bold">OFFRE MEMBRES PRO</p>
                   </div>
 
                   {/* Price bubble */}
@@ -1280,7 +1280,7 @@ export default function Portal({
                         onClick={() => setSelectedNetwork('TRC20')}
                         className={`p-2.5 rounded-xl border cursor-pointer flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                           selectedNetwork === 'TRC20' 
-                            ? 'border-[#00FF9C] bg-[#00FF9C]/5 text-white' 
+                            ? 'border-[#3DDC97] bg-[#3DDC97]/5 text-white' 
                             : 'border-white/5 hover:border-white/10 text-white/40'
                         }`}
                       >
@@ -1292,7 +1292,7 @@ export default function Portal({
                         onClick={() => setSelectedNetwork('BEP20')}
                         className={`p-2.5 rounded-xl border cursor-pointer flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                           selectedNetwork === 'BEP20' 
-                            ? 'border-[#00FF9C] bg-[#00FF9C]/5 text-white' 
+                            ? 'border-[#3DDC97] bg-[#3DDC97]/5 text-white' 
                             : 'border-white/5 hover:border-white/10 text-white/40'
                         }`}
                       >
@@ -1305,9 +1305,9 @@ export default function Portal({
                   {/* Copy crypto address pill */}
                   <div className="space-y-2">
                     <span className="text-[9px] font-mono text-white/40 block tracking-wider uppercase">COPIER L'ADRESSE INTERNET</span>
-                    <div className="bg-[#080808] border border-white/5 p-3 rounded-xl flex items-center justify-between">
+                    <div className="bg-[var(--bg-secondary)] border border-white/5 p-3 rounded-xl flex items-center justify-between">
                       <div className="overflow-hidden mr-2">
-                        <code className="text-[11px] font-mono text-[#00FF9C] font-semibold tracking-wide">
+                        <code className="text-[11px] font-mono text-[#3DDC97] font-semibold tracking-wide">
                           {WALLETS[selectedNetwork].substring(0, 6)}...{WALLETS[selectedNetwork].substring(WALLETS[selectedNetwork].length - 6)}
                         </code>
                         <span className="text-[7.5px] font-mono text-white/30 block mt-0.5 uppercase">CLIQUEZ POUR COPIER L'ADRESSE COMPLETE</span>
@@ -1318,7 +1318,7 @@ export default function Portal({
                           navigator.clipboard.writeText(WALLETS[selectedNetwork]);
                           displayToast('Adresse crypto complète copiée !', 'success');
                         }}
-                        className="p-2 px-3.5 bg-white text-black hover:bg-[#00FF9C] rounded-lg text-[9px] font-mono font-bold uppercase shrink-0 transition-colors cursor-pointer"
+                        className="p-2 px-3.5 bg-white text-black hover:bg-[#3DDC97] rounded-lg text-[9px] font-mono font-bold uppercase shrink-0 transition-colors cursor-pointer"
                       >
                         COPIER
                       </button>
@@ -1326,7 +1326,7 @@ export default function Portal({
                   </div>
 
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                    <h5 className="text-[9px] font-mono font-bold text-[#00FF9C] tracking-wider uppercase mb-1">CONSIGNE ACTIVE</h5>
+                    <h5 className="text-[9px] font-mono font-bold text-[#3DDC97] tracking-wider uppercase mb-1">CONSIGNE ACTIVE</h5>
                     <p className="text-[10px] text-white/40 font-sans leading-relaxed">
                       Effectuez le transfert USDT prolongeant vos accès, transmettez la capture à gauche. L'administrateur valide d'ordinaire sous de brefs délais.
                     </p>

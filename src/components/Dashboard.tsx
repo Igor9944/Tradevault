@@ -2,8 +2,9 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Trade, Account } from '../types';
-import { DollarSign, Percent, TrendingUp, ShieldAlert, BadgeInfo, Calendar, Zap, Award } from 'lucide-react';
+import { Calendar, Zap, Award, BadgeInfo } from 'lucide-react';
 import { useThemeLang } from '../utils/themeLanguageContext';
+import ChallengeConstraintBar from './ChallengeConstraintBar';
 
 interface DashboardProps {
   trades: Trade[];
@@ -104,14 +105,25 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
 
   // Pie chart data
   const pieData = [
-    { name: 'Gains', value: wins.length || 0.1, color: '#00FF9C' },
-    { name: 'Pertes', value: losses.length || 0.1, color: '#FF4D4D' }
+    { name: 'Gains', value: wins.length || 0.1, color: '#52D17C' },
+    { name: 'Pertes', value: losses.length || 0.1, color: '#E8544F' }
   ];
 
   return (
     <div className="space-y-6 text-slate-200">
-      
-      {/* 4 PRIMARY KPIS */}
+
+      {/* CHALLENGE CONSTRAINT BAR — signature element, only shown if account has rules */}
+      <ChallengeConstraintBar
+        todayPnl={todayPnl}
+        maxDrawdown={maxDrawdown}
+        totalPnl={totalPnl}
+        dailyLossLimit={activeAccount.daily_loss}
+        globalLossLimit={activeAccount.global_loss}
+        profitTarget={activeAccount.target}
+        symbol={symbol}
+      />
+
+      {/* 4 PRIMARY KPIS — quiet, uniform, no per-card accent box */}
       <motion.div 
         id="tour-dashboard-panel"
         variants={containerVariants} 
@@ -121,101 +133,81 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
       >
         
         {/* Total P&L Card */}
-        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900 shadow-md">
-          <div className="space-y-1">
-            <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('net_total_pnl')}</span>
-            <div className={`text-2xl font-extrabold font-mono ${totalPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
-              {formatWithCurrency(totalPnl, true)}
-            </div>
-            <span className="text-[10px] text-neutral-300 block font-mono">{t('total_trades')}: {trades.length}</span>
+        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('net_total_pnl')}</span>
+          <div className={`text-2xl font-bold font-mono ${totalPnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+            {formatWithCurrency(totalPnl, true)}
           </div>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${totalPnl >= 0 ? 'bg-[#00FF9C]/10 text-[#00FF9C]' : 'bg-red-500/10 text-red-400'}`}>
-            <span className="text-lg font-black font-mono">{symbol}</span>
-          </div>
+          <span className="text-[10px] text-neutral-500 block font-mono mt-1">{t('total_trades')}: {trades.length}</span>
         </motion.div>
 
         {/* Winrate Card */}
-        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900">
-          <div className="space-y-1">
-            <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider block">{t('winrate')}</span>
-            <div className="text-2xl font-extrabold font-mono text-[#00FF9C]">
-              {winrate.toFixed(1)}%
-            </div>
-            <span className="text-[10px] text-neutral-400 block font-mono">
-              {wins.length} W - {losses.length} L
-            </span>
+        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('winrate')}</span>
+          <div className="text-2xl font-bold font-mono text-neutral-100">
+            {winrate.toFixed(1)}%
           </div>
-          <div className="w-12 h-12 rounded-xl bg-[#00FF9C]/10 text-[#00FF9C] flex items-center justify-center">
-            <Percent size={20} />
-          </div>
+          <span className="text-[10px] text-neutral-500 block font-mono mt-1">
+            {wins.length} W - {losses.length} L
+          </span>
         </motion.div>
 
         {/* Average Risk/Reward Card */}
-        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900">
-          <div className="space-y-1">
-            <span className="text-xs text-neutral-400 font-bold uppercase tracking-wider block">{t('avg_risk_reward')}</span>
-            <div className="text-2xl font-extrabold font-mono text-amber-500">
-              {avgRRObj}
-            </div>
-            <span className="text-[10px] text-slate-500 block">{t('avg_gain_loss_legend')}</span>
+        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('avg_risk_reward')}</span>
+          <div className="text-2xl font-bold font-mono text-neutral-100">
+            {avgRRObj}
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-            <TrendingUp size={20} />
-          </div>
+          <span className="text-[10px] text-neutral-500 block mt-1">{t('avg_gain_loss_legend')}</span>
         </motion.div>
 
         {/* Max Drawdown Card */}
-        <motion.div variants={cardVariants} className="bg-[#080808] rounded-2xl p-6 flex items-center justify-between border border-zinc-900">
-          <div className="space-y-1">
-            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{t('max_drawdown')}</span>
-            <div className="text-2xl font-extrabold font-mono text-rose-500">
-              {formatWithCurrency(maxDrawdown, false)}
-            </div>
-            <span className="text-[10px] text-slate-500 block">{t('max_cumulative_drawdown_legend')}</span>
+        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('max_drawdown')}</span>
+          <div className="text-2xl font-bold font-mono text-neutral-100">
+            {formatWithCurrency(maxDrawdown, false)}
           </div>
-          <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
-            <ShieldAlert size={20} />
-          </div>
+          <span className="text-[10px] text-neutral-500 block mt-1">{t('max_cumulative_drawdown_legend')}</span>
         </motion.div>
 
       </motion.div>
 
 
       {/* TODAY RECAP PANELS */}
-      <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900">
-        <div className="flex items-center justify-between mb-4 border-b border-zinc-800/30 pb-4">
+      <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06]">
+        <div className="flex items-center justify-between mb-4 border-b border-white/[0.06] pb-4">
           <div className="flex items-center gap-2">
-            <Calendar className="text-[#00FF9C]" size={18} />
+            <Calendar className="text-[#3DDC97]" size={18} />
             <h3 className="text-sm font-black text-white font-mono uppercase tracking-widest">{t('today_perf')}</h3>
           </div>
           <span className="text-[10px] font-mono text-slate-500 uppercase">Live Tick Engine</span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[var(--bg-tertiary)]/60 p-4 rounded-xl border border-white/[0.06] text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('daily_pnl')}</span>
-            <div className={`text-base font-bold font-mono ${todayPnl >= 0 ? 'text-[#00FF9C]' : 'text-red-400'}`}>
+            <div className={`text-base font-bold font-mono ${todayPnl >= 0 ? 'text-[#52D17C]' : 'text-[#E8544F]'}`}>
               {formatWithCurrency(todayPnl, true)}
             </div>
           </div>
 
-          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[var(--bg-tertiary)]/60 p-4 rounded-xl border border-white/[0.06] text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('today_trades')}</span>
-            <div className="text-base font-bold font-mono text-[#00FF9C]">
+            <div className="text-base font-bold font-mono text-neutral-100">
               {todayTrades.length}
             </div>
           </div>
 
-          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[var(--bg-tertiary)]/60 p-4 rounded-xl border border-white/[0.06] text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('winrate')}</span>
-            <div className="text-base font-bold font-mono text-[#00FF9C]">
+            <div className="text-base font-bold font-mono text-[#52D17C]">
               {todayWinrate.toFixed(1)}%
             </div>
           </div>
 
-          <div className="bg-[#050505]/60 p-4 rounded-xl border border-zinc-900 text-center">
+          <div className="bg-[var(--bg-tertiary)]/60 p-4 rounded-xl border border-white/[0.06] text-center">
             <span className="text-[10px] text-slate-500 uppercase block tracking-wider mb-1">{t('best_trade')}</span>
-            <div className="text-base font-bold font-mono text-[#00FF9C]">
+            <div className="text-base font-bold font-mono text-[#52D17C]">
               {todayBest > 0 ? formatWithCurrency(todayBest, true) : `${symbol}0.00`}
             </div>
           </div>
@@ -226,13 +218,13 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Cumulative Equity curve (Recharts Areas) */}
-        <div className="lg:col-span-2 bg-[#080808] rounded-2xl p-6 border border-zinc-900">
+        <div className="lg:col-span-2 bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06]">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-0.5">
               <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">{t('equity_curve_title')}</h4>
               <p className="text-[10px] text-slate-400">{t('equity_curve_desc')}</p>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#00FF9C]/10 rounded-full px-2.5 py-1 text-[9px] text-[#00FF9C] font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 bg-[#3DDC97]/10 rounded-full px-2.5 py-1 text-[9px] text-[#3DDC97] font-bold uppercase tracking-wider">
               <Zap size={10} /> Equity Curve
             </div>
           </div>
@@ -248,8 +240,8 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
                 <AreaChart data={equityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00FF9C" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#00FF9C" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="#3DDC97" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#3DDC97" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
@@ -264,7 +256,7 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
                     type="monotone" 
                     dataKey="Pnl" 
                     name={t('cum_balance_legend')} 
-                    stroke="#00FF9C" 
+                    stroke="#3DDC97" 
                     strokeWidth={2} 
                     fillOpacity={1} 
                     fill="url(#colorPnl)"
@@ -275,7 +267,7 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
               </ResponsiveContainer>
             </motion.div>
           ) : (
-            <div className="h-72 w-full flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[#080808]/20 rounded-xl gap-2">
+            <div className="h-72 w-full flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[var(--bg-secondary)]/20 rounded-xl gap-2">
               <BadgeInfo size={32} className="text-slate-600 animate-pulse" />
               <span className="text-xs text-slate-500 font-medium">{t('no_trades_equity')}</span>
             </div>
@@ -283,11 +275,11 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
         </div>
 
         {/* Win / Loss Split Pie Chart */}
-        <div className="bg-[#080808] rounded-2xl p-6 border border-zinc-900 flex flex-col justify-between">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-black font-mono text-white tracking-wider uppercase">{t('win_loss_split_title')}</h4>
-              <Award size={16} className="text-[#00FF9C]" />
+              <Award size={16} className="text-[#3DDC97]" />
             </div>
             <p className="text-[10px] text-slate-400 mb-6">{t('win_loss_split_desc')}</p>
           </div>
@@ -316,18 +308,18 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
 
               {/* Legends with detail ratio */}
               <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                <div className="p-2 border border-[#00FF9C]/20 bg-[#00FF9C]/5 rounded-xl">
-                  <span className="text-[#00FF9C] font-bold block">{wins.length} {t('wins')}</span>
+                <div className="p-2 border border-[#52D17C]/20 bg-[#52D17C]/5 rounded-xl">
+                  <span className="text-[#52D17C] font-bold block">{wins.length} {t('wins')}</span>
                   <span className="text-[10px] text-slate-500">{(trades.length > 0 ? (wins.length / trades.length) * 100 : 0).toFixed(0)}% {t('wins_losses_of_total_legend')}</span>
                 </div>
-                <div className="p-2 border border-red-500/20 bg-red-500/5 rounded-xl">
-                  <span className="text-red-400 font-bold block">{losses.length} {t('losses')}</span>
+                <div className="p-2 border border-[#E8544F]/20 bg-[#E8544F]/5 rounded-xl">
+                  <span className="text-[#E8544F] font-bold block">{losses.length} {t('losses')}</span>
                   <span className="text-[10px] text-slate-500">{(trades.length > 0 ? (losses.length / trades.length) * 100 : 0).toFixed(0)}% {t('wins_losses_of_total_legend')}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[#080808]/20 rounded-xl gap-2 p-6">
+            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-800 bg-[var(--bg-secondary)]/20 rounded-xl gap-2 p-6">
               <BadgeInfo size={28} className="text-slate-600" />
               <span className="text-xs text-slate-500 text-center">{t('no_trades_distribution')}</span>
             </div>

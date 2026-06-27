@@ -168,7 +168,7 @@ export default function InteractiveTour({ userId, activeTab, setActiveTab }: Int
           whileHover={{ scale: 1.1, rotate: 6 }}
           whileTap={{ scale: 0.95 }}
           onClick={restartTour}
-          className="p-3 bg-[#080808]/90 text-[#00FF9C] hover:text-white rounded-full border border-zinc-800 hover:border-[#00FF9C]/50 shadow-2xl shadow-emerald-500/15 backdrop-blur-md flex items-center justify-center gap-1.5 cursor-pointer text-xs font-mono group"
+          className="p-3 bg-[var(--bg-secondary)]/90 text-[#3DDC97] hover:text-white rounded-full border border-zinc-800 hover:border-[#3DDC97]/50 shadow-2xl shadow-emerald-500/5 backdrop-blur-md flex items-center justify-center gap-1.5 cursor-pointer text-xs font-mono group"
           id="tour-help-trigger"
         >
           <HelpCircle size={15} className="group-hover:rotate-12 transition-transform" />
@@ -221,7 +221,7 @@ export default function InteractiveTour({ userId, activeTab, setActiveTab }: Int
             rx={13} 
             ry={13} 
             fill="none" 
-            stroke="#00FF9C" 
+            stroke="#3DDC97" 
             strokeWidth="2.5" 
             className="animate-pulse"
             strokeDasharray="4 4"
@@ -237,16 +237,16 @@ export default function InteractiveTour({ userId, activeTab, setActiveTab }: Int
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="w-full max-w-sm bg-[#0a0a0b]/95 border border-zinc-900 rounded-3xl p-6 pointer-events-auto shadow-2xl relative overflow-hidden backdrop-blur-xl"
+          className="w-full max-w-sm bg-[var(--bg-secondary)]/95 border border-white/[0.06] rounded-3xl p-6 pointer-events-auto shadow-2xl relative overflow-hidden backdrop-blur-xl"
         >
           {/* Subtle green ambient background glow */}
-          <div className="absolute -top-12 -left-12 w-28 h-28 bg-[#00FF9C]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-12 -left-12 w-28 h-28 bg-[#3DDC97]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-12 -right-12 w-28 h-28 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Top header step info & skip button */}
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <span className="text-[10px] font-mono font-bold tracking-widest text-[#00FF9C] uppercase flex items-center gap-1">
-              <Sparkles size={11} className="text-[#00FF9C]" />
+            <span className="text-[10px] font-mono font-bold tracking-widest text-[#3DDC97] uppercase flex items-center gap-1">
+              <Sparkles size={11} className="text-[#3DDC97]" />
               GUIDE INTERACTIF • {currentStep + 1} SUR {steps.length}
             </span>
             <button 
@@ -274,13 +274,13 @@ export default function InteractiveTour({ userId, activeTab, setActiveTab }: Int
           </div>
 
           {/* Bullet Step Indicator Bar */}
-          <div className="flex items-center justify-between pt-4 border-t border-zinc-900 relative z-10 gap-2">
+          <div className="flex items-center justify-between pt-4 border-t border-white/[0.06] relative z-10 gap-2">
             <div className="flex gap-1">
               {steps.map((_, idx) => (
                 <div 
                   key={idx}
                   className={`h-1 rounded-full transition-all duration-300 ${
-                    idx === currentStep ? 'w-4 bg-[#00FF9C]' : 'w-1.5 bg-zinc-800'
+                    idx === currentStep ? 'w-4 bg-[#3DDC97]' : 'w-1.5 bg-zinc-800'
                   }`}
                 />
               ))}
@@ -298,7 +298,7 @@ export default function InteractiveTour({ userId, activeTab, setActiveTab }: Int
               )}
               <button
                 onClick={handleNext}
-                className="px-3.5 py-1.5 bg-[#00FF9C] hover:bg-[#00D180] text-black rounded-xl text-xs font-black flex items-center gap-1 transition-all pointer-events-auto hover:shadow-lg hover:shadow-[#00FF9C]/20 cursor-pointer"
+                className="px-3.5 py-1.5 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-black flex items-center gap-1 transition-all pointer-events-auto hover:shadow-lg hover:shadow-[#3DDC97]/10 cursor-pointer"
               >
                 {currentStep === steps.length - 1 ? (
                   <>Commencer <CheckCircle2 size={14} /></>
