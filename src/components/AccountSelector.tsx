@@ -38,6 +38,15 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
     }
   };
 
+  const getAccountTypeDotColor = (type?: string) => {
+    switch (type) {
+      case 'prop_firm': return '#3DDC97';
+      case 'personal': return '#818CF8';
+      case 'demo': return '#71717A';
+      default: return 'transparent';
+    }
+  };
+
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   const getAccountDisplay = (acc?: Account) => {
@@ -52,7 +61,15 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between bg-black border border-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#3DDC97] font-semibold truncate"
       >
-        <span className="truncate">{getAccountDisplay(selectedAccount)}</span>
+        <span className="flex items-center gap-1.5 truncate">
+          {selectedAccount?.account_type && (
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: getAccountTypeDotColor(selectedAccount.account_type) }}
+            />
+          )}
+          <span className="truncate">{getAccountDisplay(selectedAccount)}</span>
+        </span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -78,9 +95,15 @@ export default function AccountSelector({ accounts, selectedAccountId, onSelect,
                   setIsOpen(false);
                 }}
               >
-                <span className={`text-xs ${selectedAccountId === acc.id ? 'text-[#3DDC97] font-bold' : 'text-neutral-300'}`}>
+                <span className={`flex items-center gap-1.5 text-xs ${selectedAccountId === acc.id ? 'text-[#3DDC97] font-bold' : 'text-neutral-300'}`}>
+                  {acc.account_type && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: getAccountTypeDotColor(acc.account_type) }}
+                    />
+                  )}
                   {acc.name} {acc.account_type && (
-                    <span className="text-[10px] text-zinc-500 font-mono ml-1">
+                    <span className="text-[10px] text-zinc-500 font-mono">
                       ({getAccountTypeLabel(acc.account_type)})
                     </span>
                   )}
