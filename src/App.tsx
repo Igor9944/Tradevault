@@ -678,14 +678,8 @@ export default function App() {
     e.preventDefault();
     if (!currentUser) return;
     if (!profileUsername.trim()) return;
-    
-    let finalPassword = currentUser.password;
 
     if (profileOldPassword || profileNewPassword || profileConfirmPassword) {
-      if (profileOldPassword !== currentUser.password) {
-        customAlert('Erreur', 'L\'ancien mot de passe est incorrect.');
-        return;
-      }
       if (profileNewPassword !== profileConfirmPassword) {
         customAlert('Erreur', 'Les nouveaux mots de passe ne correspondent pas.');
         return;
@@ -694,15 +688,28 @@ export default function App() {
         customAlert('Erreur', 'Le nouveau mot de passe doit contenir au moins 6 caractères.');
         return;
       }
-      finalPassword = profileNewPassword;
+      // Vérifie l'ancien mot de passe via une vraie tentative de connexion
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: profileOldPassword,
+      });
+      if (reauthError) {
+        customAlert('Erreur', "L'ancien mot de passe est incorrect.");
+        return;
+      }
+      // Applique le nouveau mot de passe via Supabase Auth (pas via profiles)
+      const { error: pwError } = await supabase.auth.updateUser({ password: profileNewPassword });
+      if (pwError) {
+        customAlert('Erreur', 'Échec de la mise à jour du mot de passe : ' + pwError.message);
+        return;
+      }
     }
 
     const updates: Partial<User> = {
       username: profileUsername.trim(),
       country: profileCountry,
       currency: (profileCurrency as any),
-      avatar_url: profileAvatar || undefined,
-      password: finalPassword
+      avatar_url: profileAvatar || undefined
     };
 
     try {
