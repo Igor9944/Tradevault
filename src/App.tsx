@@ -66,7 +66,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Subcomponents
 import CustomEffects from './components/CustomEffects';
-import Dashboard from './components/Dashboard';
+const Dashboard = safeLazy(() => import('./components/Dashboard'));
 import { BackgroundVideo } from './components/BackgroundVideo';
 import Logo, { DefaultLogoAvatar } from './components/Logo';
 
@@ -1967,7 +1967,9 @@ export default function App() {
 
             {/* Active page renderer routing depending on states */}
             {activeTab === 'dashboard' && (
-              <Dashboard trades={activeAccountTrades} activeAccount={activeAccount} currency={currentUser?.currency || 'USD'} />
+              <React.Suspense fallback={<SleekNeonLoader />}>
+                <Dashboard trades={activeAccountTrades} activeAccount={activeAccount} currency={currentUser?.currency || 'USD'} />
+              </React.Suspense>
             )}
 
             {activeTab === 'journal' && (
