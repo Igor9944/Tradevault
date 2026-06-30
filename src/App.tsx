@@ -1235,6 +1235,7 @@ export default function App() {
 
   const handleCheckoutCancel = () => {
     if (currentUser && currentUser.status !== 'approved') {
+      supabase.auth.signOut().catch(err => console.warn("supabase.auth.signOut failed:", err));
       setCurrentUser(null);
       setCurrentScreen('login_portal');
       safeSessionStorage.removeItem('tv_current_user');
@@ -1908,7 +1909,12 @@ export default function App() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    await supabase.auth.signOut();
+                  } catch (err) {
+                    console.warn("supabase.auth.signOut failed:", err);
+                  }
                   setCurrentUser(null);
                   setCurrentScreen('login_portal');
                   setTrades([]);
