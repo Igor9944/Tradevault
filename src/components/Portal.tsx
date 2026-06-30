@@ -507,57 +507,28 @@ export default function Portal({
     }
 
     try {
-      // 1. Authentification via Supabase Auth (source de vérité unique)
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: identifier,
-        password: loginPassword,
-      });
+      // 1. Authentification robuste via la fonction centralisée (avec proxy et fallback in-memory)
+      const result = await signInWithSupabase(identifier, loginPassword);
 
-      if (authError || !authData.user) {
-        displayToast('Identifiants invalides.', 'error');
+      if (!result.success || !result.user) {
+        displayToast(result.error || 'Identifiants invalides.', 'error');
         setLoginLoading(false);
         return;
       }
 
-      // 2. Lecture du profil en base (role, status, subscription_status)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, username, role, status, subscription_status, plan, premium_expires_at, avatar_url, country, created_at')
-        .eq('id', authData.user.id)
-        .single();
+      const loggedUser = result.user;
 
-      if (profileError || !profile) {
-        displayToast('Profil introuvable. Contactez un administrateur.', 'error');
-        setLoginLoading(false);
-        return;
-      }
-
-      // 3. Blocage selon le statut
-      if (profile.status === 'pending') {
+      // 2. Blocage selon le statut
+      if (loggedUser.status === 'pending') {
         displayToast('Votre inscription est en attente de validation.', 'info');
         setLoginLoading(false);
         return;
       }
-      if (profile.status === 'rejected') {
+      if (loggedUser.status === 'rejected') {
         displayToast('Votre inscription a été rejetée.', 'error');
         setLoginLoading(false);
         return;
       }
-
-      // 4. Construction de l'objet User depuis la DB (pas de valeurs en dur)
-      const loggedUser: User = {
-        id: profile.id,
-        username: profile.username || profile.full_name || identifier.split('@')[0],
-        email: profile.email || identifier,
-        role: (profile.role as 'admin' | 'user') || 'user',
-        status: profile.status as 'approved' | 'pending' | 'rejected',
-        subscription_status: (profile.subscription_status as 'pending' | 'premium_active' | 'blocked') || 'pending',
-        plan: (profile.plan as 'free' | 'pro') || 'free',
-        premium_expires_at: profile.premium_expires_at || null,
-        avatar_url: profile.avatar_url || authData.user.user_metadata?.avatar_url,
-        country: profile.country || 'FR',
-        created_at: profile.created_at,
-      };
 
       onLoginSuccess(loggedUser);
       displayToast(

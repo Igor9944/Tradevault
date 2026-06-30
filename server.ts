@@ -299,6 +299,18 @@ export async function getAdminEmails(): Promise<string[]> {
 // Highly robust local in-memory fallback store to ensure seamless reviews
 let inMemoryUsers: any[] = [
   {
+    id: "6770a1eb-7a4e-4804-9dee-f9c1102cd854",
+    email: "admin@tradevault-onyx.com",
+    username: "Onyx Admin",
+    country: "FR",
+    avatar_url: null,
+    status: "approved",
+    paid: true,
+    paid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    role: "admin",
+    created_at: new Date().toISOString()
+  },
+  {
     id: "user_igor",
     email: "igorrose2003@gmail.com",
     username: "Igor Rose",
@@ -307,6 +319,7 @@ let inMemoryUsers: any[] = [
     status: "approved",
     paid: true,
     paid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    role: "admin",
     created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -318,6 +331,7 @@ let inMemoryUsers: any[] = [
     status: "approved",
     paid: true,
     paid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    role: "admin",
     created_at: new Date().toISOString()
   },
   {
@@ -329,6 +343,7 @@ let inMemoryUsers: any[] = [
     status: "pending",
     paid: false,
     paid_until: null,
+    role: "user",
     created_at: new Date().toISOString()
   }
 ];
