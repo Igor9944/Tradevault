@@ -197,7 +197,7 @@ function TradingDevicesSimulator() {
   }, []);
 
   return (
-    <div className="relative w-full py-12 px-4 flex flex-col items-center justify-center overflow-hidden min-h-[360px] bg-[#080808] rounded-2xl border border-white/5 mt-4">
+    <div className="relative w-full py-12 px-4 flex flex-col items-center justify-center overflow-hidden min-h-[360px] bg-[var(--bg-secondary)] rounded-2xl border border-white/5 mt-4">
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none overflow-hidden pb-4">
         <svg className="w-full h-full text-[#3DDC97]" viewBox="0 0 800 400" fill="currentColor">
           <pattern id="dot-grid" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
