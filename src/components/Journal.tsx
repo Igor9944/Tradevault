@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Filter, Plus, Edit2, Trash2, Calendar, FileText, Settings, X, ChevronRight, Upload, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Search, Filter, Plus, Edit2, Trash2, Calendar, FileText, Settings, X, ChevronRight, Upload, Sparkles, Image as ImageIcon, FileDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Trade, Account } from '../types';
 import { customAlert, customConfirm } from '../utils/customDialog';
 import { useThemeLang } from '../utils/themeLanguageContext';
@@ -183,12 +185,188 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   // Sort descent date by default
   const sortedFiltered = [...filteredTrades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const handleExportPDF = () => {
+    if (sortedFiltered.length === 0) {
+      customAlert('Export impossible', 'Il n\'y a aucun trade à exporter avec les filtres actuels.');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const primaryColor = [15, 23, 42]; // Slate 900
+
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('TRADEVAULT — JOURNAL DE TRADING', 14, 20);
+
+    // Subtitle
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // Slate 500
+    doc.text(`Compte actif : ${activeAccount.name} (${activeAccount.account_type === 'personal' ? 'Personnel' : 'Prop Firm'})`, 14, 26);
+    doc.text(`Date de génération : ${new Date().toLocaleString('fr-FR')}`, 14, 31);
+
+    // Separator
+    doc.setDrawColor(226, 232, 240); // Slate 200
+    doc.setLineWidth(0.5);
+    doc.line(14, 35, 283, 35);
+
+    // Calculations
+    const totalTrades = sortedFiltered.length;
+    const wins = sortedFiltered.filter(t => t.pnl > 0).length;
+    const losses = sortedFiltered.filter(t => t.pnl < 0).length;
+    const winRate = totalTrades > 0 ? ((wins / (wins + losses || 1)) * 100).toFixed(1) : '0.0';
+    const totalPnl = sortedFiltered.reduce((sum, t) => sum + t.pnl, 0);
+    const totalFees = sortedFiltered.reduce((sum, t) => sum + t.fees, 0);
+    const netProfit = totalPnl - totalFees;
+
+    // Stats Section Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('RÉSUMÉ DES STATISTIQUES (SÉLECTION ACTUELLE) :', 14, 43);
+
+    // Stats Background Card
+    doc.setFillColor(248, 250, 252); // Slate 50
+    doc.roundedRect(14, 46, 269, 18, 2, 2, 'F');
+
+    // Stats Labels
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105); // Slate 600
+    doc.text('Trades Totaux', 20, 52);
+    doc.text('Gains / Pertes', 75, 52);
+    doc.text('Taux de Réussite', 135, 52);
+    doc.text('Total Frais', 200, 52);
+    doc.text('Profit Net (après frais)', 245, 52);
+
+    // Stats Values
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42); // Slate 900
+    doc.text(`${totalTrades}`, 20, 59);
+
+    if (totalPnl >= 0) {
+      doc.setTextColor(16, 124, 65); // Green
+    } else {
+      doc.setTextColor(180, 35, 24); // Red
+    }
+    doc.text(`$${totalPnl.toFixed(2)}`, 75, 59);
+
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${winRate}%`, 135, 59);
+
+    doc.text(`$${totalFees.toFixed(2)}`, 200, 59);
+
+    if (netProfit >= 0) {
+      doc.setTextColor(16, 124, 65); // Green
+    } else {
+      doc.setTextColor(180, 35, 24); // Red
+    }
+    doc.text(`$${netProfit.toFixed(2)}`, 245, 59);
+
+    // Table
+    const headers = [
+      ['Date', 'Paire', 'Sens', 'Lots', 'Entrée', 'Sortie', 'Frais', 'P&L Brut', 'Net', 'Setup / Mindset', 'Notes / Observations']
+    ];
+
+    const data = sortedFiltered.map(t => {
+      const netTrade = t.pnl - t.fees;
+      return [
+        t.date,
+        t.pair,
+        t.side,
+        t.lots.toString(),
+        t.entry ? t.entry.toString() : '—',
+        t.exit ? t.exit.toString() : '—',
+        `$${t.fees.toFixed(2)}`,
+        `$${t.pnl.toFixed(2)}`,
+        `$${netTrade.toFixed(2)}`,
+        `${t.setup}\n[${t.mindset}]`,
+        t.notes || '—'
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 70,
+      head: headers,
+      body: data,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8,
+        halign: 'center',
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { cellWidth: 26, halign: 'center' }, // Date
+        1: { cellWidth: 18, halign: 'center', fontStyle: 'bold' }, // Paire
+        2: { cellWidth: 12, halign: 'center' }, // Sens
+        3: { cellWidth: 12, halign: 'center' }, // Lots
+        4: { cellWidth: 18, halign: 'right' }, // Entrée
+        5: { cellWidth: 18, halign: 'right' }, // Sortie
+        6: { cellWidth: 14, halign: 'right' }, // Frais
+        7: { cellWidth: 18, halign: 'right' }, // Brut
+        8: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, // Net
+        9: { cellWidth: 26 }, // Setup & Mindset
+        10: { cellWidth: 'auto' } // Notes
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak'
+      },
+      didParseCell: (dataCell) => {
+        if (dataCell.section === 'body' && dataCell.column.index === 2) {
+          if (dataCell.cell.raw === 'BUY') {
+            dataCell.cell.styles.textColor = [16, 124, 65];
+            dataCell.cell.styles.fontStyle = 'bold';
+          } else if (dataCell.cell.raw === 'SELL') {
+            dataCell.cell.styles.textColor = [180, 35, 24];
+            dataCell.cell.styles.fontStyle = 'bold';
+          }
+        }
+        if (dataCell.section === 'body' && (dataCell.column.index === 7 || dataCell.column.index === 8)) {
+          const valStr = dataCell.cell.raw ? dataCell.cell.raw.toString() : '';
+          if (valStr.includes('-')) {
+            dataCell.cell.styles.textColor = [180, 35, 24];
+          } else if (valStr !== '$0.00' && valStr !== '—') {
+            dataCell.cell.styles.textColor = [16, 124, 65];
+          }
+        }
+      },
+      margin: { left: 14, right: 14 },
+      pageBreak: 'auto'
+    });
+
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // Slate 400
+      doc.text(`Page ${i} sur ${pageCount}`, 283 - 14, 210 - 10, { align: 'right' });
+      doc.text('Généré de manière sécurisée par TradeVault', 14, 210 - 10);
+    }
+
+    const filename = `TradeVault_Journal_${activeAccount.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+  };
+
   return (
     <div className="space-y-6 text-slate-200">
       
       {/* Search and Filters Strip */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[var(--bg-secondary)] p-4 rounded-2xl border border-white/[0.06] relative">
-        <div className="md:col-span-4 relative">
+        <div className="md:col-span-3 relative">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-300">
             <Search size={16} />
           </span>
@@ -201,7 +379,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           />
         </div>
 
-        <div className="md:col-span-3">
+        <div className="md:col-span-2">
           <select
             value={setupFilter}
             onChange={(e) => setSetupFilter(e.target.value)}
@@ -212,7 +390,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
           </select>
         </div>
 
-        <div className="md:col-span-3">
+        <div className="md:col-span-2">
           <select
             value={pnlFilter}
             onChange={(e) => setPnlFilter(e.target.value as any)}
@@ -225,6 +403,16 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         </div>
 
         <div className="md:col-span-2">
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="w-full py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+          >
+            <FileDown size={14} /> {t('export_pdf')}
+          </button>
+        </div>
+
+        <div className="md:col-span-3">
           <button
             type="button"
             id="tour-add-trade"
