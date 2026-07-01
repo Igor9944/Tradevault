@@ -301,10 +301,28 @@ let inMemoryUsers: any[] = [
   {
     id: "6770a1eb-7a4e-4804-9dee-f9c1102cd854",
     email: "admin@tradevault-onyx.com",
+    password: "7ddxNRF9gqaBfhGu",
     username: "Onyx Admin",
-    country: "FR",
+    country: "TG",
     avatar_url: null,
     status: "approved",
+    subscription_status: "premium_active",
+    plan: "pro",
+    paid: true,
+    paid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    role: "admin",
+    created_at: new Date().toISOString()
+  },
+  {
+    id: "0e0e91bc-8440-45c6-876c-6e546cf43dbd",
+    email: "tradonyx@vault.com",
+    password: "otradnyx@2027",
+    username: "TradeVault Admin",
+    country: "TG",
+    avatar_url: null,
+    status: "approved",
+    subscription_status: "premium_active",
+    plan: "pro",
     paid: true,
     paid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     role: "admin",
@@ -442,12 +460,17 @@ function handleInmemoryProxyAction(action: string, args: any): any {
     }
 
     case "signIn": {
-      const { email } = args;
+      const { email, password } = args;
       const cleanEmail = email.trim().toLowerCase();
       
       const matched = inMemoryUsers.find(u => u.email === cleanEmail);
       if (!matched) {
         return { success: false, error: "Compte introuvable dans la base locale." };
+      }
+
+      // Check password if configured
+      if (matched.password && matched.password !== password) {
+        return { success: false, error: "Mot de passe incorrect." };
       }
 
       return {
@@ -460,6 +483,10 @@ function handleInmemoryProxyAction(action: string, args: any): any {
           paid: matched.paid,
           paidUntil: matched.paid_until,
           status: matched.status,
+          role: matched.role || 'user',
+          subscription_status: matched.subscription_status || (matched.paid ? 'premium_active' : 'pending'),
+          plan: matched.plan || (matched.role === 'admin' ? 'pro' : 'free'),
+          premium_expires_at: matched.paid_until || null,
           avatar: matched.avatar_url || undefined,
           createdAt: matched.created_at
         }
