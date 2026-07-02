@@ -215,6 +215,14 @@ html, body, #root {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 1rem; /* 16px */
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Standard columns properties */
+.column-container {
+  column-count: 2;
+  column-width: 200px;
 }
 
 /* Dedicated container for modal forms insuring mobile scrollability */
