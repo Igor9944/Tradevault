@@ -93,7 +93,7 @@ async function invokeProxy(action: string, args: any): Promise<any> {
     body: JSON.stringify({ action, arguments: args })
   });
   if (!response.ok) {
-    throw new Error(`Server proxy error: ${response.statusText}`);
+    throw new Error("Serveur inaccessible. Veuillez réessayer.");
   }
   return response.json();
 }
@@ -318,7 +318,7 @@ export async function signInWithSupabase(
       return res;
     } catch (proxyErr: any) {
       console.error("Proxy signIn failed:", proxyErr);
-      return { success: false, error: proxyErr.message || String(proxyErr) };
+      return { success: false, error: "Serveur inaccessible. Vérifiez votre connexion." };
     }
   }
 }
