@@ -1,70 +1,142 @@
-import { useState, useEffect } from 'react';
-import { User } from '../types';
-import { safeLocalStorage, safeSessionStorage } from '../utils/safeStorage';
-import { signInWithSupabase } from '../utils/supabaseSync';
-import { supabase } from '../lib/supabase';
+/**
+ * useAuth.ts — Hook de gestion d'authentification TradeVault
+ * Session persistée, restaurée automatiquement, sync Supabase
+ */
 
-export function useAuth() {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
-    return saved ? JSON.parse(saved) : null;
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  signInWithSupabase,
+  signInWithGoogle,
+  signOut as authSignOut,
+  restoreSession,
+  onAuthStateChange,
+  flushPendingSync,
+  User,
+} from '../utils/supabaseSync';
+
+interface AuthState {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  isOnline: boolean;
+}
+
+interface UseAuth extends AuthState {
+  signIn: (email: string, password: string) => Promise<boolean>;
+  signInGoogle: () => Promise<boolean>;
+  signOut: () => Promise<void>;
+  clearError: () => void;
+  refreshUser: () => Promise<void>;
+}
+
+export function useAuth(): UseAuth {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    loading: true,   // true au démarrage → restauration session
+    error: null,
+    isOnline: navigator.onLine,
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
+  const syncFlushed = useRef(false);
+
+  // ── Écoute connectivité ──────────────────────────────────────────────────
   useEffect(() => {
-    // Sync with storage changes
-    const handleStorageChange = () => {
-      const saved = safeSessionStorage.getItem('tv_current_user') || safeLocalStorage.getItem('tv_current_user');
-      setUser(saved ? JSON.parse(saved) : null);
+    const handleOnline = () => {
+      setState(s => ({ ...s, isOnline: true }));
+      // Flush les opérations en attente dès reconnexion
+      if (!syncFlushed.current) {
+        syncFlushed.current = true;
+        flushPendingSync().finally(() => { syncFlushed.current = false; });
+      }
     };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    const handleOffline = () => setState(s => ({ ...s, isOnline: false }));
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
-  const login = async (emailInput: string, passwordInput: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await signInWithSupabase(emailInput, passwordInput);
-      if (res.success && res.user) {
-        setUser(res.user);
-        safeSessionStorage.setItem('tv_current_user', JSON.stringify(res.user));
-        safeLocalStorage.setItem('tv_current_user', JSON.stringify(res.user));
-        return { success: true, user: res.user };
-      } else {
-        setError(res.error || 'Erreur de connexion');
-        return { success: false, error: res.error };
+  // ── Restauration session au montage ──────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+
+    async function restore() {
+      try {
+        const result = await restoreSession();
+        if (mounted) {
+          setState(s => ({
+            ...s,
+            user: result.success ? result.user || null : null,
+            loading: false,
+          }));
+        }
+      } catch (e) {
+        if (mounted) setState(s => ({ ...s, loading: false }));
       }
-    } catch (err: any) {
-      const msg = err.message || String(err);
-      setError(msg);
-      return { success: false, error: msg };
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const logout = async () => {
-    setLoading(true);
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.warn('Supabase signout failed, clearing storage anyway.');
+    restore();
+
+    // Écouter les changements Supabase Auth (refresh token, etc.)
+    const unsub = onAuthStateChange(user => {
+      if (mounted) setState(s => ({ ...s, user }));
+    });
+
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
+
+  // ── Sign In ───────────────────────────────────────────────────────────────
+  const signIn = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setState(s => ({ ...s, loading: true, error: null }));
+
+    const result = await signInWithSupabase(email, password);
+
+    setState(s => ({
+      ...s,
+      loading: false,
+      user: result.success ? result.user || null : null,
+      error: result.success ? null : (result.error || 'Erreur de connexion.'),
+    }));
+
+    return result.success;
+  }, []);
+
+  // ── Sign In Google ────────────────────────────────────────────────────────
+  const signInGoogle = useCallback(async (): Promise<boolean> => {
+    setState(s => ({ ...s, loading: true, error: null }));
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      setState(s => ({ ...s, loading: false, error: result.error || 'Erreur Google.' }));
     }
-    safeSessionStorage.removeItem('tv_current_user');
-    safeLocalStorage.removeItem('tv_current_user');
-    setUser(null);
-    setLoading(false);
-  };
+    return result.success;
+  }, []);
 
-  return {
-    user,
-    loading,
-    error,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin'
-  };
+  // ── Sign Out ──────────────────────────────────────────────────────────────
+  const signOut = useCallback(async () => {
+    setState(s => ({ ...s, loading: true }));
+    await authSignOut();
+    setState({ user: null, loading: false, error: null, isOnline: navigator.onLine });
+  }, []);
+
+  // ── Clear Error ───────────────────────────────────────────────────────────
+  const clearError = useCallback(() => {
+    setState(s => ({ ...s, error: null }));
+  }, []);
+
+  // ── Refresh user (ex: après update profil) ────────────────────────────────
+  const refreshUser = useCallback(async () => {
+    if (!state.user?.id) return;
+    const result = await restoreSession();
+    if (result.success && result.user) {
+      setState(s => ({ ...s, user: result.user || null }));
+    }
+  }, [state.user?.id]);
+
+  return { ...state, signIn, signInGoogle, signOut, clearError, refreshUser };
 }
