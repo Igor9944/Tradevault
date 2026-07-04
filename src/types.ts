@@ -60,20 +60,35 @@ export interface Challenge {
   created_at: string;
 }
 
+export type AccountType = 'personal' | 'prop_firm' | 'demo';
+
 export interface TradingAccount {
   id: string;
   user_id: string;
   name: string;
-  account_type: 'personal' | 'prop_firm' | 'demo';
+  account_type: AccountType;   // used in App.tsx
+  type?: AccountType;          // alias from Supabase
+  broker?: string;
+  starting_balance?: number;
+  current_balance?: number;
+  currency?: string;
+  color?: string;
+  emoji?: string;
+  prop_firm_name?: string;
+  description?: string;
   capital?: number;
   target?: number;
   daily_loss?: number;
   global_loss?: number;
   challenge_status?: 'not_started' | 'passed' | 'failed' | 'in_progress';
+  is_active?: boolean;
+  is_default?: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
-export type Account = TradingAccount; // alias
+export type Account = TradingAccount;
+
 
 export interface NotificationPreference {
   payments: boolean;

@@ -568,19 +568,70 @@ export default function App() {
         return JSON.parse(saved);
       }
       // Fallback: both accounts by default for newly created / registered user
+      const userId = u?.id || 'admin';
       const freshAccounts: Account[] = [
-        { id: 'personal', user_id: u?.id || 'admin', name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() },
-        { id: 'ftmo-100k', user_id: u?.id || 'admin', name: 'Compte FTMO 100k', account_type: 'prop_firm', capital: 100000, target: 8, daily_loss: 5, global_loss: 10, created_at: new Date().toISOString() }
+        {
+          id: `personal-${userId}`,
+          user_id: userId,
+          name: 'Compte Personnel',
+          account_type: 'personal',
+          type: 'personal',
+          color: '#00FF9C',
+          emoji: '💼',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: `propfirm-${userId}`,
+          user_id: userId,
+          name: 'FTMO 100K Challenge',
+          account_type: 'prop_firm',
+          type: 'prop_firm',
+          prop_firm_name: 'FTMO',
+          capital: 100000,
+          target: 8,
+          daily_loss: 5,
+          global_loss: 10,
+          color: '#FFB347',
+          emoji: '🏆',
+          created_at: new Date().toISOString()
+        }
       ];
       safeLocalStorage.setItem(`tv_accounts_${u.id}`, JSON.stringify(freshAccounts));
       return freshAccounts;
     }
     const saved = safeLocalStorage.getItem('tv_accounts');
-    return saved ? JSON.parse(saved) : [
-      { id: 'personal', user_id: 'admin', name: 'Compte Personnel', account_type: 'personal', created_at: new Date().toISOString() },
-      { id: 'ftmo-100k', user_id: 'admin', name: 'Compte FTMO 100k', account_type: 'prop_firm', capital: 100000, target: 8, daily_loss: 5, global_loss: 10, created_at: new Date().toISOString() }
+    if (saved) return JSON.parse(saved);
+
+    const defaultUserId = 'admin';
+    return [
+      {
+        id: `personal-${defaultUserId}`,
+        user_id: defaultUserId,
+        name: 'Compte Personnel',
+        account_type: 'personal',
+        type: 'personal',
+        color: '#00FF9C',
+        emoji: '💼',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: `propfirm-${defaultUserId}`,
+        user_id: defaultUserId,
+        name: 'FTMO 100K Challenge',
+        account_type: 'prop_firm',
+        type: 'prop_firm',
+        prop_firm_name: 'FTMO',
+        capital: 100000,
+        target: 8,
+        daily_loss: 5,
+        global_loss: 10,
+        color: '#FFB347',
+        emoji: '🏆',
+        created_at: new Date().toISOString()
+      }
     ];
   });
+
 
   const [adminEmails, setAdminEmails] = useState<string>(() => {
     return import.meta.env.VITE_ADMIN_EMAILS || safeLocalStorage.getItem('tv_admin_emails') || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
@@ -1069,7 +1120,12 @@ export default function App() {
 
           loadUserDataFromSupabase(uId)
             .then(dbData => {
-              setAccounts(dbData.accounts);
+              setAccounts((dbData.accounts || []).map((a: any) => ({
+                ...a,
+                account_type: a.account_type || a.type || 'personal',
+                color: a.color || (a.type === 'prop_firm' ? '#FFB347' : '#00FF9C'),
+                emoji: a.emoji || (a.type === 'prop_firm' ? '🏆' : '💼'),
+              })));
               
               setTrades(prev => {
                 // Merging strategy: deduplicate by ID, preferring DB data for existing records
@@ -1739,6 +1795,13 @@ export default function App() {
                       selectedAccountId={selectedAccountId}
                       onSelect={setSelectedAccountId}
                       onDelete={handleDeleteAccount}
+                      onEdit={(id: string, updates: { name: string; color?: string; emoji?: string }) => {
+                        setAccounts((prev: Account[]) =>
+                          prev.map((a: Account) => a.id === id ? { ...a, ...updates } : a)
+                        );
+                        // Save to DB
+                        saveAccountToSupabase(currentUser?.id || '', { id, ...updates } as Account);
+                      }}
                     />
                     {/* Add account button removed as per user request */}
                   </div>
@@ -1832,7 +1895,7 @@ export default function App() {
                     >
                       <TrendingUp size={15} /> Statistiques
                     </button>
-                    {accounts.some(acc => acc.account_type === 'prop_firm') && (
+                    {accounts.some(acc => acc.account_type === 'prop_firm' || acc.type === 'prop_firm') && (
                       <button
                         type="button"
                         onClick={() => setActiveTab('challenges')}

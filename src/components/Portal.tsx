@@ -22,6 +22,7 @@ import { User } from '../types';
 import Logo, { DefaultLogoAvatar } from './Logo';
 import { signUpWithSupabase, signInWithSupabase, signInWithGoogle } from '../utils/supabaseSync';
 import { supabase } from '../lib/supabase';
+import ChartWrapper from './ChartWrapper';
 
 export const COUNTRY_INFO: Record<string, { name: string; prefix: string; placeholder: string; flag: string }> = {
   FR: { name: 'France', prefix: '+33', placeholder: 'Ex: trader.fr@gmail.com', flag: '🇫🇷' },
@@ -319,7 +320,7 @@ const LiveHeroChart = () => {
       <div className="absolute inset-y-0 left-0 w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none"></div>
       <div className="absolute inset-y-0 right-0 w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
       
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartWrapper height="100%" minHeight={150}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="heroLiveColor" x1="0" y1="0" x2="0" y2="1">
@@ -342,7 +343,7 @@ const LiveHeroChart = () => {
             filter="url(#glow)"
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </ChartWrapper>
     </div>
   );
 };

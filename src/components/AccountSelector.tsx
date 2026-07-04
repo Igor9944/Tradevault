@@ -21,6 +21,7 @@ interface Props {
   selectedAccountId?: string | null;
   onSelect?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string, updates: { name: string; color?: string; emoji?: string; description?: string; prop_firm_name?: string }) => void;
 }
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
@@ -31,7 +32,8 @@ export default function AccountSelector({
   accounts: propAccounts,
   selectedAccountId,
   onSelect,
-  onDelete
+  onDelete,
+  onEdit
 }: Props) {
   // Si on est en mode contrôlé, on n'utilise pas le hook useAccounts
   const isControlled = !!propAccounts;
@@ -151,16 +153,22 @@ export default function AccountSelector({
   async function handleEdit() {
     if (!editTarget || !form.name.trim()) return;
     setSaving(true);
-    if (!isControlled) {
-      await hookData.updateAccount(editTarget.id, {
-        name: form.name, 
-        color: form.color, 
-        emoji: form.emoji,
-        description: form.description,
-        prop_firm_name: form.prop_firm_name || undefined,
-      });
+
+    const updates = {
+      name: form.name,
+      color: form.color,
+      emoji: form.emoji,
+      description: form.description,
+      prop_firm_name: form.prop_firm_name || undefined,
+    };
+
+    if (isControlled) {
+      onEdit?.(editTarget.id, updates);
+    } else {
+      await hookData.updateAccount(editTarget.id, updates);
     }
-    setSaving(false); 
+
+    setSaving(false);
     setModal(null);
   }
 
@@ -181,7 +189,8 @@ export default function AccountSelector({
     return <div className="h-10 w-48 bg-white/5 animate-pulse rounded-xl" />;
   }
 
-  const defaultEmoji = (activeAccount?.account_type || activeAccount?.type) === 'prop_firm' ? '🏆' : '💼';
+  const isActivePropFirm = activeAccount?.account_type === 'prop_firm' || activeAccount?.type === 'prop_firm';
+  const defaultEmoji = isActivePropFirm ? '🏆' : '💼';
 
   return (
     <>
@@ -195,7 +204,7 @@ export default function AccountSelector({
           <div className="flex-1 text-left min-w-0">
             <p className="text-white text-sm font-medium truncate">{activeAccount?.name || 'Aucun compte'}</p>
             <p className="text-zinc-500 text-xs capitalize">
-              {(activeAccount?.account_type || activeAccount?.type) === 'prop_firm' ? 'Prop Firm' : 'Personnel'}
+              {isActivePropFirm ? 'Prop Firm' : 'Personnel'}
             </p>
           </div>
           <svg className={`w-4 h-4 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -208,8 +217,11 @@ export default function AccountSelector({
           <div className="absolute top-full mt-2 left-0 w-72 bg-[#111] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
             <div className="p-2 max-h-80 overflow-y-auto">
               {accountsList.map(acc => {
-                const accType = acc.account_type || acc.type || 'personal';
-                const emoji = acc.emoji || (accType === 'prop_firm' ? '🏆' : '💼');
+                const isPropFirm = acc.account_type === 'prop_firm' || acc.type === 'prop_firm';
+                const emoji = acc.emoji || (isPropFirm ? '🏆' : '💼');
+                const label = isPropFirm
+                  ? `🏆 ${acc.prop_firm_name || 'Prop Firm'}`
+                  : '💼 Personnel';
                 const isSelected = acc.id === activeAccount?.id;
                 
                 return (
@@ -224,7 +236,7 @@ export default function AccountSelector({
                       <div className="min-w-0">
                         <p className="text-white text-sm font-medium truncate">{acc.name}</p>
                         <p className="text-zinc-500 text-xs">
-                          {accType === 'prop_firm' ? `🏆 ${acc.prop_firm_name || 'Prop Firm'}` : '💼 Personnel'}
+                          {label}
                         </p>
                       </div>
                       {isSelected && (

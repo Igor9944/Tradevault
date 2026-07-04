@@ -232,3 +232,25 @@ html, body, #root {
   overscroll-behavior: contain;
 }
 
+/* Fix Recharts/Chart.js containers */
+.chart-wrapper,
+.chart-container,
+[class*="chart"],
+[class*="Chart"] {
+  min-width:  200px;
+  min-height: 150px;
+  width:      100%;
+  height:     100%;
+}
+
+/* Fix Recharts ResponsiveContainer */
+.recharts-responsive-container {
+  min-height: 200px !important;
+}
+
+/* Fix containers vides ou hidden */
+.recharts-wrapper {
+  width:  100% !important;
+  height: 100% !important;
+}
+

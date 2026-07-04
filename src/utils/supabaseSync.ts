@@ -418,18 +418,19 @@ export async function fetchUserProfile(userId: string): Promise<User | null> {
 export async function saveAccountToSupabase(userId: string, account: any): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
-  await sb.from('trading_accounts').upsert({
+
+  // Remove alias field before sending to DB
+  const { account_type, ...dbPayload } = account as any;
+  // Ensure 'type' field uses the correct enum value
+  const payload = {
+    ...dbPayload,
     id: ensureUUID(account.id),
+    type: account.type || account.account_type || 'personal',
     user_id: userId,
-    name: account.name || 'Default',
-    broker: account.broker || account.prop_firm_name || 'Manual',
-    type: account.account_type === 'prop_firm' ? 'funded' : 'personal',
-    starting_balance: account.capital || account.starting_balance || 1000,
-    current_balance: account.balance || account.current_balance || 1000,
-    currency: account.currency || 'USD',
-    is_active: true,
-    created_at: account.created_at || new Date().toISOString()
-  });
+    updated_at: new Date().toISOString(),
+  };
+
+  await sb.from('trading_accounts').upsert(payload);
 }
 
 export async function deleteAccountFromSupabase(accountId: string): Promise<void> {
@@ -594,8 +595,38 @@ export async function signUpWithSupabase(
 export async function loadAdminSettings(): Promise<any> {
   const sb = getSupabase();
   if (!sb) return null;
-  const { data } = await sb.from('admin_settings').select('*').maybeSingle();
-  return data;
+  try {
+    const { data, error } = await sb.from('admin_settings').select('*').maybeSingle();
+    
+    const defaults = {
+      adminEmails: 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+      adminWalletTRC20: 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
+      adminWalletBEP20: '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
+      subscriptionPrice: 30,
+      subscriptionPeriod: 3
+    };
+
+    if (error || !data) {
+      return defaults;
+    }
+
+    return {
+      adminEmails: data.adminEmails || defaults.adminEmails,
+      adminWalletTRC20: data.adminWalletTRC20 || defaults.adminWalletTRC20,
+      adminWalletBEP20: data.adminWalletBEP20 || defaults.adminWalletBEP20,
+      subscriptionPrice: (data.subscriptionPrice !== undefined && data.subscriptionPrice !== null) ? Number(data.subscriptionPrice) : defaults.subscriptionPrice,
+      subscriptionPeriod: (data.subscriptionPeriod !== undefined && data.subscriptionPeriod !== null) ? Number(data.subscriptionPeriod) : defaults.subscriptionPeriod
+    };
+  } catch (err) {
+    console.warn("loadAdminSettings caught an error, using safety defaults:", err);
+    return {
+      adminEmails: 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+      adminWalletTRC20: 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
+      adminWalletBEP20: '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
+      subscriptionPrice: 30,
+      subscriptionPeriod: 3
+    };
+  }
 }
 
 export async function saveAdminSettings(settings: any): Promise<void> {
@@ -613,8 +644,15 @@ export async function loadUserDataFromSupabase(userId: string): Promise<any> {
     sb.from('challenges').select('*').eq('user_id', userId),
     sb.from('payment_requests').select('*').eq('user_id', userId)
   ]);
+
+  const rawAccounts = accs.data || [];
+  const normalizedAccounts = rawAccounts.map((a: any) => ({
+    ...a,
+    account_type: a.type || 'personal', // sync alias
+  }));
+
   return {
-    accounts: accs.data || [],
+    accounts: normalizedAccounts,
     trades: trds.data || [],
     challenges: chs.data || [],
     payments: pay.data || []

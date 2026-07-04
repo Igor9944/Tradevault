@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Trade, Account } from '../types';
 import { ShieldCheck, ArrowDownToLine, ArrowUpToLine, RotateCcw, SortAsc, SortDesc, Info, HelpCircle } from 'lucide-react';
 import { customAlert, customConfirm } from '../utils/customDialog';
+import ChartWrapper from './ChartWrapper';
 
 interface StatsProps {
   trades: Trade[];
@@ -295,7 +296,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
             📈 P&L Net Cumulé par Jour de la Semaine
           </h4>
           <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartWrapper height={240} minHeight={200}>
               <BarChart data={weekdayTotals} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
@@ -322,7 +323,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartWrapper>
           </div>
         </div>
 
@@ -332,7 +333,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
             🏷️ Taux de Succès par Concept de Stratégie Setup
           </h4>
           <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartWrapper height={240} minHeight={200}>
               <BarChart data={setupChartData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorVictoires" x1="0" y1="0" x2="0" y2="1">
@@ -356,7 +357,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                 <Bar dataKey="Victoires" fill="url(#colorVictoires)" radius={[2, 2, 0, 0]} stackedId="a" />
                 <Bar dataKey="Défaites" fill="url(#colorDefaites)" radius={[2, 2, 0, 0]} stackedId="a" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartWrapper>
           </div>
         </div>
 
