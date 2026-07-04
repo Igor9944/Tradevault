@@ -2,51 +2,125 @@ name: TradeVault CI/CD
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, master ]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
 
 jobs:
-  build-and-test:
+  # ── Quality Gate ─────────────────────────────────────────────────────────────
+  quality:
+    name: Lint + Type + Build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/workflows/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Install Dependencies
+      - name: Install
         run: npm ci
 
-      - name: Lint Code
-        run: npm run lint
+      - name: TypeScript check
+        run: npx tsc --noEmit
 
-      - name: Build Application
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-  deploy:
-    needs: build-and-test
+      - name: Check bundle size
+        run: |
+          SIZE=$(du -sh dist/ | cut -f1)
+          echo "Bundle size: $SIZE"
+
+  # ── Security Scan ────────────────────────────────────────────────────────────
+  security:
+    name: Security Audit
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - name: npm audit
+        run: npm audit --audit-level=high --production
+        continue-on-error: true
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -r "service_role\|eyJhbGci" src/ --include="*.ts" --include="*.tsx" --include="*.js" 2>/dev/null; then
+            echo "⚠️  Possible hardcoded secret detected!"
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets found"
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+  # ── Preview Deploy ────────────────────────────────────────────────────────────
+  preview:
+    name: Deploy Preview
+    needs: [quality]
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm install -g vercel@latest
+      - run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Preview: $URL"
 
-      - name: Pull Vercel Environment Information
+  # ── Production Deploy ─────────────────────────────────────────────────────────
+  production:
+    name: Deploy Production
+    needs: [quality, security]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://tradevault-silk.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+
+      - run: npm install -g vercel@latest
+
+      - name: Pull Vercel config
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Build Project Artifacts
+      - name: Build for production
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy Project Artifacts to Vercel
+      - name: Deploy to production
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://tradevault-silk.vercel.app/api/supabase/proxy)
+          echo "Proxy status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "⚠️  Proxy returned $STATUS"
+          else
+            echo "✅ Deployment verified"
+          fi

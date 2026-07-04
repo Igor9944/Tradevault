@@ -27,6 +27,43 @@ export function addLog(message: string) {
   console.log(`[LOG] ${message}`);
 }
 
+// ─── Rate Limiting (in-memory, resets on cold start) ─────────────────────────
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(identifier: string, action: string, max: number, windowMs: number) {
+  const key = `${identifier}:${action}`;
+  const now = Date.now();
+  const entry = rateLimitStore.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, remaining: max - 1 };
+  }
+  if (entry.count >= max) {
+    return { allowed: false, remaining: 0, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  entry.count++;
+  return { allowed: true, remaining: max - entry.count };
+}
+
+const RATE_LIMITS: Record<string, { max: number; windowMs: number }> = {
+  signIn:   { max: 5,  windowMs: 15 * 60 * 1000 },
+  signUp:   { max: 3,  windowMs: 60 * 60 * 1000 },
+  default:  { max: 60, windowMs: 60 * 1000 },
+};
+
+// ─── Logging interne & audit ──────────────────────────────────────────────────
+async function logAudit(sb: SupabaseClient | null, userId: string, action: string, details: any = {}) {
+  addLog(`[AUDIT] Action: ${action} | User: ${userId} | Details: ${JSON.stringify(details)}`);
+  if (!sb || !userId) return;
+  try {
+    await sb.from('audit_logs').insert({
+      user_id: userId,
+      action,
+      details: JSON.stringify(details),
+      created_at: new Date().toISOString()
+    });
+  } catch (_) {}
+}
+
 // ─── Supabase Service Client ──────────────────────────────────────────────────
 let serverSupabase: SupabaseClient | null = null;
 let dbOnline = false;
@@ -207,7 +244,20 @@ async function triggerEmailsOnSignup(
 // ─── Proxy Principal ──────────────────────────────────────────────────────────
 app.post("/api/supabase/proxy", async (req: express.Request, res: express.Response) => {
   try {
-    const { action, arguments: args } = req.body;
+    const { action, arguments: args = {} } = req.body;
+
+    // Identifier pour rate limiting
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+    const limitCfg = RATE_LIMITS[action] || RATE_LIMITS.default;
+    const rl = checkRateLimit(ip, action, limitCfg.max, limitCfg.windowMs);
+
+    if (!rl.allowed) {
+      res.setHeader('Retry-After', rl.retryAfter || 60);
+      return res.status(429).json({
+        success: false,
+        error: `Trop de tentatives. Réessaie dans ${rl.retryAfter || 60}s.`
+      });
+    }
 
     if (dbReachabilityPromise) await dbReachabilityPromise;
 
@@ -221,9 +271,10 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
     const ADMIN_ONLY = new Set([
       "updateUserRole", "adminLoadAllUsers", "adminDeleteUser",
       "adminUpdateUser", "adminLoadAllPayments", "savePayment",
-      "adminGetStats", "adminUpdateSettings",
+      "adminGetStats", "adminUpdateSettings", "adminCreateAnnouncement",
     ]);
 
+    let adminUserId: string | null = null;
     if (ADMIN_ONLY.has(action)) {
       const token = req.headers.authorization?.startsWith("Bearer ")
         ? req.headers.authorization.slice(7) : null;
@@ -238,6 +289,8 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         .from("profiles").select("role").eq("id", caller.user.id).maybeSingle();
       if (prof?.role !== "admin")
         return res.status(403).json({ success: false, error: "Accès admin requis." });
+
+      adminUserId = caller.user.id;
     }
 
     // ── Switch actions ───────────────────────────────────────────────────────
@@ -413,27 +466,172 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
       // ── adminGetStats ──────────────────────────────────────────────────────
       case "adminGetStats": {
-        const [users, payments, trades] = await Promise.all([
-          serverSupabase.from("profiles").select("id,status,subscription_status,created_at"),
+        const [users, payments, trades, accounts] = await Promise.all([
+          serverSupabase.from("profiles").select("id,subscription_status,created_at"),
           serverSupabase.from("payment_requests").select("id,status,amount,created_at"),
-          serverSupabase.from("trades").select("id,profit_loss"),
+          serverSupabase.from("trades").select("id,created_at"),
+          serverSupabase.from("trading_accounts").select("id,type").eq("is_active", true),
         ]);
+        const now = new Date();
+        const thisMonth = users.data?.filter(x => new Date(x.created_at).getMonth() === now.getMonth()).length || 0;
         return res.json({
           success: true,
           stats: {
             totalUsers: users.data?.length || 0,
             activeUsers: users.data?.filter(u => u.subscription_status === "premium_active").length || 0,
+            newThisMonth: thisMonth,
             pendingPayments: payments.data?.filter(p => p.status === "pending").length || 0,
             totalRevenue: payments.data?.filter(p => p.status === "approved")
               .reduce((s, p) => s + Number(p.amount), 0) || 0,
             totalTrades: trades.data?.length || 0,
+            totalAccounts: accounts.data?.length || 0,
+            propFirmAccounts: accounts.data?.filter(x => x.type === 'prop_firm').length || 0,
           },
         });
       }
 
+      // ── loadUserData ───────────────────────────────────────────────────────
+      case "loadUserData": {
+        const { userId } = args;
+        const [profile, accounts, trades, challenges, payments, settings] = await Promise.all([
+          serverSupabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+          serverSupabase.from('trading_accounts').select('*').eq('user_id', userId).eq('is_active', true).order('created_at', { ascending: true }),
+          serverSupabase.from('trades').select('*').eq('user_id', userId).order('trade_date', { ascending: false }).limit(500),
+          serverSupabase.from('challenges').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+          serverSupabase.from('payment_requests').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+          serverSupabase.from('public_config').select('*').single(),
+        ]);
+        return res.json({
+          success: true,
+          profile: profile.data,
+          accounts: (accounts.data || []).map((a: any) => ({ ...a, account_type: a.type })),
+          trades: trades.data || [],
+          challenges: challenges.data || [],
+          payments: payments.data || [],
+          settings: settings.data || {},
+        });
+      }
+
+      // ── loadUserAccounts ───────────────────────────────────────────────────
+      case "loadUserAccounts": {
+        const { userId } = args;
+        const { data, error } = await serverSupabase
+          .from('trading_accounts').select('*')
+          .eq('user_id', userId).eq('is_active', true).order('created_at', { ascending: true });
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true, accounts: (data || []).map((a: any) => ({ ...a, account_type: a.type })) });
+      }
+
+      // ── saveAccount ────────────────────────────────────────────────────────
+      case "saveAccount": {
+        const { account, userId } = args;
+        const { account_type, account_type_app, ...payload } = account;
+        const { error } = await serverSupabase.from('trading_accounts').upsert(
+          { ...payload, user_id: userId, updated_at: new Date().toISOString() },
+          { onConflict: 'id' }
+        );
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true });
+      }
+
+      // ── deleteAccount ──────────────────────────────────────────────────────
+      case "deleteAccount": {
+        const { accountId, userId } = args;
+        const { error } = await serverSupabase.from('trading_accounts')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', accountId).eq('user_id', userId);
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true });
+      }
+
+      // ── getAccountStats ────────────────────────────────────────────────────
+      case "getAccountStats": {
+        const { accountId } = args;
+        const { data, error } = await serverSupabase.rpc('get_account_stats', { p_account_id: accountId });
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true, stats: data });
+      }
+
+      // ── loadTrades ─────────────────────────────────────────────────────────
+      case "loadTrades": {
+        const { accountId, userId, page = 0, pageSize = 50 } = args;
+        const from = page * pageSize;
+        let q = serverSupabase.from('trades').select('*').eq('user_id', userId)
+          .order('trade_date', { ascending: false }).order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (accountId) q = q.eq('account_id', accountId);
+        const { data, error } = await q;
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true, trades: data || [] });
+      }
+
+      // ── saveTrade ──────────────────────────────────────────────────────────
+      case "saveTrade": {
+        const { trade, userId } = args;
+        const payload = {
+          ...trade, user_id: userId,
+          trade_date: trade.trade_date || trade.date || new Date().toISOString().split('T')[0],
+          updated_at: new Date().toISOString(),
+          created_at: trade.created_at || new Date().toISOString(),
+        };
+        const { data, error } = await serverSupabase.from('trades').upsert(payload, { onConflict: 'id' }).select().single();
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true, trade: data });
+      }
+
+      // ── deleteTrade ────────────────────────────────────────────────────────
+      case "deleteTrade": {
+        const { tradeId, userId } = args;
+        const { error } = await serverSupabase.from('trades').delete().eq('id', tradeId).eq('user_id', userId);
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true });
+      }
+
+      // ── loadNotifications ──────────────────────────────────────────────────
+      case "loadNotifications": {
+        const { userId } = args;
+        const { data } = await serverSupabase.from('notifications').select('*')
+          .eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
+        return res.json({ success: true, notifications: data || [] });
+      }
+
+      // ── markNotificationsRead ──────────────────────────────────────────────
+      case "markNotificationsRead": {
+        const { userId, notifId } = args;
+        const q = serverSupabase.from('notifications').update({ read_at: new Date().toISOString() });
+        if (notifId) q.eq('id', notifId); else q.eq('user_id', userId).is('read_at', null);
+        await q;
+        return res.json({ success: true });
+      }
+
+      // ── adminUpdateSettings ────────────────────────────────────────────────
+      case "adminUpdateSettings": {
+        const { settings } = args;
+        const allowed = ['subscription_price','usdt_trc20_address','usdt_bep20_address',
+          'notification_emails','ftmo_profit_target','ftmo_daily_loss','ftmo_max_loss',
+          'maintenance_mode','support_email'];
+        const filtered = Object.fromEntries(Object.entries(settings).filter(([k]) => allowed.includes(k)));
+        const { error } = await serverSupabase.from('admin_settings').update({ ...filtered, updated_at: new Date().toISOString() }).eq('id', 1);
+        if (error) return res.json({ success: false, error: error.message });
+        await logAudit(serverSupabase, adminUserId!, 'update_settings', filtered);
+        return res.json({ success: true });
+      }
+
+      // ── adminCreateAnnouncement ────────────────────────────────────────────
+      case "adminCreateAnnouncement": {
+        const { title, content, type, target_role, pinned, expires_at } = args;
+        const { data, error } = await serverSupabase.from('announcements').insert({
+          title, content, type: type || 'info', target_role: target_role || 'all',
+          pinned: pinned || false, expires_at, is_active: true,
+          created_by: adminUserId, published_at: new Date().toISOString(), created_at: new Date().toISOString()
+        }).select().single();
+        if (error) return res.json({ success: false, error: error.message });
+        return res.json({ success: true, announcement: data });
+      }
+
       // ── health ─────────────────────────────────────────────────────────────
       case "health":
-        return res.json({ success: true, dbOnline, version: "2.0.0", ts: new Date().toISOString() });
+        return res.json({ success: true, dbOnline, version: "3.1.0", ts: new Date().toISOString() });
 
       default:
         return res.status(400).json({ success: false, error: `Action inconnue: ${action}` });
