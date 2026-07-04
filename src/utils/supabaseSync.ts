@@ -13,23 +13,11 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const PROXY_URL = '/api/supabase/proxy';
 const SESSION_KEY = 'tv_session_v2';
 
+import { User as AppUser } from '../types';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  role: 'admin' | 'user';
-  status: 'approved' | 'pending' | 'rejected';
-  subscription_status: 'pending' | 'premium_active' | 'blocked';
-  plan: 'free' | 'pro';
-  premium_expires_at: string | null;
-  paid: boolean;
-  paidUntil: string | null;
-  avatar?: string;
-  country: string;
-  created_at: string;
-}
+export type User = AppUser;
 
 export interface AuthResult {
   success: boolean;
@@ -75,10 +63,13 @@ function profileToUser(profile: Record<string, any>, email: string): User {
     plan: (profile.plan as User['plan']) || 'free',
     premium_expires_at: profile.premium_expires_at || null,
     paid: profile.subscription_status === 'premium_active',
-    paidUntil: profile.premium_expires_at || null,
-    avatar: profile.avatar_url || undefined,
+    paid_until: profile.premium_expires_at || null,
+    avatar_url: profile.avatar_url || undefined,
     country: profile.country || 'TG',
     created_at: profile.created_at || new Date().toISOString(),
+    google_linked: profile.google_linked || false,
+    google_email: profile.google_email || '',
+    currency: profile.currency || 'USD'
   };
 }
 
@@ -397,7 +388,7 @@ export async function syncUserProfile(user: User): Promise<void> {
     plan: user.plan,
     premium_expires_at: user.premium_expires_at,
     country: user.country,
-    avatar_url: user.avatar,
+    avatar_url: user.avatar_url || (user as any).avatar,
     updated_at: new Date().toISOString()
   });
 }
@@ -413,7 +404,9 @@ export async function patchUserProfile(userId: string, updates: Partial<User>): 
   if (updates.plan !== undefined) dbUpdates.plan = updates.plan;
   if (updates.premium_expires_at !== undefined) dbUpdates.premium_expires_at = updates.premium_expires_at;
   if (updates.country !== undefined) dbUpdates.country = updates.country;
-  if (updates.avatar !== undefined) dbUpdates.avatar_url = updates.avatar;
+  
+  const avatarVal = updates.avatar_url !== undefined ? updates.avatar_url : (updates as any).avatar;
+  if (avatarVal !== undefined) dbUpdates.avatar_url = avatarVal;
 
   await sb.from('profiles').update(dbUpdates).eq('id', userId);
 }
@@ -514,7 +507,7 @@ export async function savePaymentToSupabase(userId: string, payment: any): Promi
   });
 }
 
-export async function registerPayment(userId: string, amount: number, screenshot: string, network: string, type: string = 'registration'): Promise<any> {
+export async function registerPayment(userId: string, amount: number, screenshot: string, network: string = 'TRC20', type: string = 'registration'): Promise<any> {
   const sb = getSupabase();
   if (!sb) return { success: false };
   const { data, error } = await sb.from('payment_requests').insert({
@@ -550,8 +543,34 @@ export async function adminUpdateUserFromSupabase(userId: string, updates: any):
   return !!res.success;
 }
 
-export async function handleSupabaseSession(): Promise<any> {
-  return restoreSession();
+export async function handleSupabaseSession(session?: any): Promise<any> {
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const targetSession = session || (await sb.auth.getSession()).data.session;
+  if (!targetSession?.user) {
+    return { success: false, error: 'Aucune session active.' };
+  }
+
+  try {
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('*')
+      .eq('id', targetSession.user.id)
+      .maybeSingle();
+
+    if (profile) {
+      return {
+        success: true,
+        user: profileToUser(profile, targetSession.user.email || ''),
+        session: targetSession,
+      };
+    }
+  } catch (e) {
+    console.warn('[handleSupabaseSession] failed to load profile:', e);
+  }
+
+  return { success: false, error: 'Profil non trouvé.' };
 }
 
 export async function signUpWithSupabase(
@@ -602,7 +621,7 @@ export async function loadUserDataFromSupabase(userId: string): Promise<any> {
   };
 }
 
-export async function updateUserRole(userId: string, role: string, status: string, subscription_status: string, plan: string, premium_expires_at: string | null): Promise<boolean> {
+export async function updateUserRole(userId: string, role?: string, status?: string, subscription_status?: string, plan?: string, premium_expires_at?: string | null): Promise<boolean> {
   const res = await invokeProxy('updateUserRole', { userId, role, status, subscription_status, plan, premium_expires_at });
   return !!res.success;
 }
