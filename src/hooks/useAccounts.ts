@@ -10,7 +10,8 @@ export interface TradingAccount {
   user_id: string;
   name: string;
   broker: string;
-  type: 'personal' | 'funded' | 'challenge';
+  type: 'personal' | 'prop_firm' | 'demo';
+  account_type?: 'personal' | 'prop_firm' | 'demo';
   starting_balance: number;
   current_balance: number;
   currency: string;
@@ -55,7 +56,7 @@ interface UseAccounts {
 
 interface CreateAccountData {
   name: string;
-  type: 'personal' | 'funded' | 'challenge';
+  type: 'personal' | 'prop_firm' | 'demo';
   broker?: string;
   starting_balance: number;
   currency?: string;
@@ -92,7 +93,11 @@ export function useAccounts(userId: string | null): UseAccounts {
 
       if (err) throw err;
 
-      const accs = (data || []) as TradingAccount[];
+      const accs = (data || []).map((a: any) => ({
+        ...a,
+        account_type: a.type || 'personal',
+        type: a.type || 'personal'
+      })) as TradingAccount[];
       setAccounts(accs);
 
       // Restaurer le compte actif depuis localStorage
@@ -149,7 +154,7 @@ export function useAccounts(userId: string | null): UseAccounts {
 
     if (err || !result) return null;
     await fetchAccounts();
-    return result as TradingAccount;
+    return { ...result, account_type: result.type || 'personal' } as TradingAccount;
   }, [userId, fetchAccounts]);
 
   const updateAccount = useCallback(async (id: string, data: Partial<TradingAccount>): Promise<boolean> => {

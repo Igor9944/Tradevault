@@ -53,7 +53,7 @@ export default function AccountSelector({
 
   // Form state
   const [form, setForm] = useState({
-    name: '', type: 'personal' as 'personal' | 'funded' | 'challenge' | 'prop_firm' | 'demo',
+    name: '', type: 'personal' as 'personal' | 'prop_firm' | 'demo',
     starting_balance: 1000, currency: 'USD',
     color: '#00FF9C', emoji: '💼',
     prop_firm_name: '', description: '',
@@ -129,7 +129,7 @@ export default function AccountSelector({
     } else {
       const acc = await hookData.createAccount({
         name: form.name, 
-        type: form.type === 'personal' ? 'personal' : 'funded',
+        type: form.type === 'personal' ? 'personal' : 'prop_firm',
         starting_balance: form.starting_balance, 
         currency: form.currency,
         color: form.color, 
@@ -282,7 +282,7 @@ export default function AccountSelector({
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {[
                     { value: 'personal', label: 'Personnel', icon: '💼' },
-                    { value: 'funded',   label: 'Prop Firm', icon: '🏆' },
+                    { value: 'prop_firm', label: 'Prop Firm', icon: '🏆' },
                   ].map(t => (
                     <button
                       key={t.value}

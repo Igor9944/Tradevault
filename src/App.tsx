@@ -1120,12 +1120,17 @@ export default function App() {
 
           loadUserDataFromSupabase(uId)
             .then(dbData => {
-              setAccounts((dbData.accounts || []).map((a: any) => ({
-                ...a,
-                account_type: a.account_type || a.type || 'personal',
-                color: a.color || (a.type === 'prop_firm' ? '#FFB347' : '#00FF9C'),
-                emoji: a.emoji || (a.type === 'prop_firm' ? '🏆' : '💼'),
-              })));
+              setAccounts((dbData.accounts || []).map((a: any) => {
+                const typeVal = a.type || a.account_type || 'personal';
+                const normalizedType = (typeVal === 'funded' || typeVal === 'challenge' || typeVal === 'prop_firm') ? 'prop_firm' : typeVal;
+                return {
+                  ...a,
+                  account_type: normalizedType,
+                  type: normalizedType,
+                  color: a.color || (normalizedType === 'prop_firm' ? '#FFB347' : '#00FF9C'),
+                  emoji: a.emoji || (normalizedType === 'prop_firm' ? '🏆' : '💼'),
+                };
+              }));
               
               setTrades(prev => {
                 // Merging strategy: deduplicate by ID, preferring DB data for existing records
@@ -1795,12 +1800,17 @@ export default function App() {
                       selectedAccountId={selectedAccountId}
                       onSelect={setSelectedAccountId}
                       onDelete={handleDeleteAccount}
-                      onEdit={(id: string, updates: { name: string; color?: string; emoji?: string }) => {
+                      onEdit={(id: string, updates: any) => {
                         setAccounts((prev: Account[]) =>
-                          prev.map((a: Account) => a.id === id ? { ...a, ...updates } : a)
+                          prev.map((a: Account) => {
+                            if (a.id === id) {
+                              const updated = { ...a, ...updates };
+                              saveAccountToSupabase(currentUser?.id || '', updated);
+                              return updated;
+                            }
+                            return a;
+                          })
                         );
-                        // Save to DB
-                        saveAccountToSupabase(currentUser?.id || '', { id, ...updates } as Account);
                       }}
                     />
                     {/* Add account button removed as per user request */}

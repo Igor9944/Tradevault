@@ -646,10 +646,15 @@ export async function loadUserDataFromSupabase(userId: string): Promise<any> {
   ]);
 
   const rawAccounts = accs.data || [];
-  const normalizedAccounts = rawAccounts.map((a: any) => ({
-    ...a,
-    account_type: a.type || 'personal', // sync alias
-  }));
+  const normalizedAccounts = rawAccounts.map((a: any) => {
+    const typeVal = a.type || 'personal';
+    const normalizedType = (typeVal === 'funded' || typeVal === 'challenge' || typeVal === 'prop_firm') ? 'prop_firm' : typeVal;
+    return {
+      ...a,
+      account_type: normalizedType,
+      type: normalizedType,
+    };
+  });
 
   return {
     accounts: normalizedAccounts,
