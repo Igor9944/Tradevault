@@ -95,7 +95,7 @@ const Journal = safeLazy(() => import('./components/Journal'));
 const Calendar = safeLazy(() => import('./components/Calendar'));
 const Stats = safeLazy(() => import('./components/Stats'));
 const Challenges = safeLazy(() => import('./components/Challenges'));
-const Admin = safeLazy(() => import('./components/Admin'));
+const Admin = safeLazy(() => import('./components/AdminEnhanced'));
 const ResetPassword = safeLazy(() => import('./components/ResetPassword'));
 
 

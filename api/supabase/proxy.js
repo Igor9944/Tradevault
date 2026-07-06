@@ -1,12 +1,57 @@
 /**
  * api/supabase/proxy.js — TradeVault v3.1 FINAL
- * Rate limiting + Auth + All actions + Emergency fallback
+ * Rate limiting + Auth + All actions + Emergency fallback + Email notifications
  */
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const ADMIN_EMAIL = process.env.ADMIN_NOTIF_EMAIL || 'igorrose2003@gmail.com';
+
+// ─── Email Helpers ───────────────────────────────────────────────────────────
+function emailHtml(contentHtml) {
+  return `
+    <div style="background-color:#050505;color:#f1f5f9;font-family:sans-serif;padding:40px 20px;text-align:center;">
+      <div style="max-width:600px;margin:0 auto;background-color:#0d0d0d;border:1px solid #1f2937;border-radius:16px;padding:32px;text-align:left;">
+        <h1 style="font-size:24px;font-weight:900;color:#fff;margin:0 0 20px;font-family:'Space Grotesk',sans-serif;">TRADE<span style="color:#00FF9C;">VAULT</span></h1>
+        ${contentHtml}
+        <hr style="border:0;border-top:1px solid #1f2937;margin:32px 0;" />
+        <p style="color:#475569;font-size:11px;font-family:monospace;margin:0;">Track log PRO v1.2 • © 2026 TradeVault</p>
+      </div>
+    </div>
+  `;
+}
+
+async function sendEmail(to, subject, html) {
+  if (!RESEND_API_KEY) {
+    console.warn('[EMAIL] Skipping send: RESEND_API_KEY is not configured.');
+    return;
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'TradeVault <noreply@tradevault-silk.vercel.app>',
+        to: [to],
+        subject: subject,
+        html: html
+      })
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[EMAIL] Resend error:', errText);
+    }
+  } catch (err) {
+    console.error('[EMAIL] Failed to send email via Resend:', err.message);
+  }
+}
 
 // ─── Rate Limiting (in-memory, resets on cold start) ─────────────────────────
 const rateLimitStore = new Map();
@@ -188,6 +233,11 @@ module.exports = async (req, res) => {
         screenshot_url: paymentScreenshot, network: selectedNetwork || 'TRC20',
         status: 'pending', type: 'registration', created_at: new Date().toISOString()
       });
+      // Emails notifications
+      const uName = username?.trim() || email.split('@')[0];
+      const signupHtml = emailHtml(`<h2 style="color:#fff;margin:0 0 16px;">Inscription reçue ✅</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${uName}</strong>, ton inscription a été reçue. Ton compte sera activé sous 24-48h.</p><br/><a href="https://tradevault-silk.vercel.app" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder au portail →</a>`);
+      sendEmail(email, '✅ TradeVault — Inscription reçue', signupHtml).catch(()=>{});
+      sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${email}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`)  ).catch(()=>{});
       return res.json({ success: true, user: { id: userId, email, username: username?.trim(), country, paid: false, status: 'pending', createdAt: new Date().toISOString() } });
     }
 
@@ -349,6 +399,18 @@ module.exports = async (req, res) => {
       const { paymentId, status } = args;
       if (status === 'approved') {
         const { data } = await sb.rpc('approve_payment', { p_payment_id: paymentId, p_admin_id: adminUserId });
+        // Email user
+        try {
+          const { data: pReq } = await sb.from('payment_requests').select('user_id').eq('id', paymentId).maybeSingle();
+          if (pReq?.user_id) {
+            const { data: prof } = await sb.from('profiles').select('email,username,premium_expires_at').eq('id', pReq.user_id).maybeSingle();
+            if (prof?.email) {
+              const expDate = prof.premium_expires_at ? new Date(prof.premium_expires_at).toLocaleDateString('fr-FR') : 'N/A';
+              const approvedHtml = emailHtml(`<h2 style="color:#00FF9C;margin:0 0 16px;">Paiement validé 🎉</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>, ton accès TradeVault PRO est actif jusqu'au <strong style="color:#00FF9C;">${expDate}</strong>.</p><br/><a href="https://tradevault-silk.vercel.app" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder à mon journal →</a>`);
+              await sendEmail(prof.email, '🎉 TradeVault PRO — Accès activé !', approvedHtml);
+            }
+          }
+        } catch(emailErr) { console.warn('[EMAIL] approve:', emailErr.message); }
         return res.json(data || { success: true });
       }
       await sb.from('payment_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', paymentId);

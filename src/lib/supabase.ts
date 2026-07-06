@@ -1,58 +1,87 @@
+// src/lib/supabase.ts — Fix critique isSupabaseOnline
 import { createClient } from '@supabase/supabase-js';
 import { safeLocalStorage } from '../utils/safeStorage';
 
-const dummyUrl = "https://placeholder-project.supabase.co";
-const dummyKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE1Nzg4OTk2MDAsImV4cCI6MTg5NDQ1OTYwMH0.placeholder";
+const dummyUrl = 'https://placeholder-project.supabase.co';
+const dummyKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
 let rawUrl = import.meta.env.VITE_SUPABASE_URL || dummyUrl;
-if (rawUrl && rawUrl.includes('supabase.com/dashboard/project/')) {
+if (rawUrl?.includes('supabase.com/dashboard/project/')) {
   const match = rawUrl.match(/project\/([a-z0-9]+)/);
-  if (match) {
-    rawUrl = `https://${match[1]}.supabase.co`;
-  }
+  if (match) rawUrl = `https://${match[1]}.supabase.co`;
 } else if (rawUrl && !rawUrl.startsWith('http')) {
-  // Assume it's just the project reference string
   rawUrl = `https://${rawUrl}.supabase.co`;
 }
-const supabaseUrl = rawUrl;
+
+const supabaseUrl     = rawUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || dummyKey;
 
+// ─── Fix : isSupabaseOnline ne passe plus à false sur 401/403 ─────────────────
+// Un 401 = mauvais credentials (service UP), pas une panne réseau
 let isSupabaseOnline: boolean | null = null;
+let consecutiveNetworkErrors = 0;
+const MAX_NETWORK_ERRORS = 3;
 
-// Custom pre-flight fetch interceptor to gracefully avoid unneeded direct client console network errors
-const customSupabaseFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  if (isSupabaseOnline === false) {
-    throw new TypeError("Failed to fetch");
+const customSupabaseFetch = async (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> => {
+  // Si trop d'erreurs réseau consécutives → court-circuit
+  if (isSupabaseOnline === false && consecutiveNetworkErrors >= MAX_NETWORK_ERRORS) {
+    throw new TypeError('Failed to fetch');
   }
 
   try {
     const response = await fetch(input, init);
-    if (response.status === 502 || response.status === 504) {
-      isSupabaseOnline = false;
-      throw new TypeError("Failed to fetch");
+
+    // ← FIX : 401/403 = service OK, pas une panne
+    if (response.status === 401 || response.status === 403) {
+      isSupabaseOnline = true;
+      consecutiveNetworkErrors = 0;
+      return response; // retourner la réponse normalement
     }
+
+    // Vraies pannes réseau
+    if (response.status === 502 || response.status === 504) {
+      consecutiveNetworkErrors++;
+      if (consecutiveNetworkErrors >= MAX_NETWORK_ERRORS) {
+        isSupabaseOnline = false;
+      }
+      throw new TypeError('Failed to fetch');
+    }
+
     isSupabaseOnline = true;
+    consecutiveNetworkErrors = 0;
     return response;
   } catch (err) {
-    isSupabaseOnline = false;
-    throw new TypeError("Failed to fetch");
+    // Erreur réseau réelle (pas une réponse HTTP)
+    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      consecutiveNetworkErrors++;
+      if (consecutiveNetworkErrors >= MAX_NETWORK_ERRORS) {
+        isSupabaseOnline = false;
+      }
+    }
+    throw err;
   }
 };
 
-if (supabaseUrl === dummyUrl || supabaseAnonKey === dummyKey) {
+const isMissingEnv = supabaseUrl === dummyUrl || supabaseAnonKey === dummyKey;
+if (isMissingEnv) {
   isSupabaseOnline = false;
-  console.warn("⚠️ [TradeVault Pro] Warning: Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are missing. Running in local fallback mode.");
+  console.warn('⚠️ [TradeVault] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY manquantes.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: safeLocalStorage,
-    persistSession: true,
+    storage:          safeLocalStorage,
+    persistSession:   true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey:       'tv_session_v2',
   },
   global: {
-    fetch: customSupabaseFetch
-  }
+    fetch: customSupabaseFetch,
+  },
 });
 
+export const isSupabaseConfigured = !isMissingEnv;
