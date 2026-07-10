@@ -38,7 +38,7 @@ async function sendEmail(to, subject, html) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'TradeVault <noreply@tradevault-silk.vercel.app>',
+        from: 'TradeVault <onboarding@resend.dev>',
         to: [to],
         subject: subject,
         html: html
@@ -82,10 +82,10 @@ function hash(pwd) {
 }
 const EMERGENCY = [
   { id: '6770a1eb-7a4e-4804-9dee-f9c1102cd854', email: 'admin@tradevault-onyx.com',
-    passwordHash: hash('7ddxNRF9gqaBfhGu'), username: 'Onyx Admin',
+    passwordHash: process.env.EMERGENCY_HASH_ONYX || hash(process.env.EMERGENCY_PWD_ONYX || '7ddxNRF9gqaBfhGu'), username: 'Onyx Admin',
     role: 'admin', status: 'approved', subscription_status: 'premium_active', plan: 'pro', paid: true, country: 'TG' },
   { id: '0e0e91bc-8440-45c6-876c-6e546cf43dbd', email: 'tradonyx@vault.com',
-    passwordHash: hash('otradnyx@2027'), username: 'TradeVault Admin',
+    passwordHash: process.env.EMERGENCY_HASH_ADMIN || hash(process.env.EMERGENCY_PWD_ADMIN || 'otradnyx@2027'), username: 'TradeVault Admin',
     role: 'admin', status: 'approved', subscription_status: 'premium_active', plan: 'pro', paid: true, country: 'TG' },
 ];
 
