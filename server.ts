@@ -3,7 +3,6 @@ import cors from "cors";
 import path from "path";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-import nodemailer from "nodemailer";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export const app = express();
@@ -181,9 +180,6 @@ function handleInmemoryProxyAction(action: string, args: any): any {
 // ─── Dynamic Robust Email Sender ──────────────────────────────────────────────
 export async function sendEmail(to: string, subject: string, html: string) {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const GMAIL_USER = process.env.GMAIL_USER;
-  const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD;
-  
   if (RESEND_API_KEY) {
     try {
       const { Resend } = await import("resend");
@@ -201,24 +197,6 @@ export async function sendEmail(to: string, subject: string, html: string) {
     }
   }
 
-  if (GMAIL_USER && GMAIL_PASS) {
-    try {
-      const transport = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: GMAIL_USER, pass: GMAIL_PASS },
-      });
-      await transport.sendMail({
-        from: GMAIL_USER,
-        to,
-        subject,
-        html,
-      });
-      addLog(`[EMAIL] Envoyé via Nodemailer à ${to}`);
-      return;
-    } catch (e: any) {
-      console.error("[EMAIL] Échec d'envoi via Nodemailer:", e.message);
-    }
-  }
 
   addLog(`[EMAIL SIMULATION] Destinataire: ${to} | Sujet: "${subject}"`);
 }
