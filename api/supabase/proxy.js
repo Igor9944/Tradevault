@@ -1,15 +1,15 @@
 /**
  * api/supabase/proxy.js — TradeVault v3.1 FINAL
- * Rate limiting + Auth + All actions + Emergency fallback + Email notifications
+ * Rate limiting + Auth + All actions + Email notifications
  */
 const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIF_EMAIL || 'igorrose2003@gmail.com';
+const APP_URL = process.env.APP_URL || 'https://tradevault-silk.vercel.app';
 
 // ─── Email Helpers ───────────────────────────────────────────────────────────
 function emailHtml(contentHtml) {
@@ -53,6 +53,99 @@ async function sendEmail(to, subject, html) {
   }
 }
 
+// ─── Email Templates ─────────────────────────────────────────────────────────────
+function emailAccountApproved(username, loginUrl, expiryDate) {
+  const expDate = expiryDate ? new Date(expiryDate).toLocaleDateString('fr-FR') : 'N/A';
+  return emailHtml(`
+    <h2 style="color:#00FF9C;margin:0 0 16px;">Compte activé 🎉</h2>
+    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>, votre compte a été validé par notre équipe.</p>
+    <p style="color:#888;font-size:14px;">Vous pouvez maintenant vous connecter et accéder à toutes les fonctionnalités de TradeVault PRO.</p>
+    <p style="color:#888;font-size:14px;">Date d'expiration : <strong style="color:#00FF9C;">${expDate}</strong></p>
+    <br/>
+    <a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Se connecter maintenant</a>
+  `);
+}
+
+function emailAccessExpired(username, renewalUrl, subscriptionPrice) {
+  return emailHtml(`
+    <h2 style="color:#ef4444;margin:0 0 16px;">Accès expiré 🔒</h2>
+    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>,</p>
+    <p style="color:#888;font-size:14px;">Votre abonnement a expiré. Votre accès est temporairement suspendu.</p>
+    <p style="color:#888;font-size:14px;">Envoyez votre paiement pour rétablir votre accès immédiatement.</p>
+    <p style="color:#888;font-size:14px;">Montant : <strong style="color:#00FF9C;">${subscriptionPrice} USDT</strong></p>
+    <br/>
+    <a href="${APP_URL}" style="background:#ef4444;color:#ffffff;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Renouveler et débloquer l'accès</a>
+  `);
+}
+
+function emailAccessUnblocked(username, loginUrl, newExpiryDate) {
+  const expDate = newExpiryDate ? new Date(newExpiryDate).toLocaleDateString('fr-FR') : 'N/A';
+  return emailHtml(`
+    <h2 style="color:#10b981;margin:0 0 16px;">Accès rétabli 🔓</h2>
+    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>,</p>
+    <p style="color:#888;font-size:14px;">Votre accès a été rétabli avec succès !</p>
+    <p style="color:#888;font-size:14px;">Vous pouvez vous reconnecter dès maintenant.</p>
+    <p style="color:#888;font-size:14px;">Nouvelle date d'expiration : <strong style="color:#00FF9C;">${expDate}</strong></p>
+    <br/>
+    <a href="${APP_URL}" style="background:#10b981;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Se connecter maintenant</a>
+  `);
+}
+
+function emailSubscriptionRenewed(username, newExpiryDate, loginUrl) {
+  const expDate = newExpiryDate ? new Date(newExpiryDate).toLocaleDateString('fr-FR') : 'N/A';
+  return emailHtml(`
+    <h2 style="color:#00FF9C;margin:0 0 16px;">Abonnement renouvelé ✅</h2>
+    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>,</p>
+    <p style="color:#888;font-size:14px;">Votre abonnement a été renouvelé avec succès.</p>
+    <p style="color:#888;font-size:14px;">Nouvelle date d'expiration : <strong style="color:#00FF9C;">${expDate}</strong></p>
+    <p style="color:#888;font-size:14px;">Votre accès continue sans interruption.</p>
+    <br/>
+    <a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder à TradeVault</a>
+  `);
+}
+
+function emailReminderExpiry(username, daysLeft, expiryDate, renewalUrl, subscriptionPrice) {
+  const expDate = expiryDate ? new Date(expiryDate).toLocaleDateString('fr-FR') : 'N/A';
+  const amountToDisplay = subscriptionPrice || 30; // Fallback to 30 if not set
+  return emailHtml(`
+    <h2 style="color:#f59e0b;margin:0 0 16px;">Rappel d'expiration ⏳</h2>
+    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>,</p>
+    <p style="color:#888;font-size:14px;">Votre abonnement expire le <strong style="color:#00FF9C;">${expDate}</strong> (dans ${daysLeft} jour(s)).</p>
+    <p style="color:#888;font-size:14px;">Pour éviter toute interruption, renouvelez dès maintenant.</p>
+    <p style="color:#888;font-size:14px;">Montant : <strong style="color:#00FF9C;">${amountToDisplay} USDT</strong></p>
+    <br/>
+    <a href="${APP_URL}" style="background:#f59e0b;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Renouveler mon abonnement</a>
+  `);
+}
+
+function emailNewSignup(username, email, country, network, amount, adminUrl) {
+  return emailHtml(`
+    <h2 style="color:#fff;margin:0 0 16px;">Inscription reçue ✅</h2>
+    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>, ton inscription a été reçue. Ton compte sera activé sous 24-48h.</p>
+    <br/>
+    <a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder au portail →</a>
+  `);
+}
+
+function emailRenewalRequest(username, email, network, amount, isExpired, expiryDate) {
+  const expDate = expiryDate ? new Date(expiryDate).toLocaleDateString('fr-FR') : 'N/A';
+  const statusText = isExpired ? 'EXPIRÉ' : 'ACTIF';
+  return emailHtml(`
+    <h2 style="color:#FFB347;margin:0 0 16px;">${isExpired ? '🔄 Renouvellement (EXPIRÉ)' : '🔄 Renouvellement en attente'} : ${username}</h2>
+    <p style="color:#888;">
+      Nom : <strong style="color:#fff;">${username}</strong><br/>
+      Email : <strong style="color:#fff;">${email}</strong><br/>
+      Type : Renouvellement (compte ${statusText})<br/>
+      ${!isExpired ? 'Statut actuel : actif jusqu\'au ' + expDate + '<br/>' : ''}
+      Montant : <strong style="color:#00FF9C;">${amount} USDT</strong><br/>
+      Réseau : <strong style="color:#00FF9C;">${network}</strong><br/>
+      Preuve paiement : [screenshot]
+    </p>
+    <br/>
+    <a href="${APP_URL}" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>
+  `);
+}
+
 // ─── Rate Limiting (in-memory, resets on cold start) ─────────────────────────
 const rateLimitStore = new Map();
 function checkRateLimit(identifier, action, max, windowMs) {
@@ -76,26 +169,7 @@ const RATE_LIMITS = {
   default:  { max: 60, windowMs: 60 * 1000 },
 };
 
-// ─── Emergency fallback ───────────────────────────────────────────────────────
-function hash(pwd) {
-  return crypto.createHash('sha256').update(pwd + 'tv_salt_2027').digest('hex');
-}
-const EMERGENCY = [
-  { id: '6770a1eb-7a4e-4804-9dee-f9c1102cd854', email: 'admin@tradevault-onyx.com',
-    passwordHash: process.env.EMERGENCY_HASH_ONYX || hash(process.env.EMERGENCY_PWD_ONYX || '7ddxNRF9gqaBfhGu'), username: 'Onyx Admin',
-    role: 'admin', status: 'approved', subscription_status: 'premium_active', plan: 'pro', paid: true, country: 'TG' },
-  { id: '0e0e91bc-8440-45c6-876c-6e546cf43dbd', email: 'tradonyx@vault.com',
-    passwordHash: process.env.EMERGENCY_HASH_ADMIN || hash(process.env.EMERGENCY_PWD_ADMIN || 'otradnyx@2027'), username: 'TradeVault Admin',
-    role: 'admin', status: 'approved', subscription_status: 'premium_active', plan: 'pro', paid: true, country: 'TG' },
-];
-
-function emergencySignIn(email, password) {
-  const u = EMERGENCY.find(x => x.email === email.trim().toLowerCase());
-  if (!u) return { success: false, error: 'Compte introuvable.' };
-  if (u.passwordHash !== hash(password)) return { success: false, error: 'Mot de passe incorrect.' };
-  const { passwordHash: _, ...safe } = u;
-  return { success: true, source: 'emergency', user: { ...safe, paidUntil: null, avatar: undefined, createdAt: new Date().toISOString() } };
-}
+// Emergency fallback removed for security
 
 // ─── Supabase client ──────────────────────────────────────────────────────────
 function getSB() {
@@ -112,7 +186,7 @@ function getSB() {
 
 // ─── Admin guard ──────────────────────────────────────────────────────────────
 async function requireAdmin(sb, authHeader) {
-  if (!sb) return { ok: false, status: 503, error: 'DB indisponible.' };
+  if (!sb) return { ok: false, status: 503, error: 'Service indisponible – veuillez réessayer plus tard.' };
   const token = (authHeader || '').replace('Bearer ', '');
   if (!token) return { ok: false, status: 401, error: 'Auth requise.' };
   const { data, error } = await sb.auth.getUser(token);
@@ -186,15 +260,70 @@ module.exports = async (req, res) => {
     if (action === 'signIn') {
       const { email, password } = args;
       if (!email || !password) return res.json({ success: false, error: 'Champs requis.' });
-      if (!sb) return res.json(emergencySignIn(email, password));
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       try {
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) {
           if (error.message.toLowerCase().includes('invalid login'))
             return res.json({ success: false, error: 'Identifiants invalides.' });
-          return res.json(emergencySignIn(email, password));
+          return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
         }
         const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+
+        // Handle subscription expiration and reminders
+        const now = new Date();
+        const expiryDate = profile.premium_expires_at ? new Date(profile.premium_expires_at) : null;
+
+        // Check if expired
+        if (profile.subscription_status === 'premium_active' && expiryDate && expiryDate < now) {
+          // Update status to expired
+          await sb.from('profiles').update({
+            subscription_status: 'expired',
+            updated_at: new Date().toISOString()
+          }).eq('id', data.user.id);
+
+          // Send expiration email (check if already sent today to avoid spamming)
+          const lastEmailSent = profile.email_expired_at ? new Date(profile.email_expired_at) : null;
+          const shouldSendEmail = !lastEmailSent || (now - lastEmailSent) > (24 * 60 * 60 * 1000); // 24 hours
+
+          if (shouldSendEmail) {
+            const expiryFormatted = expiryDate.toLocaleDateString('fr-FR');
+            const expiredHtml = emailHtml(`<h2 style="color:#ef4444;margin:0 0 16px;">Accès expiré 🔒</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${profile.username||profile.email.split('@')[0]}</strong>, votre abonnement a expiré le <strong style="color:#ef4444;">${expiryFormatted}</strong>. Votre accès est temporairement suspendu.</p><br/><a href="${APP_URL}" style="background:#ef4444;color:#ffffff;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Renouveler et débloquer l'accès</a>`);
+            await sendEmail(profile.email, '🔒 Votre accès TradeVault a expiré', expiredHtml);
+
+            // Update email sent timestamp
+            await sb.from('profiles').update({
+              email_expired_at: new Date().toISOString()
+            }).eq('id', data.user.id);
+          }
+
+          return res.json({
+            success: false,
+            error: 'Votre abonnement a expiré. Renouvelez pour accéder.',
+            subscription_status: 'expired'
+          });
+        }
+
+        // Send renewal reminder (J-7)
+        if (profile.subscription_status === 'premium_active' && expiryDate) {
+          const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+          if (daysLeft > 0 && daysLeft <= 7) {
+            // Check if reminder already sent today to avoid spamming
+            const lastReminderSent = profile.email_reminder_at ? new Date(profile.email_reminder_at) : null;
+            const shouldSendReminder = !lastReminderSent || (now - lastReminderSent) > (24 * 60 * 60 * 1000); // 24 hours
+
+            if (shouldSendReminder) {
+              const reminderHtml = emailReminderExpiry(profile.username||profile.email.split('@')[0], daysLeft, expiryDate, APP_URL, profile.subscription_price);
+              await sendEmail(profile.email, '⏳ Votre abonnement TradeVault expire bientôt', reminderHtml);
+
+              // Update reminder sent timestamp
+              await sb.from('profiles').update({
+                email_reminder_at: new Date().toISOString()
+              }).eq('id', data.user.id);
+            }
+          }
+        }
+
         await sb.from('profiles').update({
           last_login_at: new Date().toISOString(),
           login_count: (profile?.login_count || 0) + 1
@@ -213,12 +342,12 @@ module.exports = async (req, res) => {
             createdAt: profile?.created_at || new Date().toISOString(),
           }
         });
-      } catch (e) { return res.json(emergencySignIn(email, password)); }
+      } catch (e) { return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' }); }
     }
 
     if (action === 'signUp') {
       const { email, password, username, country, paymentScreenshot, selectedNetwork, subscriptionPrice } = args;
-      if (!sb) return res.json({ success: false, error: 'Service indisponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const { data, error } = await sb.auth.signUp({ email, password });
       if (error) return res.json({ success: false, error: error.message });
       const userId = data.user?.id;
@@ -235,9 +364,10 @@ module.exports = async (req, res) => {
       });
       // Emails notifications
       const uName = username?.trim() || email.split('@')[0];
-      const signupHtml = emailHtml(`<h2 style="color:#fff;margin:0 0 16px;">Inscription reçue ✅</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${uName}</strong>, ton inscription a été reçue. Ton compte sera activé sous 24-48h.</p><br/><a href="https://tradevault-silk.vercel.app" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder au portail →</a>`);
+      const signupHtml = emailNewSignup(uName, email, country || 'TG', selectedNetwork || 'TRC20', subscriptionPrice || 30, 'https://tradevault-silk.vercel.app');
       sendEmail(email, '✅ TradeVault — Inscription reçue', signupHtml).catch(()=>{});
-      sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${email}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`)  ).catch(()=>{});
+      const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${email}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
+      sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(()=>{});
       return res.json({ success: true, user: { id: userId, email, username: username?.trim(), country, paid: false, status: 'pending', createdAt: new Date().toISOString() } });
     }
 
@@ -247,7 +377,7 @@ module.exports = async (req, res) => {
 
     if (action === 'loadUserData') {
       const { userId } = args;
-      if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const [profile, accounts, trades, challenges, payments, settings] = await Promise.all([
         sb.from('profiles').select('*').eq('id', userId).maybeSingle(),
         sb.from('trading_accounts').select('*').eq('user_id', userId).eq('is_active', true).order('created_at', { ascending: true }),
@@ -278,7 +408,7 @@ module.exports = async (req, res) => {
 
     if (action === 'saveAccount') {
       const { account, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const { account_type, account_type_app, ...payload } = account;
       const { error } = await sb.from('trading_accounts').upsert(
         { ...payload, user_id: userId, updated_at: new Date().toISOString() },
@@ -290,7 +420,7 @@ module.exports = async (req, res) => {
 
     if (action === 'deleteAccount') {
       const { accountId, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const { error } = await sb.from('trading_accounts')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', accountId).eq('user_id', userId);
@@ -300,7 +430,7 @@ module.exports = async (req, res) => {
 
     if (action === 'getAccountStats') {
       const { accountId } = args;
-      if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const { data, error } = await sb.rpc('get_account_stats', { p_account_id: accountId });
       if (error) return res.json({ success: false, error: error.message });
       return res.json({ success: true, stats: data });
@@ -321,7 +451,7 @@ module.exports = async (req, res) => {
 
     if (action === 'saveTrade') {
       const { trade, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const payload = {
         ...trade, user_id: userId,
         trade_date: trade.trade_date || trade.date || new Date().toISOString().split('T')[0],
@@ -335,7 +465,7 @@ module.exports = async (req, res) => {
 
     if (action === 'deleteTrade') {
       const { tradeId, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
       const { error } = await sb.from('trades').delete().eq('id', tradeId).eq('user_id', userId);
       if (error) return res.json({ success: false, error: error.message });
       return res.json({ success: true });
@@ -399,15 +529,62 @@ module.exports = async (req, res) => {
       const { paymentId, status } = args;
       if (status === 'approved') {
         const { data } = await sb.rpc('approve_payment', { p_payment_id: paymentId, p_admin_id: adminUserId });
-        // Email user
+        // Enhanced email logic based on user's current status
         try {
-          const { data: pReq } = await sb.from('payment_requests').select('user_id').eq('id', paymentId).maybeSingle();
+          const { data: pReq } = await sb.from('payment_requests').select('user_id,status').eq('id', paymentId).maybeSingle();
           if (pReq?.user_id) {
-            const { data: prof } = await sb.from('profiles').select('email,username,premium_expires_at').eq('id', pReq.user_id).maybeSingle();
+            const { data: prof } = await sb.from('profiles').select('email,username,subscription_status,premium_expires_at,status').eq('id', pReq.user_id).maybeSingle();
             if (prof?.email) {
-              const expDate = prof.premium_expires_at ? new Date(prof.premium_expires_at).toLocaleDateString('fr-FR') : 'N/A';
-              const approvedHtml = emailHtml(`<h2 style="color:#00FF9C;margin:0 0 16px;">Paiement validé 🎉</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>, ton accès TradeVault PRO est actif jusqu'au <strong style="color:#00FF9C;">${expDate}</strong>.</p><br/><a href="https://tradevault-silk.vercel.app" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder à mon journal →</a>`);
-              await sendEmail(prof.email, '🎉 TradeVault PRO — Accès activé !', approvedHtml);
+              const expiryDate = new Date();
+              expiryDate.setDate(expiryDate.getDate() + 30); // 30 days from now
+              const expDateFormatted = expiryDate.toLocaleDateString('fr-FR');
+
+              // Determine email type based on user's current status
+              let emailSubject, emailHtmlContent;
+
+              if (prof.subscription_status === 'pending' || prof.status === 'pending') {
+                // First-time approval
+                emailSubject = '🎉 TradeVault PRO — Accès activé !';
+                const expiryDate = new Date();
+                // Get subscription duration from settings (default to 3 months)
+                const { data: settings } = await sb.from('admin_settings')
+                  .select('subscription_duration_months')
+                  .eq('id', 1)
+                  .single();
+                const durationMonths = (settings && settings.subscription_duration_months) || 3;
+                expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
+                const expDateFormatted = expiryDate.toLocaleDateString('fr-FR');
+                emailHtmlContent = emailHtml(`<h2 style="color:#00FF9C;margin:0 0 16px;">Compte activé 🎉</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>, votre compte a été validé par notre équipe.</p><p style="color:#888;font-size:14px;">Vous pouvez maintenant vous connecter et accéder à toutes les fonctionnalités de TradeVault PRO.</p><p style="color:#888;font-size:14px;">Date d'expiration : <strong style="color:#00FF9C;">${expDateFormatted}</strong></p><br/><a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Se connecter maintenant</a>`);
+              } else if (prof.subscription_status === 'expired') {
+                // Unblocking after expiration
+                emailSubject = '🔓 Accès rétabli — TradeVault PRO';
+                const expiryDate = new Date();
+                // Get subscription duration from settings (default to 3 months)
+                const { data: settings } = await sb.from('admin_settings')
+                  .select('subscription_duration_months')
+                  .eq('id', 1)
+                  .single();
+                const durationMonths = (settings && settings.subscription_duration_months) || 3;
+                expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
+                const expDateFormatted = expiryDate.toLocaleDateString('fr-FR');
+                emailHtmlContent = emailHtml(`<h2 style="color:#10b981;margin:0 0 16px;">Accès rétabli 🔓</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>,</p><p style="color:#888;font-size:14px;">Votre accès a été rétabli avec succès !</p><p style="color:#888;font-size:14px;">Nouvelle date d'expiration : <strong style="color:#00FF9C;">${expDateFormatted}</strong></p><br/><a href="${APP_URL}" style="background:#10b981;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Se connecter maintenant</a>`);
+              } else {
+                // Renewal (already active)
+                emailSubject = '✅ Abonnement renouvelé — TradeVault PRO';
+                // Get current expiry date to show extension
+                const currentExpiry = prof.premium_expires_at ? new Date(prof.premium_expires_at) : new Date();
+                // Get subscription duration from settings (default to 3 months)
+                const { data: settings } = await sb.from('admin_settings')
+                  .select('subscription_duration_months')
+                  .eq('id', 1)
+                  .single();
+                const durationMonths = (settings && settings.subscription_duration_months) || 3;
+                const newExpiry = new Date(currentExpiry.getTime() + (durationMonths * 30 * 24 * 60 * 60 * 1000)); // Add months (approx 30 days/month)
+                const newExpDateFormatted = newExpiry.toLocaleDateString('fr-FR');
+                emailHtmlContent = emailHtml(`<h2 style="color:#00FF9C;margin:0 0 16px;">Abonnement renouvelé ✅</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>,</p><p style="color:#888;font-size:14px;">Votre abonnement a été renouvelé avec succès.</p><p style="color:#888;font-size:14px;">Nouvelle date d'expiration : <strong style="color:#00FF9C;">${newExpDateFormatted}</strong></p><p style="color:#888;font-size:14px;">Votre accès continue sans interruption.</p><br/><a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder à TradeVault</a>`);
+              }
+
+              await sendEmail(prof.email, emailSubject, emailHtmlContent);
             }
           }
         } catch(emailErr) { console.warn('[EMAIL] approve:', emailErr.message); }

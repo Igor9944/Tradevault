@@ -850,11 +850,11 @@ export default function App() {
               }
             }
 
-            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', session: sessionObj }, '*');
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', session: sessionObj }, window.location.origin);
             window.close();
           } catch (err) {
             console.error("Popup communication error:", err);
-            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, window.location.origin);
             window.close();
           }
         }, 800);

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -89,93 +90,9 @@ async function initSupabase() {
   await dbReachabilityPromise;
 }
 
-// ─── Emergency Users (fallback si Supabase hors ligne) ───────────────────────
-interface EmergencyUser {
-  id: string; email: string; password: string;
-  username: string; country: string; role: string;
-  status: string; subscription_status: string; plan: string; paid: boolean;
-}
+// Emergency users removed for security
 
-const EMERGENCY_USERS: EmergencyUser[] = [
-  {
-    id: "6770a1eb-7a4e-4804-9dee-f9c1102cd854",
-    email: "admin@tradevault-onyx.com",
-    password: "7ddxNRF9gqaBfhGu",
-    username: "Onyx Admin",
-    country: "TG",
-    role: "admin",
-    status: "approved",
-    subscription_status: "premium_active",
-    plan: "pro",
-    paid: true,
-  },
-  {
-    id: "0e0e91bc-8440-45c6-876c-6e546cf43dbd",
-    email: "tradonyx@vault.com",
-    password: "otradnyx@2027",
-    username: "TradeVault Admin",
-    country: "TG",
-    role: "admin",
-    status: "approved",
-    subscription_status: "premium_active",
-    plan: "pro",
-    paid: true,
-  },
-];
-
-// ─── InMemory Users (pour signUp offline) ────────────────────────────────────
-let inMemoryUsers: any[] = [];
-
-function handleInmemoryProxyAction(action: string, args: any): any {
-  switch (action) {
-    case "signIn": {
-      const { email, password } = args;
-      const cleanEmail = email?.trim().toLowerCase();
-
-      // Chercher dans emergency users (admin)
-      const emergUser = EMERGENCY_USERS.find(u => u.email === cleanEmail);
-      if (emergUser) {
-        if (emergUser.password !== password) {
-          return { success: false, error: "Mot de passe incorrect." };
-        }
-        const { password: _, ...safe } = emergUser;
-        return {
-          success: true,
-          source: "emergency",
-          user: { ...safe, paid: true, paidUntil: null, avatar: undefined, createdAt: new Date().toISOString() }
-        };
-      }
-
-      // Chercher dans users inscrits offline
-      const memUser = inMemoryUsers.find(u => u.email === cleanEmail);
-      if (!memUser) return { success: false, error: "Compte introuvable." };
-
-      return { success: true, source: "memory", user: memUser };
-    }
-
-    case "signUp": {
-      const { email, username, country } = args;
-      const newUser = {
-        id: randomUUID(),
-        email: email.trim().toLowerCase(),
-        username: username?.trim() || email.split("@")[0],
-        country: country || "TG",
-        role: "user",
-        status: "pending",
-        subscription_status: "pending",
-        plan: "free",
-        paid: false,
-        paidUntil: null,
-        createdAt: new Date().toISOString(),
-      };
-      inMemoryUsers.push(newUser);
-      return { success: true, user: newUser };
-    }
-
-    default:
-      return { success: false, error: `Action "${action}" non supportée en mode dégradé.` };
-  }
-}
+// In-memory fallback removed for security
 
 // ─── Dynamic Robust Email Sender ──────────────────────────────────────────────
 export async function sendEmail(to: string, subject: string, html: string) {
@@ -209,7 +126,7 @@ async function triggerEmailsOnSignup(
                      <p><b>Email :</b> ${email}</p>
                      <p><b>Montant :</b> ${amount} USDT (${network})</p>
                      <p><b>Preuve :</b> <a href="${screenshot}">Voir screenshot</a></p>`;
-                     
+
   const userHtml = `<h2>Bonjour ${username},</h2>
                     <p>Ton inscription a bien été reçue. Ton compte sera activé après validation de ton paiement (sous 24h).</p>
                     <p>— Équipe TradeVault</p>`;
@@ -219,7 +136,7 @@ async function triggerEmailsOnSignup(
   await sendEmail(email, "TradeVault — Inscription reçue ✅", userHtml);
 }
 
-// ─── Proxy Principal ──────────────────────────────────────────────────────────
+// ─── Principal Proxy ──────────────────────────────────────────────────────────
 app.post("/api/supabase/proxy", async (req: express.Request, res: express.Response) => {
   try {
     const { action, arguments: args = {} } = req.body;
@@ -241,8 +158,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
     // Mode dégradé complet
     if (!serverSupabase || !dbOnline) {
-      const result = handleInmemoryProxyAction(action, args);
-      return res.json(result);
+      return res.status(503).json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
     }
 
     // ── Vérification admin pour actions sensibles ────────────────────────────
@@ -292,9 +208,8 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
           if (msg.toLowerCase().includes("invalid login credentials")) {
             return res.json({ success: false, error: "Identifiants invalides." });
           }
-          // Supabase injoignable → emergency fallback
-          const fallback = handleInmemoryProxyAction("signIn", args);
-          return res.json(fallback);
+          // Supabase indisponible → retour d'erreur
+          return res.json({ success: false, error: "Service d’authentification temporairement indisponible. Veuillez réessayer plus tard." });
         }
 
         const userId = authData.user?.id;
@@ -320,7 +235,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
             avatar: profile?.avatar_url || undefined,
             country: profile?.country || "TG",
             createdAt: profile?.created_at || new Date().toISOString(),
-          },
+          }
         });
       }
 
@@ -330,8 +245,8 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
 
         const { data: authData, error: authError } = await serverSupabase.auth.signUp({ email, password });
         if (authError) {
-          const fallback = handleInmemoryProxyAction("signUp", args);
-          return res.json(fallback);
+          // Supabase indisponible → retour d'erreur
+          return res.json({ success: false, error: "Service d’inscription temporairement indisponible. Veuillez réessayer plus tard." });
         }
 
         const userId = authData.user?.id;
@@ -371,7 +286,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
             id: userId, email, username: username?.trim(), country,
             paid: false, paidUntil: null, status: "pending",
             avatar: regAvatar || undefined, createdAt: new Date().toISOString(),
-          },
+          }
         });
       }
 
@@ -642,13 +557,9 @@ app.post("/api/auth/forgot-password-otp", async (req, res) => {
       return res.status(400).json({ success: false, error: "Adresse e-mail requise." });
     }
     const cleanEmail = email.trim().toLowerCase();
-    
+
     let userExists = false;
-    if (cleanEmail === "admin@tradevault-onyx.com" || cleanEmail === "tradonyx@vault.com") {
-      userExists = true;
-    } else if (inMemoryUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
-      userExists = true;
-    } else if (serverSupabase) {
+    if (serverSupabase) {
       try {
         const { data } = await serverSupabase
           .from('profiles')
@@ -718,12 +629,14 @@ app.post("/api/auth/reset-password-otp-verify", async (req, res) => {
 
     // Si Supabase est actif, tenter de modifier le password en DB
     if (serverSupabase) {
-      // Pour cet exercice, nous mettons aussi à jour inMemoryUsers en fallback
-    }
-
-    const memUser = inMemoryUsers.find(u => u.email === cleanEmail);
-    if (memUser) {
-      // Met à jour localement
+      try {
+        await serverSupabase.auth.updateUser({
+          password: newPassword
+        });
+      } catch (err) {
+        console.error("Error updating password via Supabase auth:", err);
+        return res.status(500).json({ success: false, error: "Erreur lors de la mise à jour du mot de passe." });
+      }
     }
 
     return res.json({ success: true, message: "Mot de passe réinitialisé avec succès." });
@@ -765,8 +678,8 @@ app.post("/api/cron/check-renewals", async (req, res) => {
 
 // ─── Static (production) ──────────────────────────────────────────────────────
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "dist")));
-  app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
+  app.use(express.static(__dirname));
+  app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────

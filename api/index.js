@@ -1,37 +1,18 @@
 const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
+// Emergency users removed for security
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-function hash(pwd) {
-  return crypto.createHash('sha256').update(pwd + 'tv_salt_2027').digest('hex');
-}
-
-const EMERGENCY = [
-  { id: '6770a1eb-7a4e-4804-9dee-f9c1102cd854', email: 'admin@tradevault-onyx.com',
-    passwordHash: hash('7ddxNRF9gqaBfhGu'), username: 'Onyx Admin',
-    role: 'admin', status: 'approved', subscription_status: 'premium_active', plan: 'pro', paid: true, country: 'TG' },
-  { id: '0e0e91bc-8440-45c6-876c-6e546cf43dbd', email: 'tradonyx@vault.com',
-    passwordHash: hash('otradnyx@2027'), username: 'TradeVault Admin',
-    role: 'admin', status: 'approved', subscription_status: 'premium_active', plan: 'pro', paid: true, country: 'TG' },
-];
-
-function emergencySignIn(email, password) {
-  const u = EMERGENCY.find(x => x.email === email.trim().toLowerCase());
-  if (!u) return { success: false, error: 'Compte introuvable.' };
-  if (u.passwordHash !== hash(password)) return { success: false, error: 'Mot de passe incorrect.' };
-  const { passwordHash: _, ...safe } = u;
-  return { success: true, source: 'emergency', user: { ...safe, paid: true, paidUntil: null, avatar: undefined, createdAt: new Date().toISOString() } };
-}
-
 async function handleSignIn(sb, email, password) {
-  if (!sb) return emergencySignIn(email, password);
+  if (!sb) {
+    return { success: false, error: "Service d’authentification temporairement indisponible. Veuillez réessayer plus tard." };
+  }
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) {
       if (error.message.toLowerCase().includes('invalid login')) return { success: false, error: 'Identifiants invalides.' };
-      return emergencySignIn(email, password);
+      return { success: false, error: "Service d’authentification temporairement indisponible. Veuillez réessayer plus tard." };
     }
     const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
     return {
@@ -51,7 +32,7 @@ async function handleSignIn(sb, email, password) {
       }
     };
   } catch (e) {
-    return emergencySignIn(email, password);
+    return { success: false, error: "Service d’authentification temporairement indisponible. Veuillez réessayer plus tard." };
   }
 }
 
@@ -86,7 +67,7 @@ module.exports = async (req, res) => {
       case 'signIn': return res.json(await handleSignIn(sb, args.email, args.password));
 
       case 'signUp': {
-        if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+        if (!sb) return res.json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
         const { email, password, username, country, paymentScreenshot, selectedNetwork, subscriptionPrice } = args;
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) return res.json({ success: false, error: error.message });
@@ -97,14 +78,14 @@ module.exports = async (req, res) => {
       }
 
       case 'adminLoadAllUsers': {
-        if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+        if (!sb) return res.json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
         const { data, error } = await sb.from('profiles').select('id,email,username,role,status,subscription_status,plan,premium_expires_at,created_at,country,payment_proof,avatar_url').order('created_at', { ascending: false });
         if (error) return res.json({ success: false, error: error.message });
         return res.json({ success: true, users: data });
       }
 
       case 'adminLoadAllPayments': {
-        if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+        if (!sb) return res.json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
         const { data, error } = await sb.from('payment_requests').select('*, profiles(email,username)').order('created_at', { ascending: false });
         if (error) return res.json({ success: false, error: error.message });
         return res.json({ success: true, payments: data });
@@ -112,7 +93,7 @@ module.exports = async (req, res) => {
 
       case 'updateUserRole':
       case 'adminUpdateUser': {
-        if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+        if (!sb) return res.json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
         const { userId, updates, role, status, subscription_status, plan, premium_expires_at } = args;
         const payload = updates || { role, status, subscription_status, plan, premium_expires_at };
         const { error } = await sb.from('profiles').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', userId);
@@ -121,7 +102,7 @@ module.exports = async (req, res) => {
       }
 
       case 'savePayment': {
-        if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+        if (!sb) return res.json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
         const { paymentId, status } = args;
         await sb.from('payment_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', paymentId);
         if (status === 'approved') {
@@ -132,7 +113,7 @@ module.exports = async (req, res) => {
       }
 
       case 'adminGetStats': {
-        if (!sb) return res.json({ success: false, error: 'DB non disponible.' });
+        if (!sb) return res.json({ success: false, error: "Service indisponible – veuillez réessayer plus tard." });
         const [u, p, t] = await Promise.all([
           sb.from('profiles').select('id,subscription_status'),
           sb.from('payment_requests').select('id,status,amount'),
@@ -143,7 +124,7 @@ module.exports = async (req, res) => {
           activeUsers: u.data?.filter(x => x.subscription_status==='premium_active').length||0,
           pendingPayments: p.data?.filter(x => x.status==='pending').length||0,
           totalRevenue: p.data?.filter(x => x.status==='approved').reduce((s,x)=>s+Number(x.amount),0)||0,
-          totalTrades: t.data?.length||0,
+          totalTrades: t.data?.length||0
         }});
       }
 
