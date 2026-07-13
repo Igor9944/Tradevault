@@ -210,6 +210,22 @@ async function logAudit(sb, userId, action, details = {}) {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 module.exports = async (req, res) => {
+  // === ENV GUARD (patch v3.2b) ===
+  const REQUIRED_ENV = [
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+  ]
+
+  // Vérifie les env vars au premier appel
+  const missing = REQUIRED_ENV.filter(k => !process.env[k])
+  if (missing.length > 0) {
+    console.error('[proxy] Missing env vars:', missing)
+    return res.status(503).json({
+      error: 'Server misconfigured',
+      missing,
+      hint: 'Add these variables in Vercel Dashboard → Settings → Environment Variables'
+    })
+  }
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

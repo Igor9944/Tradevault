@@ -5,16 +5,44 @@ import { safeLocalStorage } from '../utils/safeStorage';
 const dummyUrl = 'https://placeholder-project.supabase.co';
 const dummyKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
-let rawUrl = import.meta.env.VITE_SUPABASE_URL || dummyUrl;
-if (rawUrl?.includes('supabase.com/dashboard/project/')) {
-  const match = rawUrl.match(/project\/([a-z0-9]+)/);
-  if (match) rawUrl = `https://${match[1]}.supabase.co`;
-} else if (rawUrl && !rawUrl.startsWith('http')) {
-  rawUrl = `https://${rawUrl}.supabase.co`;
-}
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
 
-const supabaseUrl     = rawUrl;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || dummyKey;
+// === ENV VAR GUARD (ajouté patch v3.2b) ===
+if (!supabaseUrl || !supabaseAnonKey) {
+  // Affiche un écran d'erreur lisible au lieu de crasher silencieusement
+  const root = document.getElementById('root')
+  if (root) {
+    root.innerHTML = `
+      <div style="
+        min-height:100vh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        background:#0a0a0a;
+        color:#fff;
+        font-family:system-ui,sans-serif;
+        text-align:center;
+        padding:2rem;
+      ">
+        <div>
+          <div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
+          <h1 style="color:#f87171;margin-bottom:.5rem">Configuration manquante</h1>
+          <p style="color:#9ca3af;max-width:420px">
+            Les variables <code style="color:#fbbf24">VITE_SUPABASE_URL</code> et
+            <code style="color:#fbbf24">VITE_SUPABASE_ANON_KEY</code> ne sont pas définies.
+          </p>
+          <p style="color:#6b7280;font-size:.85rem;margin-top:1rem">
+            Vercel → Settings → Environment Variables
+          </p>
+        </div>
+      </div>
+    `
+  }
+  // Lance quand même createClient avec des strings vides
+  // pour éviter un crash TypeScript — l'app s'arrête sur l'écran d'erreur
+}
+// ==========================================
 
 // ─── Fix : isSupabaseOnline ne passe plus à false sur 401/403 ─────────────────
 // Un 401 = mauvais credentials (service UP), pas une panne réseau
@@ -26,7 +54,7 @@ const customSupabaseFetch = async (
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> => {
-  // Si trop d'erreurs réseau consécutives → court-circuit
+// Si trop d'erreurs réseau consécutives → court-circuit
   if (isSupabaseOnline === false && consecutiveNetworkErrors >= MAX_NETWORK_ERRORS) {
     throw new TypeError('Failed to fetch');
   }

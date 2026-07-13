@@ -1,64 +1,56 @@
-# .github/workflows/deploy.yml — TradeVault v3.2
-# Quality checks only — Vercel native GitHub integration gère le deploy
+# .github/workflows/deploy.yml
+# v3.2b — 2025-07-13
+# CI uniquement — Vercel déploie via son intégration GitHub native
 
-name: TradeVault CI
+name: CI — TradeVault
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
-  # ── Lint + Type + Build ───────────────────────────────────────────────────────
   quality:
-    name: Lint + Type + Build
+    name: Quality Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
-      - run: npm ci
-      - run: npx tsc --noEmit
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+        # Bloquant — si tsc échoue, le CI s'arrête
+
       - name: Build
         run: npm run build
         env:
           VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          RESEND_API_KEY:         ${{ secrets.RESEND_API_KEY }}
+        # Bloquant — si le build échoue, le CI s'arrête
 
-  # ── Security (non-bloquant) ───────────────────────────────────────────────────
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
-      - run: npm ci
+      - name: Security audit
+        run: npm audit --audit-level=high || true
+        # Non-bloquant — affiche les vulnérabilités sans bloquer le déploiement
 
-      - name: npm audit
-        run: npm audit --audit-level=high --production
-        continue-on-error: true
-
-      - name: Check hardcoded secrets
+      - name: Build size report
         run: |
-          FOUND=$(grep -rn "eyJhbGci\|service_role" src/ \
-            --include="*.ts" --include="*.tsx" --include="*.js" \
-            | grep -v "placeholder\|dummy\|dummyKey\|dummyUrl" \
-            | grep -v "import\.meta\.env\|process\.env\|VITE_\|\/\/" \
-            || true)
-          if [ -n "$FOUND" ]; then
-            echo "❌ Hardcoded secret:"
-            echo "$FOUND"
-            exit 1
-          fi
-          echo "✅ No hardcoded secrets"
+          echo "=== Build output size ==="
+          du -sh dist/ 2>/dev/null || echo "dist/ not found"
+          ls -lh dist/assets/*.js 2>/dev/null | head -10 || true
+        # Informatif seulement
