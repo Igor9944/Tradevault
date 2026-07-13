@@ -281,7 +281,12 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
           created_at: new Date().toISOString(),
         });
 
-        await triggerEmailsOnSignup(username?.trim(), email, paymentScreenshot, subscriptionPrice || 30, selectedNetwork || "TRC20");
+        try {
+          await triggerEmailsOnSignup(username?.trim(), email, paymentScreenshot, subscriptionPrice || 30, selectedNetwork || "TRC20");
+        } catch (emailErr) {
+          console.error('[signUp] Email send failed (user created but email not sent):', emailErr);
+          // On ne bloque pas la réponse — l'utilisateur est créé
+        }
 
         return res.json({
           success: true,
@@ -298,6 +303,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         const { data, error } = await serverSupabase
           .from("profiles")
           .select("id,email,username,role,status,subscription_status,plan,premium_expires_at,created_at,country,payment_proof,avatar_url")
+          .limit(500)
           .order("created_at", { ascending: false });
         if (error) return res.json({ success: false, error: error.message });
         return res.json({ success: true, users: data });
@@ -308,6 +314,7 @@ app.post("/api/supabase/proxy", async (req: express.Request, res: express.Respon
         const { data, error } = await serverSupabase
           .from("payment_requests")
           .select("*, profiles(email,username)")
+          .limit(500)
           .order("created_at", { ascending: false });
         if (error) return res.json({ success: false, error: error.message });
         return res.json({ success: true, payments: data });
