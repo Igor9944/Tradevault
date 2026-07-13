@@ -170,7 +170,7 @@ header h2{font-family:'Syne',sans-serif;font-size:1.8rem;color:var(--accent);}
 .toast.info{background:var(--info);}
 .toast.success{background:var(--success);}
 .toast.error{background:var(--error);}
-@keyframes slideIn{from{opacity:0;transform:translateX(100%)}to{opacity=1;transform:translateX(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @media(max-width:768px){
   aside{width:60px;overflow:hidden;transition:width .2s;}
@@ -909,7 +909,7 @@ function openChallengeModal(){
 document.getElementById('add-challenge-btn').addEventListener('click',openChallengeModal);
 document.getElementById('close-challenge-modal').addEventListener('click',()=>{document.getElementById('challenge-modal').style.display='none';});
 document.getElementById('challenge-form').addEventListener('submit',function(e){
-  e.preventDebug;
+  e.preventDefault();
   const user=getUser();if(!user){alert('Erreur d\'authentification');return;}
   const data=getUserData();if(!data){alert('Erreur de données');return;}
   const acc=getActiveAccount();
