@@ -4,6 +4,9 @@ import cors from "cors";
 import path from "path";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export const app = express();
@@ -14,7 +17,7 @@ app.use(express.json({ limit: "10mb" }));
 const SUPABASE_URL        = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY   = process.env.VITE_SUPABASE_ANON_KEY || "";
 const SERVICE_ROLE_KEY    = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const PORT                = parseInt(process.env.PORT || "3000", 10); // Bound to PORT 3000
+const PORT                = parseInt(process.env.PORT || "5000", 10); // Bound to PORT 5000
 
 // Log buffer for admin panel
 export const logBuffer: { timestamp: string, message: string }[] = [];
@@ -677,10 +680,14 @@ app.post("/api/cron/check-renewals", async (req, res) => {
 });
 
 // ─── Static (production) ──────────────────────────────────────────────────────
+// Serve static assets in production
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(__dirname));
-  app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
 }
+// Serve the React app for any other routes (client-side routing)
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 initSupabase().then(() => {
