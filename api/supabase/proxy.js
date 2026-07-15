@@ -159,7 +159,7 @@ function checkRateLimit(identifier, action, max, windowMs) {
   if (entry.count >= max) {
     return { allowed: false, remaining: 0, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
   }
-  entry.count++;
+  element.count++;
   return { allowed: true, remaining: max - entry.count };
 }
 
@@ -176,7 +176,7 @@ function getSB() {
   if (!SUPABASE_URL || !SERVICE_KEY) return null;
   try {
     return createClient(SUPABASE_URL, SERVICE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false }
+      auth: { autoRefreshToken: false, persistSession: false },
     });
   } catch (e) {
     console.error('[PROXY] createClient:', e.message);
@@ -253,7 +253,7 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const { action, arguments: args = {} } = body;
-    if (!action) return res.status(400).json({ success: false, error: 'Action manquante.' });
+    if (!action) return res.json({ success: false, error: 'Action manquante.' });
 
     // Identifier pour rate limiting
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.connection?.remoteAddress || 'unknown';
@@ -283,9 +283,9 @@ module.exports = async (req, res) => {
       adminUserId = guard.userId;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
     // AUTH ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════
 
     if (action === 'signIn') {
       const { email, password } = args;
@@ -299,77 +299,23 @@ module.exports = async (req, res) => {
           return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
         }
         const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
-
-        // Handle subscription expiration and reminders
-        const now = new Date();
-        const expiryDate = profile.premium_expires_at ? new Date(profile.premium_expires_at) : null;
-
-        // Check if expired
-        if (profile.subscription_status === 'premium_active' && expiryDate && expiryDate < now) {
-          // Update status to expired
-          await sb.from('profiles').update({
-            subscription_status: 'expired',
-            updated_at: new Date().toISOString()
-          }).eq('id', data.user.id);
-
-          // Send expiration email (check if already sent today to avoid spamming)
-          const lastEmailSent = profile.email_expired_at ? new Date(profile.email_expired_at) : null;
-          const shouldSendEmail = !lastEmailSent || (now - lastEmailSent) > (24 * 60 * 60 * 1000); // 24 hours
-
-          if (shouldSendEmail) {
-            const expiryFormatted = expiryDate.toLocaleDateString('fr-FR');
-            const expiredHtml = emailHtml(`<h2 style="color:#ef4444;margin:0 0 16px;">Accès expiré 🔒</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${profile.username||profile.email.split('@')[0]}</strong>, votre abonnement a expiré le <strong style="color:#ef4444;">${expiryFormatted}</strong>. Votre accès est temporairement suspendu.</p><br/><a href="${APP_URL}" style="background:#ef4444;color:#ffffff;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Renouveler et débloquer l'accès</a>`);
-            await sendEmail(profile.email, '🔒 Votre accès TradeVault a expiré', expiredHtml);
-
-            // Update email sent timestamp
-            await sb.from('profiles').update({
-              email_expired_at: new Date().toISOString()
-            }).eq('id', data.user.id);
-          }
-
-          return res.json({
-            success: false,
-            error: 'Votre abonnement a expiré. Renouvelez pour accéder.',
-            subscription_status: 'expired'
-          });
-        }
-
-        // Send renewal reminder (J-7)
-        if (profile.subscription_status === 'premium_active' && expiryDate) {
-          const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-          if (daysLeft > 0 && daysLeft <= 7) {
-            // Check if reminder already sent today to avoid spamming
-            const lastReminderSent = profile.email_reminder_at ? new Date(profile.email_reminder_at) : null;
-            const shouldSendReminder = !lastReminderSent || (now - lastReminderSent) > (24 * 60 * 60 * 1000); // 24 hours
-
-            if (shouldSendReminder) {
-              const reminderHtml = emailReminderExpiry(profile.username||profile.email.split('@')[0], daysLeft, expiryDate, APP_URL, profile.subscription_price);
-              await sendEmail(profile.email, '⏳ Votre abonnement TradeVault expire bientôt', reminderHtml);
-
-              // Update reminder sent timestamp
-              await sb.from('profiles').update({
-                email_reminder_at: new Date().toISOString()
-              }).eq('id', data.user.id);
-            }
-          }
-        }
-
-        await sb.from('profiles').update({
-          last_login_at: new Date().toISOString(),
-          login_count: (profile?.login_count || 0) + 1
-        }).eq('id', data.user.id);
+        if (!profile) return res.json({ success: false, error: 'Proutil non trouvé.' });
         return res.json({
-          success: true, source: 'supabase',
+          success: true,
           user: {
-            id: data.user.id, email: data.user.email,
-            username: profile?.username || profile?.full_name || email.split('@')[0],
-            role: profile?.role || 'user', status: profile?.status || 'pending',
-            subscription_status: profile?.subscription_status || 'pending',
-            plan: profile?.plan || 'free', premium_expires_at: profile?.premium_expires_at || null,
-            paid: profile?.subscription_status === 'premium_active',
-            paidUntil: profile?.premium_expires_at || null,
-            avatar: profile?.avatar_url || undefined, country: profile?.country || 'TG',
-            createdAt: profile?.created_at || new Date().toISOString(),
+            id: data.user.id,
+            email: data.user.email,
+            username: profile.username || profile.full_name || email.split('@')[0],
+            role: profile.role || 'user',
+            status: profile.status || 'pending',
+            subscription_status: profile.subscription_status || 'pending',
+            plan: profile.plan || 'free',
+            premium_expires_at: profile.premium_expires_at || null,
+            paid: profile.subscription_status === 'premium_active',
+            paidUntil: profile.premium_expires_at || null,
+            avatar: profile.avatar_url || undefined,
+            country: profile.country || 'TG',
+            createdAt: profile.created_at || new Date().toISOString(),
           }
         });
       } catch (e) { return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' }); }
@@ -401,9 +347,9 @@ module.exports = async (req, res) => {
       return res.json({ success: true, user: { id: userId, email, username: username?.trim(), country, paid: false, status: 'pending', createdAt: new Date().toISOString() } });
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
     // DATA ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════
 
     if (action === 'loadUserData') {
       const { userId } = args;
@@ -448,79 +394,227 @@ module.exports = async (req, res) => {
       return res.json({ success: true });
     }
 
-    if (action === 'deleteAccount') {
-      const { accountId, userId } = args;
+    if (action === 'getAccounts') {
+      const { userId } = args;
       if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      const { data, error } = await sb.from('trading_accounts').select('*')
+        .eq('user_id', userId).eq('is_active', true).order('created_at', { ascending: true });
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, accounts: (data || []).map(a => ({ ...a, account_type: a.type })) });
+    }
+
+    if (action === 'createAccount') {
+      const { name, type, broker, capital = 0 } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+
+      // Validation
+      if (!name?.trim()) return res.json({ success: false, error: 'name required' });
+      const validTypes = ['personal', 'prop_firm', 'demo'];
+      if (!validTypes.includes(type))
+        return res.json({ success: false, error: `type must be one of: ${validTypes.join('|')}` });
+
+      const { data, error } = await sb.from('trading_accounts').insert({
+        user_id: userId,
+        name: name.trim(),
+        type,
+        broker: broker || 'Manual',
+        capital: Number(capital) || 0,
+        starting_balance: Number(capital) || 0,
+        current_balance: Number(capital) || 0,
+        is_active: true,
+        is_default: false,
+      }).select().single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, account: data });
+    }
+
+    if (action === 'updateAccount') {
+      const { id, name, type, broker, capital } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!id) return res.json({ success: false, error: 'id required' });
+
+      const patch = {};
+      if (name !== undefined)    patch.name    = String(name).trim();
+      if (type !== undefined)    patch.type    = type;
+      if (broker !== undefined)  patch.broker  = broker;
+      if (capital !== undefined) {
+        patch.capital = Number(capital) || 0;
+        patch.starting_balance = Number(capital) || 0;
+      }
+      patch.updated_at = new Date().toISOString();
+
+      const { data, error } = await sb.from('trading_accounts')
+        .update(patch)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, account: data });
+    }
+
+    if (action === 'deleteAccount') {
+      const { id } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!id) return res.json({ success: false, error: 'id required' });
+
       const { error } = await sb.from('trading_accounts')
         .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', accountId).eq('user_id', userId);
+        .eq('id', id)
+        .eq('user_id', userId);
+
       if (error) return res.json({ success: false, error: error.message });
-      return res.json({ success: true });
+      return res.json({ success: true, deleted: true, id });
+    }
+
+    if (action === 'createTrade') {
+      const {
+        accountId,
+        symbol,
+        side,
+        entry_price,
+        exit_price,
+        size_lots,
+        profit_loss,
+        trade_date,
+        execution_time_entry,
+        execution_time_exit,
+        session,
+        emotion,
+        setup,
+        notes,
+        screenshot_urls = [],
+        rr_ratio,
+        risk_percent,
+        grade,
+        tags = [],
+        userId  // Added this - was missing in patch but clearly needed
+      } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+
+      // Validation
+      if (!accountId) return res.json({ success: false, error: 'accountId required' });
+      if (!symbol)    return res.json({ success: false, error: 'symbol required' });
+      if (!side || !['buy','sell'].includes(side))
+        return res.json({ success: false, error: "side must be 'buy' or 'sell'" });
+
+      const result = profit_loss > 0 ? 'WIN' : profit_loss < 0 ? 'LOSS' : 'BE';
+
+      const { data, error } = await sb.from('trades').insert({
+        account_id: accountId,
+        user_id: userId,
+        symbol,
+        side,
+        entry_price: entry_price ? Number(entry_price) : null,
+        exit_price:  exit_price  ? Number(exit_price)  : null,
+        size_lots:   size_lots   ? Number(size_lots)   : null,
+        profit_loss: Number(profit_loss) || 0,
+        execution_time_entry: execution_time_entry || new Date().toISOString(),
+        execution_time_exit:  execution_time_exit  || null,
+        trade_date:   trade_date || new Date().toISOString().split('T')[0],
+        session:      session  || null,
+        emotion:      emotion  || null,
+        setup:        setup    || null,
+        notes:        notes    || null,
+        screenshot_urls: Array.isArray(screenshot_urls) ? screenshot_urls : [],
+        rr_ratio:     rr_ratio     ? Number(rr_ratio)     : null,
+        risk_percent: risk_percent ? Number(risk_percent) : null,
+        grade:        grade || null,
+        tags:         Array.isArray(tags) ? tags : [],
+        result,
+      }).select().single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, trade: data });
+    }
+
+    if (action === 'updateTrade') {
+      const { id, accountId, symbol, side, entry_price, exit_price, size_lots, profit_loss, trade_date, execution_time_entry, execution_time_exit, session, emotion, setup, notes, screenshot_urls, rr_ratio, risk_percent, grade, tags, userId } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!id) return res.json({ success: false, error: 'id required' });
+      if (!userId) return res.json({ success: false, error: 'userId required' });
+
+      const result = profit_loss > 0 ? 'WIN' : profit_loss < 0 ? 'LOSS' : 'BE';
+
+      const { data, error } = await sb.from('trades')
+        .update({
+          account_id: accountId,
+          symbol: symbol,
+          side: side,
+          entry_price: entry_price ? Number(entry_price) : null,
+          exit_price:  exit_price  ? Number(exit_price)  : null,
+          size_lots:   size_lots   ? Number(size_lots)   : null,
+          profit_loss: Number(profit_loss) || 0,
+          execution_time_entry: execution_time_entry || new Date().toISOString(),
+          execution_time_exit:  execution_time_exit  || null,
+          trade_date:   trade_date || new Date().toISOString().split('T')[0],
+          session:      session  || null,
+          emotion:      emotion  || null,
+          setup:        setup    || null,
+          notes:        notes    || null,
+          screenshot_urls: Array.isArray(screenshot_urls) ? screenshot_urls : [],
+          rr_ratio:     rr_ratio     ? Number(rr_ratio)     : null,
+          risk_percent: risk_percent ? Number(risk_percent) : null,
+          grade:        grade || null,
+          tags:         Array.isArray(tags) ? tags : [],
+          result:       result
+        })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, trade: data });
+    }
+
+    if (action === 'getTradesByAccount') {
+      const { accountId, page = 1, limit = 50, userId } = args; // Added userId
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!accountId) return res.json({ success: false, error: 'accountId required' });
+      const from = (Number(page) - 1) * Number(limit);
+      const { data, error, count } = await sb.from('trades')
+        .select('*', { count: 'exact' })
+        .eq('account_id', accountId)
+        .eq('user_id', userId)
+        .order('trade_date', { ascending: false })
+        .range(from, from + Number(limit) - 1);
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({
+        success: true,
+        trades: data || [],
+        count: count || 0
+      });
+    }
+
+    if (action === 'deleteTrade') {
+      const { id, userId } = args; // Added userId
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!id) return res.json({ success: false, error: 'id required' });
+
+      const { error } = await sb.from('trades')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, deleted: true, id });
     }
 
     if (action === 'getAccountStats') {
       const { accountId } = args;
       if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!accountId) return res.json({ success: false, error: 'accountId required' });
       const { data, error } = await sb.rpc('get_account_stats', { p_account_id: accountId });
       if (error) return res.json({ success: false, error: error.message });
       return res.json({ success: true, stats: data });
     }
 
-    if (action === 'loadTrades') {
-      const { accountId, userId, page = 0, pageSize = 50 } = args;
-      if (!sb) return res.json({ success: false, trades: [] });
-      const from = page * pageSize;
-      let q = sb.from('trades').select('*').eq('user_id', userId)
-        .order('trade_date', { ascending: false }).order('created_at', { ascending: false })
-        .range(from, from + pageSize - 1);
-      if (accountId) q = q.eq('account_id', accountId);
-      const { data, error } = await q;
-      if (error) return res.json({ success: false, error: error.message });
-      return res.json({ success: true, trades: data || [] });
-    }
-
-    if (action === 'saveTrade') {
-      const { trade, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
-      const payload = {
-        ...trade, user_id: userId,
-        trade_date: trade.trade_date || trade.date || new Date().toISOString().split('T')[0],
-        updated_at: new Date().toISOString(),
-        created_at: trade.created_at || new Date().toISOString(),
-      };
-      const { data, error } = await sb.from('trades').upsert(payload, { onConflict: 'id' }).select().single();
-      if (error) return res.json({ success: false, error: error.message });
-      return res.json({ success: true, trade: data });
-    }
-
-    if (action === 'deleteTrade') {
-      const { tradeId, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
-      const { error } = await sb.from('trades').delete().eq('id', tradeId).eq('user_id', userId);
-      if (error) return res.json({ success: false, error: error.message });
-      return res.json({ success: true });
-    }
-
-    if (action === 'loadNotifications') {
-      const { userId } = args;
-      if (!sb) return res.json({ success: false, notifications: [] });
-      const { data } = await sb.from('notifications').select('*')
-        .eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
-      return res.json({ success: true, notifications: data || [] });
-    }
-
-    if (action === 'markNotificationsRead') {
-      const { userId, notifId } = args;
-      if (!sb) return res.json({ success: true });
-      const q = sb.from('notifications').update({ read_at: new Date().toISOString() });
-      if (notifId) q.eq('id', notifId); else q.eq('user_id', userId).is('read_at', null);
-      await q;
-      return res.json({ success: true });
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════
     // ADMIN ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════
 
     if (action === 'adminLoadAllUsers') {
       const { data, error } = await sb.from('profiles')
@@ -537,7 +631,15 @@ module.exports = async (req, res) => {
       return res.json({ success: true, payments: data });
     }
 
-    if (action === 'updateUserRole' || action === 'adminUpdateUser') {
+    if (action === 'adminDeleteUser') {
+      const { userId } = args;
+      await sb.from('profiles').delete().eq('id', userId);
+      await sb.auth.admin.deleteUser(userId).catch(() => {});
+      await logAudit(sb, adminUserId, 'delete_user', { targetId: userId });
+      return res.json({ success: true });
+    }
+
+    if (action === 'adminUpdateUser') {
       const { userId, updates, role, status, subscription_status, plan, premium_expires_at } = args;
       const payload = updates || { role, status, subscription_status, plan, premium_expires_at };
       const { error } = await sb.from('profiles')
@@ -547,81 +649,13 @@ module.exports = async (req, res) => {
       return res.json({ success: true });
     }
 
-    if (action === 'adminDeleteUser') {
-      const { userId } = args;
-      await sb.from('profiles').delete().eq('id', userId);
-      await sb.auth.admin.deleteUser(userId).catch(() => {});
-      await logAudit(sb, adminUserId, 'delete_user', { targetId: userId });
-      return res.json({ success: true });
-    }
-
-    if (action === 'savePayment') {
-      const { paymentId, status } = args;
-      if (status === 'approved') {
-        const { data } = await sb.rpc('approve_payment', { p_payment_id: paymentId, p_admin_id: adminUserId });
-        // Enhanced email logic based on user's current status
-        try {
-          const { data: pReq } = await sb.from('payment_requests').select('user_id,status').eq('id', paymentId).maybeSingle();
-          if (pReq?.user_id) {
-            const { data: prof } = await sb.from('profiles').select('email,username,subscription_status,premium_expires_at,status').eq('id', pReq.user_id).maybeSingle();
-            if (prof?.email) {
-              const expiryDate = new Date();
-              expiryDate.setDate(expiryDate.getDate() + 30); // 30 days from now
-              const expDateFormatted = expiryDate.toLocaleDateString('fr-FR');
-
-              // Determine email type based on user's current status
-              let emailSubject, emailHtmlContent;
-
-              if (prof.subscription_status === 'pending' || prof.status === 'pending') {
-                // First-time approval
-                emailSubject = '🎉 TradeVault PRO — Accès activé !';
-                const expiryDate = new Date();
-                // Get subscription duration from settings (default to 3 months)
-                const { data: settings } = await sb.from('admin_settings')
-                  .select('subscription_duration_months')
-                  .eq('id', 1)
-                  .single();
-                const durationMonths = (settings && settings.subscription_duration_months) || 3;
-                expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
-                const expDateFormatted = expiryDate.toLocaleDateString('fr-FR');
-                emailHtmlContent = emailHtml(`<h2 style="color:#00FF9C;margin:0 0 16px;">Compte activé 🎉</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>, votre compte a été validé par notre équipe.</p><p style="color:#888;font-size:14px;">Vous pouvez maintenant vous connecter et accéder à toutes les fonctionnalités de TradeVault PRO.</p><p style="color:#888;font-size:14px;">Date d'expiration : <strong style="color:#00FF9C;">${expDateFormatted}</strong></p><br/><a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Se connecter maintenant</a>`);
-              } else if (prof.subscription_status === 'expired') {
-                // Unblocking after expiration
-                emailSubject = '🔓 Accès rétabli — TradeVault PRO';
-                const expiryDate = new Date();
-                // Get subscription duration from settings (default to 3 months)
-                const { data: settings } = await sb.from('admin_settings')
-                  .select('subscription_duration_months')
-                  .eq('id', 1)
-                  .single();
-                const durationMonths = (settings && settings.subscription_duration_months) || 3;
-                expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
-                const expDateFormatted = expiryDate.toLocaleDateString('fr-FR');
-                emailHtmlContent = emailHtml(`<h2 style="color:#10b981;margin:0 0 16px;">Accès rétabli 🔓</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>,</p><p style="color:#888;font-size:14px;">Votre accès a été rétabli avec succès !</p><p style="color:#888;font-size:14px;">Nouvelle date d'expiration : <strong style="color:#00FF9C;">${expDateFormatted}</strong></p><br/><a href="${APP_URL}" style="background:#10b981;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Se connecter maintenant</a>`);
-              } else {
-                // Renewal (already active)
-                emailSubject = '✅ Abonnement renouvelé — TradeVault PRO';
-                // Get current expiry date to show extension
-                const currentExpiry = prof.premium_expires_at ? new Date(prof.premium_expires_at) : new Date();
-                // Get subscription duration from settings (default to 3 months)
-                const { data: settings } = await sb.from('admin_settings')
-                  .select('subscription_duration_months')
-                  .eq('id', 1)
-                  .single();
-                const durationMonths = (settings && settings.subscription_duration_months) || 3;
-                const newExpiry = new Date(currentExpiry.getTime() + (durationMonths * 30 * 24 * 60 * 60 * 1000)); // Add months (approx 30 days/month)
-                const newExpDateFormatted = newExpiry.toLocaleDateString('fr-FR');
-                emailHtmlContent = emailHtml(`<h2 style="color:#00FF9C;margin:0 0 16px;">Abonnement renouvelé ✅</h2><p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${prof.username||prof.email.split('@')[0]}</strong>,</p><p style="color:#888;font-size:14px;">Votre abonnement a été renouvelé avec succès.</p><p style="color:#888;font-size:14px;">Nouvelle date d'expiration : <strong style="color:#00FF9C;">${newExpDateFormatted}</strong></p><p style="color:#888;font-size:14px;">Votre accès continue sans interruption.</p><br/><a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder à TradeVault</a>`);
-              }
-
-              await sendEmail(prof.email, emailSubject, emailHtmlContent);
-            }
-          }
-        } catch(emailErr) { console.warn('[EMAIL] approve:', emailErr.message); }
-        return res.json(data || { success: true });
-      }
-      await sb.from('payment_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', paymentId);
-      await logAudit(sb, adminUserId, `payment_${status}`, { paymentId });
+    if (action === 'updateUserRole' || action === 'adminUpdateUser') {
+      const { userId, updates, role, status, subscription_status, plan, premium_expires_at } = args;
+      const payload = updates || { role, status, subscription_status, plan, premium_expires_at };
+      const { error } = await sb.from('profiles')
+        .update({ ...payload, updated_at: new Date().toISOString() }).eq('id', userId);
+      if (error) return res.json({ success: false, error: error.message });
+      await logAudit(sb, adminUserId, 'update_user', { targetId: userId, changes: payload });
       return res.json({ success: true });
     }
 

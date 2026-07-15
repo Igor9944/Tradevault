@@ -5,13 +5,12 @@ import { safeLocalStorage } from '../utils/safeStorage';
 const dummyUrl = 'https://placeholder-project.supabase.co';
 const dummyKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
-// === ENV VAR GUARD (ajouté patch v3.2b) ===
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   // Affiche un écran d'erreur lisible au lieu de crasher silencieusement
-  const root = document.getElementById('root')
+  const root = document.getElementById('root');
   if (root) {
     root.innerHTML = `
       <div style="
@@ -42,7 +41,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   // Lance quand même createClient avec des strings vides
   // pour éviter un crash TypeScript — l'app s'arrête sur l'écran d'erreur
 }
-// ==========================================
+
+// Valeurs fallback pour éviter le crash au démarrage
+const url = SUPABASE_URL || 'https://placeholder.supabase.co';
+const key = SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
 // ─── Fix : isSupabaseOnline ne passe plus à false sur 401/403 ─────────────────
 // Un 401 = mauvais credentials (service UP), pas une panne réseau
@@ -54,7 +56,7 @@ const customSupabaseFetch = async (
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> => {
-// Si trop d'erreurs réseau consécutives → court-circuit
+  // Si trop d'erreurs réseau consécutives → court-circuit
   if (isSupabaseOnline === false && consecutiveNetworkErrors >= MAX_NETWORK_ERRORS) {
     throw new TypeError('Failed to fetch');
   }
@@ -112,4 +114,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export const isSupabaseConfigured = !isMissingEnv;
+export const isSupabaseOnline = !isMissingEnv;

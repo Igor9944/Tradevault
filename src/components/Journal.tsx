@@ -39,12 +39,26 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   const [mindset, setMindset] = useState('Disciplined');
   const [notes, setNotes] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
+  const [session, setSession] = useState<string | null>(null); // Added session field
+  const [rrRatio, setRrRatio] = useState<number | null>(null); // Added rr_ratio field
+  const [riskPercent, setRiskPercent] = useState<number | null>(null); // Added risk_percent field
+  const [grade, setGrade] = useState<string | null>(null); // Added grade field
+  const [tags, setTags] = useState<string[]>([]); // Added tags field
 
   // Lightbox
   const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
 
   const SETUPS = ['Order Block', 'Breaker', 'FVG', 'Liquidity Sweep', 'Supply/Demand', 'Trendline'];
   const MINDSETS = ['Disciplined', 'FOMO', 'Impatient', 'Confident', 'Revenge'];
+
+  // Mindset to emotion mapping
+  const MINDSET_TO_EMOTION: { [key: string]: string } = {
+    'Disciplined': 'Discipliné',
+    'FOMO': 'FOMO',
+    'Impatient': 'Anxieux', // Closest match
+    'Confident': 'Confiant',
+    'Revenge': 'Revanche'
+  };
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -74,12 +88,18 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setPnl('');
     setSetup('Order Block');
     setMindset('Disciplined');
-    
+    setNotes('');
+    setScreenshot(null);
+    setSession(null); // Reset session
+    setRrRatio(null); // Reset rr_ratio
+    setRiskPercent(null); // Reset risk_percent
+    setGrade(null); // Reset grade
+    setTags([]); // Reset tags
+
     // Auto-restore draft for new notes if exists
     const draft = localStorage.getItem('tv_journal_draft_notes_new');
     setNotes(draft || '');
-    
-    setScreenshot(null);
+
     setModalOpen(true);
   };
 
@@ -97,12 +117,18 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setPnl(trade.pnl.toString());
     setSetup(trade.setup);
     setMindset(trade.mindset);
-    
+    setNotes(notes !== null ? notes : trade.notes);
+    setScreenshot(trade.screenshot_url || null);
+    setSession(trade.session || null);
+    setRrRatio(trade.rr_ratio ?? null);
+    setRiskPercent(trade.risk_percent ?? null);
+    setGrade(trade.grade ?? null);
+    setTags(trade.tags || []);
+
     // Auto-restore draft for this trade or fall back to original note
     const draft = localStorage.getItem(`tv_journal_draft_notes_${trade.id}`);
     setNotes(draft !== null ? draft : trade.notes);
-    
-    setScreenshot(trade.screenshot_url || null);
+
     setModalOpen(true);
   };
 
@@ -115,19 +141,44 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
     try {
       setIsSaving(true);
-      const tradeData: Partial<Trade> = {
-        date: date.replace('T', ' '),
-        pair: pair.trim().toUpperCase(),
-        side,
-        entry: parseFloat(entry) || 0,
-        exit: parseFloat(exit) || 0,
-        lots: parseFloat(lots) || 0.01,
-        fees: parseFloat(fees) || 0,
-        pnl: parseFloat(pnl) || 0,
-        setup,
-        mindset,
+
+      // Calculate session based on time of day (simplified)
+      // In a real app, you'd use proper timezone detection
+      let calculatedSession = session;
+      if (!calculatedSession) {
+        const hour = new Date(date).getUTCHours(); // Using UTC for simplicity
+        if (hour >= 0 && hour < 8) calculatedSession = 'Asian';
+        else if (hour >= 8 && hour < 16) calculatedSession = 'London';
+        else if (hour >= 16 && hour < 24) calculatedSession = 'New York';
+        // Note: This is a simplification - proper session detection would need exchange times and timezone
+      }
+
+      // Map mindset to emotion
+      const emotion = MINDSET_TO_EMOTION[mindset] || 'Neutre'; // Default to Neutre if not found
+
+      // Prepare trade object with DB schema field names
+      const tradeData = {
+        accountId: activeAccount.id,
+        userId: activeAccount.user_id,
+        symbol: pair.trim().toUpperCase(),
+        side: side.toLowerCase() as 'buy' | 'sell',
+        entry_price: parseFloat(entry) || 0,
+        exit_price: parseFloat(exit) || 0,
+        size_lots: parseFloat(lots) || 0.01,
+        profit_loss: parseFloat(pnl) || 0,
+        trade_date: date.split('T')[0], // YYYY-MM-DD part
+        execution_time_entry: date.replace(' ', 'T') + ':00Z', // ISO timestamp
+        execution_time_exit: null, // Not available yet for open trades
+        session: calculatedSession,
+        emotion: emotion as 'Neutre' | 'Confiant' | 'Anxieux' | 'FOMO' | 'Revanche' | 'Discipliné',
+        setup: setup,
         notes: notes.trim(),
-        screenshot_url: screenshot || undefined
+        screenshot_urls: screenshot ? [screenshot] : [],
+        rr_ratio: rrRatio,
+        risk_percent: riskPercent,
+        grade: grade,
+        tags: tags,
+        // result will be computed by the proxy based on profit_loss
       };
 
       if (editingId) {
@@ -135,22 +186,9 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         localStorage.removeItem(`tv_journal_draft_notes_${editingId}`);
       } else {
         const generatedId = 'trd_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-        const newFullTrade: Trade = {
+        const newFullTrade = {
+          ...tradeData,
           id: generatedId,
-          user_id: activeAccount.user_id,
-          account_id: activeAccount.id,
-          date: tradeData.date!,
-          pair: tradeData.pair!,
-          side: tradeData.side!,
-          entry: tradeData.entry!,
-          exit: tradeData.exit!,
-          lots: tradeData.lots!,
-          fees: tradeData.fees!,
-          pnl: tradeData.pnl!,
-          setup: tradeData.setup!,
-          mindset: tradeData.mindset!,
-          notes: tradeData.notes!,
-          screenshot_url: tradeData.screenshot_url,
           created_at: new Date().toISOString()
         };
         await onAddTrade(newFullTrade);
@@ -168,14 +206,14 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   // Filter Trades
   const filteredTrades = trades.filter(t => {
     const term = search.toLowerCase();
-    const matchSearch = 
-      t.pair.toLowerCase().includes(term) ||
+    const matchSearch =
+      t.symbol.toLowerCase().includes(term) ||
       t.setup.toLowerCase().includes(term) ||
       t.notes.toLowerCase().includes(term) ||
-      t.mindset.toLowerCase().includes(term);
+      t.emotion.toLowerCase().includes(term);
 
     const matchSetup = setupFilter === '' || t.setup === setupFilter;
-    const matchPnl = 
+    const matchPnl =
       pnlFilter === 'all' ? true :
       pnlFilter === 'win' ? t.pnl > 0 : t.pnl <= 0;
 
@@ -219,10 +257,10 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
     // Calculations
     const totalTrades = sortedFiltered.length;
-    const wins = sortedFiltered.filter(t => t.pnl > 0).length;
-    const losses = sortedFiltered.filter(t => t.pnl < 0).length;
+    const wins = sortedFiltered.filter(t => t.profit_loss > 0).length;
+    const losses = sortedFiltered.filter(t => t.profit_loss < 0).length;
     const winRate = totalTrades > 0 ? ((wins / (wins + losses || 1)) * 100).toFixed(1) : '0.0';
-    const totalPnl = sortedFiltered.reduce((sum, t) => sum + t.pnl, 0);
+    const totalPnl = sortedFiltered.reduce((sum, t) => sum + t.profit_loss, 0);
     const totalFees = sortedFiltered.reduce((sum, t) => sum + t.fees, 0);
     const netProfit = totalPnl - totalFees;
 
@@ -271,24 +309,25 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     }
     doc.text(`$${netProfit.toFixed(2)}`, 245, 59);
 
-    // Table
+    // Table headers
     const headers = [
       ['Date', 'Paire', 'Sens', 'Lots', 'Entrée', 'Sortie', 'Frais', 'P&L Brut', 'Net', 'Setup / Mindset', 'Notes / Observations']
     ];
 
+    // Table data
     const data = sortedFiltered.map(t => {
-      const netTrade = t.pnl - t.fees;
+      const netTrade = t.profit_loss - t.fees;
       return [
         t.date,
-        t.pair,
+        t.symbol,
         t.side,
         t.lots.toString(),
-        t.entry ? t.entry.toString() : '—',
-        t.exit ? t.exit.toString() : '—',
+        t.entry_price ? t.entry_price.toString() : '—',
+        t.exit_price ? t.exit_price.toString() : '—',
         `$${t.fees.toFixed(2)}`,
-        `$${t.pnl.toFixed(2)}`,
+        `$${t.profit_loss.toFixed(2)}`,
         `$${netTrade.toFixed(2)}`,
-        `${t.setup}\n[${t.mindset}]`,
+        `${t.setup}\n[${t.emotion}]`,
         t.notes || '—'
       ];
     });
@@ -314,7 +353,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
         4: { cellWidth: 18, halign: 'right' }, // Entrée
         5: { cellWidth: 18, halign: 'right' }, // Sortie
         6: { cellWidth: 14, halign: 'right' }, // Frais
-        7: { cellWidth: 18, halign: 'right' }, // Brut
+        7: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, // Brut
         8: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, // Net
         9: { cellWidth: 26 }, // Setup & Mindset
         10: { cellWidth: 'auto' } // Notes
@@ -363,7 +402,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
   return (
     <div className="space-y-6 text-slate-200">
-      
+
       {/* Search and Filters Strip */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[var(--bg-secondary)] p-4 rounded-2xl border border-white/[0.06] relative">
         <div className="md:col-span-3 relative">
@@ -426,26 +465,26 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
       {/* Trades Grid Container */}
       {sortedFiltered.length > 0 ? (
-        <div 
+        <div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
         >
           <AnimatePresence mode="popLayout">
             {sortedFiltered.map((t) => (
-              <motion.div 
+              <motion.div
                 key={t.id}
                 layout
                 initial={{ opacity: 0, y: 40, scale: 0.92 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85, y: -20 }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 400, 
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
                   damping: 30,
                   layout: { type: "spring", stiffness: 350, damping: 30 }
                 }}
                 className="bg-[var(--bg-secondary)] rounded-2xl border border-white/[0.06] overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#3DDC97]/40 transition-all duration-300 p-4 space-y-4"
               >
-                
+
                 {/* Card top */}
                 <div className="flex justify-between items-start border-b border-zinc-800/30 pb-3">
                   <div className="space-y-0.5">
@@ -456,92 +495,92 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                       }`}>
                         {t.side}
                       </span>
-                    </div>
+                    </span>
                     <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
                       <Calendar size={11} /> {t.date}
                     </span>
-                  </div>
-                  
+                  </span>
+
                   {/* Result Tag Badge */}
                   <div className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${
-                    t.pnl >= 0 ? 'bg-[#52D17C]/10 text-[#52D17C] border border-[#52D17C]/25' : 'bg-rose-500/10 text-[#E8544F] border border-rose-500/25'
+                    t.profit_loss >= 0 ? 'bg-[#52D17C]/10 text-[#52D17C] border border-[#52D17C]/25' : 'bg-rose-500/10 text-[#E8544F] border border-rose-500/25'
                   }`}>
-                    {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
-                  </div>
-                </div>
-
-                {/* Screenshot thumbnail if available */}
-                {t.screenshot_url && (
-                  <div 
-                    onClick={() => setActiveLightboxImage(t.screenshot_url!)}
-                    className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-xl overflow-hidden cursor-zoom-in group relative"
-                  >
-                    <img src={t.screenshot_url} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
-                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
-                      <ImageIcon size={16} className="mr-1.5" /> Agrandir
-                    </div>
-                  </div>
-                )}
-
-                {/* Data grid */}
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-[var(--bg-secondary)]/40 p-2.5 rounded-xl border border-white/[0.06]">
-                  <div>
-                    <span className="text-[10px] text-slate-500 block uppercase">Entrée :</span>
-                    <span className="text-slate-200 font-bold">{t.entry || '—'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 block uppercase">Sortie :</span>
-                    <span className="text-slate-200 font-bold">{t.exit || '—'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 block uppercase">Lots :</span>
-                    <span className="text-slate-200 font-bold">{t.lots} lot</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 block uppercase">Frais :</span>
-                    <span className="text-slate-400">${t.fees.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Setup and mindset tags */}
-                <div className="flex flex-wrap gap-1.5">
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-[#3DDC97]/10 text-[#3DDC97] border border-[#3DDC97]/15">
-                    🏷️ {t.setup}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-300 border border-amber-500/10">
-                    🧠 {t.mindset}
+                    {t.profit_loss >= 0 ? '+' : ''}${t.profit_loss.toFixed(2)}
                   </span>
                 </div>
+              </div>
 
-                {/* Observations notes */}
-                {t.notes && (
-                  <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-[#3DDC97]">
-                    "{t.notes}"
-                  </p>
-                )}
-
-                {/* Action strips */}
-                <div className="flex justify-end gap-1.5 pt-3 border-t border-zinc-800/30">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(t)}
-                    className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
-                  >
-                    <Edit2 size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { (window as any).showCustomConfirm('Confirmation de suppression', 'Êtes-vous sûr de vouloir supprimer définitivement ce trade ? Cette action est irréversible.', () => onDeleteTrade(t.id)); }}
-                    className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+              {/* Screenshot thumbnail if available */}
+              {t.screenshot_urls && t.screenshot_urls.length > 0 && (
+                <div
+                  onClick={() => setActiveLightboxImage(t.screenshot_urls[0]!)}
+                  className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-xl overflow-hidden cursor-zoom-in group relative"
+                >
+                  <img src={t.screenshot_urls[0]} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
+                  <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
+                    <ImageIcon size={16} className="mr-1.5" /> Agrandir
+                  </div>
                 </div>
+              )}
 
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+              {/* Data grid */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-[var(--bg-secondary)]/40 p-2.5 rounded-xl border border-white/[0.06]">
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Entrée :</span>
+                  <span className="text-slate-200 font-bold">{t.entry_price || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Sortie :</span>
+                  <span className="text-slate-200 font-bold">{t.exit_price || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Lots :</span>
+                  <span className="text-slate-200 font-bold">{t.lots} lot</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Frais :</span>
+                  <span className="text-slate-400">${t.fees.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Setup and mindset tags */}
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-[#3DDC97]/10 text-[#3DDC97] border border-[#3DDC97]/15">
+                  🏷️ {t.setup}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-300 border border-amber-500/10">
+                  🧠 {t.emotion}
+                </span>
+              </div>
+
+              {/* Observations notes */}
+              {t.notes && (
+                <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-[#3DDC97]">
+                  "{t.notes}"
+                </p>
+              )}
+
+              {/* Action strips */}
+              <div className="flex justify-end gap-1.5 pt-3 border-t border-zinc-800/30">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEdit(t)}
+                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
+                >
+                  <Edit2 size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { (window as any).showCustomConfirm('Confirmation de suppression', 'Êtes-vous sûr de vouloir supprimer définitivement ce trade ? Cette action est irréversible.', () => onDeleteTrade(t.id)); }}
+                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+
+            </motion.div>
+          ))}
+        </AnimatePresence>
       ) : (
         <div className="text-center py-20 bg-slate-900/10 border border-dashed border-slate-900 rounded-3xl space-y-2">
           <FileText size={44} className="mx-auto text-slate-600 animate-bounce" />
@@ -552,7 +591,7 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
       {/* STUNNING LIGHTBOX VIEWER */}
       {activeLightboxImage && (
-        <div 
+        <div
           onClick={() => setActiveLightboxImage(null)}
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
         >
@@ -567,13 +606,13 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
       {modalOpen && (
         <div className="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4 overflow-y-auto">
           <div className="max-w-xl w-full bg-[#0c0c0e] rounded-2xl border border-white/[0.06] p-6 md:p-8 space-y-5 animate-scale-in relative">
-            
+
             <div className="flex justify-between items-center border-b border-zinc-800/40 pb-4">
               <h4 className="text-base font-black font-mono text-white tracking-widest uppercase">
                 {editingId ? 'Modifier les spécifications d\'un Trade' : 'Ajouter un Enregistrement Trade'}
               </h4>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-[#0c0c0e] border border-white/[0.06] flex items-center justify-center text-slate-400 hover:text-white"
               >
@@ -744,37 +783,93 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
                 />
               </div>
 
-              {/* Interactive screenshot drag are file */}
-              <div className="space-y-1 bg-black p-4 border border-white/[0.06] rounded-xl">
-                <label className="text-[11px] text-slate-300 font-bold font-mono uppercase block mb-1">Capture d'écran de Graphique (Optionnel)</label>
-                <div className="relative border border-dashed border-zinc-800 hover:border-[#3DDC97]/50 rounded-lg p-3 text-center transition-all cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleScreenshotChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                  {!screenshot ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <Upload size={18} className="text-slate-500" />
-                      <span className="text-[11px] text-slate-400 font-medium">Uploader le snapshot trading</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img src={screenshot} alt="Screenshot loading" className="w-10 h-10 object-cover rounded border border-[#3DDC97]/40" />
-                        <span className="text-[11px] text-[#3DDC97] font-mono">trade_snapshot_saved.png</span>
-                      </div>
-                      <button 
-                        type="button" 
-                        onClick={() => setScreenshot(null)}
-                        className="text-[10px] text-red-400 font-semibold underline"
-                      >
-                        Retirer
-                      </button>
-                    </div>
-                  )}
-                </div>
+              {/* Session selector */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 font-semibold font-mono">SESSION DE TRADING</label>
+                <select
+                  value={session || ''}
+                  onChange={(e) => setSession(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
+                >
+                  <option value="">Sélectionner une session</option>
+                  <option value="Asian">Asian (00:00-08:00 UTC)</option>
+                  <option value="London">London (08:00-16:00 UTC)</option>
+                  <option value="New York">New York (16:00-24:00 UTC)</option>
+                </select>
+              </div>
+
+              {/* RR Ratio input */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 font-semibold font-mono">RATIO RÉCOMPENSE/RISQUE</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={rrRatio !== null ? rrRatio : ''}
+                  onChange={(e) => setRrRatio(e.target.value === '' ? null : parseFloat(e.target.value))}
+                  placeholder="Ex: 2.0"
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
+                />
+              </div>
+
+              {/* Risk Percent input */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 font-semibold font-mono">PRISE DE RISQUE (%)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={riskPercent !== null ? riskPercent : ''}
+                  onChange={(e) => setRiskPercent(e.target.value === '' ? null : parseFloat(e.target.value))}
+                  placeholder="Ex: 2.0"
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
+                />
+              </div>
+
+              {/* Grade input */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 font-semibold font-mono">NOTE DU TRADE (A+, A, B, etc.)</label>
+                <input
+                  type="text"
+                  value={grade || ''}
+                  onChange={(e) => setGrade(e.target.value)}
+                  placeholder="Ex: A+"
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
+                />
+              </div>
+
+              {/* Tags input */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 font-semibold font-mono">TAGS (séparés par des virgules)</label>
+                <input
+                  type="text"
+                  value={tags.join(', ')}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    setTags(val ? val.split(',').map(t => t.trim()).filter(t => t.length > 0) : []);
+                  }}
+                  placeholder="Ex: swing, breakout, news"
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
+                />
+              </div>
+
+              {/* Description comments */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300 font-semibold font-mono">OBSERVATIONS / RECITS DU TRADING</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNotes(val);
+                    if (editingId) {
+                      onEditTrade(editingId, { notes: val });
+                      localStorage.setItem(`tv_journal_draft_notes_${editingId}`, val);
+                    } else {
+                      localStorage.setItem('tv_journal_draft_notes_new', val);
+                    }
+                  }}
+                  rows={2}
+                  placeholder="Expliquez la structure du marché et la raison de votre entrée / sortie..."
+                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] leading-relaxed font-sans"
+                />
               </div>
 
               <div className="flex pt-4 gap-2 border-t border-zinc-800/20">

@@ -1327,7 +1327,29 @@ export default function App() {
       return next;
     });
     if (currentUser) {
-      await saveTradeToSupabase(currentUser.id, newTrade);
+      // Call proxy directly instead of saveTradeToSupabase
+      try {
+        const response = await fetch('/api/supabase/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'createTrade',
+            arguments: newTrade // The Trade object already matches what the proxy expects
+          })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown error');
+        }
+        // Optionally update the trade with the ID returned from the server
+        // if (result.trade) {
+        //   setTrades(prev => prev.map(t => t.id === newTrade.id ? { ...t, ...result.trade } : t));
+        // }
+      } catch (err) {
+        console.error('Failed to save trade:', err);
+        // Optionally show error to user
+      }
     }
   };
 
@@ -1342,7 +1364,29 @@ export default function App() {
       return mapped;
     });
     if (currentUser && updatedTrade) {
-      await saveTradeToSupabase(currentUser.id, updatedTrade);
+      // Call proxy directly instead of saveTradeToSupabase
+      try {
+        const response = await fetch('/api/supabase/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateTrade',
+            arguments: updatedTrade // The Trade object already has all needed fields including id
+          })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown error');
+        }
+        // Optionally update the trade with the fresh data from the server
+        // if (result.trade) {
+        //   setTrades(prev => prev.map(t => t.id === updatedTrade.id ? { ...t, ...result.trade } : t));
+        // }
+      } catch (err) {
+        console.error('Failed to update trade:', err);
+        // Optionally show error to user
+      }
     }
   };
 
