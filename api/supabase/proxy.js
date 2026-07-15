@@ -227,10 +227,14 @@ module.exports = async (req, res) => {
       hint: 'Add these variables in Vercel Dashboard → Settings → Environment Variables'
     })
   }
-  const allowedOrigins = [
-    'https://tradevault-silk.vercel.app',
-    'http://localhost:5173',
-  ];
+  // Read allowed origins from env var, fallback to hardcoded defaults
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || '';
+  const allowedOrigins = allowedOriginsEnv
+    ? allowedOriginsEnv.split(',').map(origin => origin.trim()).filter(Boolean)
+    : [
+        'https://tradevault-silk.vercel.app',
+        'http://localhost:5173',
+      ];
   const origin = req.headers.origin || '';
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
