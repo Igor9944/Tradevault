@@ -8,14 +8,14 @@ interface TourStep {
   description: string;
   icon: string | React.ReactNode;
   targetId: string;
-  activeTabTarget?: string;
+  activeTabTarget?: 'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin';
   position: 'top' | 'bottom' | 'left' | 'right' | 'center';
 }
 
 interface InteractiveTourProps {
   userId: string;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
+  activeTab: 'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin';
+  setActiveTab: (tab: 'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin') => void;
 }
 
 export default function InteractiveTour({ userId, activeTab, setActiveTab }: InteractiveTourProps) {

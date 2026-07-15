@@ -272,7 +272,7 @@ function TradingDevicesSimulator() {
 }
 
 export const UsdtTrc20Icon = () => (
-  <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0" referrerPolicy="no-referrer">
+  <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0">
     <circle cx="50" cy="50" r="45" fill="#141414" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
     <circle cx="50" cy="50" r="39" fill="none" stroke="#3DDC97" strokeWidth="1.5" strokeDasharray="2,2" />
     <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#3DDC97" />
@@ -283,7 +283,7 @@ export const UsdtTrc20Icon = () => (
 );
 
 export const UsdtBep20Icon = () => (
-  <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0" referrerPolicy="no-referrer">
+  <svg viewBox="0 0 100 100" className="w-9 h-9 select-none shrink-0">
     <circle cx="50" cy="50" r="45" fill="#141414" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
     <circle cx="50" cy="50" r="39" fill="none" stroke="#3DDC97" strokeWidth="1.5" strokeDasharray="2,2" />
     <path d="M 32,32 H 68 V 40 H 56 V 72 H 44 V 40 H 32 Z" fill="#3DDC97" />
@@ -580,7 +580,7 @@ export default function Portal({
         payment_proof,
         selectedNetwork,
         subscriptionPrice,
-        regAvatar
+        regAvatar ?? ''
       );
 
       if (res.success && res.user) {

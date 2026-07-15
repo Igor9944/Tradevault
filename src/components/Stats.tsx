@@ -353,9 +353,9 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                   labelStyle={{ color: '#94a3b8', fontSize: '10px' }}
                   cursor={{ fill: 'rgba(51, 65, 85, 0.2)' }}
                 />
-                <Legend iconSize={10} wrapperStyle={{ fontSize: '10px', pt: 10 }} />
-                <Bar dataKey="Victoires" fill="url(#colorVictoires)" radius={[2, 2, 0, 0]} stackedId="a" />
-                <Bar dataKey="Défaites" fill="url(#colorDefaites)" radius={[2, 2, 0, 0]} stackedId="a" />
+                <Legend iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                <Bar dataKey="Victoires" fill="url(#colorVictoires)" radius={[2, 2, 0, 0]} stackId="a" />
+                <Bar dataKey="Défaites" fill="url(#colorDefaites)" radius={[2, 2, 0, 0]} stackId="a" />
               </BarChart>
             </ChartWrapper>
           </div>

@@ -214,6 +214,7 @@ module.exports = async (req, res) => {
   const REQUIRED_ENV = [
     'SUPABASE_URL',
     'SUPABASE_SERVICE_ROLE_KEY',
+    'VITE_SUPABASE_ANON_KEY'
   ]
 
   // Vérifie les env vars au premier appel
@@ -226,7 +227,16 @@ module.exports = async (req, res) => {
       hint: 'Add these variables in Vercel Dashboard → Settings → Environment Variables'
     })
   }
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = [
+    'https://tradevault-silk.vercel.app',
+    'http://localhost:5173',
+  ];
+  const origin = req.headers.origin || '';
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('X-Content-Type-Options', 'nosniff');

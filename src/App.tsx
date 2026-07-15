@@ -104,7 +104,7 @@ export function getAdminEmailsList(): string[] {
   const envEmails = import.meta.env.VITE_ADMIN_EMAILS;
   const localStorageEmails = safeLocalStorage.getItem('tv_admin_emails');
   const emailsString = envEmails || localStorageEmails || 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com';
-  return emailsString.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+  return emailsString.split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
 }
 
 // Admin est désormais déterminé strictement par profiles.role côté DB (voir user.role === 'admin').
@@ -1140,11 +1140,11 @@ export default function App() {
                 const mergedMap = new Map();
                 
                 // First process existing local items (might include unsaved ones)
-                localTrades.forEach(t => mergedMap.set(t.id, t));
-                
+                localTrades.forEach((t: Trade) => mergedMap.set(t.id, t));
+
                 // Then overwrite/add with DB data (the truth of the cloud)
                 if (dbData.trades && dbData.trades.length > 0) {
-                  dbData.trades.forEach(t => mergedMap.set(t.id, t));
+                  dbData.trades.forEach((t: Trade) => mergedMap.set(t.id, t));
                 }
                 
                 return Array.from(mergedMap.values());
@@ -1774,7 +1774,7 @@ export default function App() {
           <InteractiveTour 
             userId={currentUser.id} 
             activeTab={activeTab} 
-            setActiveTab={setActiveTab} 
+            setActiveTab={(tab) => setActiveTab(tab)} 
           />
           
           {/* YOUTUBE BACKGROUND LOOP */}

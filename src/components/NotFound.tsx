@@ -6,7 +6,7 @@ import {
   Loader2
 } from 'lucide-react';
 
-export default function NotFound({ onNavigateToApp }) {
+export default function NotFound({ onNavigateToApp }: { onNavigateToApp: () => void }) {
   return (
     <div className="min-h-[100vh] min-h-[100dvh] bg-[#0B0E11] flex flex-col items-center justify-center px-4 pt-20 text-center">
       {/* Animated background elements */}
