@@ -192,9 +192,9 @@ export default function Calendar({ trades }: CalendarProps) {
                   
                   <div className="flex items-start md:items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg font-mono font-bold text-[10px] flex items-center justify-center tracking-tighter shrink-0 ${
-                      t.side === 'BUY' ? 'bg-[#52D17C]/10 text-[#52D17C]' : 'bg-[#E8544F]/10 text-[#E8544F]'
+                      t.side.toUpperCase() === 'BUY' ? 'bg-[#52D17C]/10 text-[#52D17C]' : 'bg-[#E8544F]/10 text-[#E8544F]'
                     }`}>
-                      {t.side}
+                      {t.side.toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">

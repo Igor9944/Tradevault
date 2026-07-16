@@ -31,7 +31,7 @@ export interface Trade {
   user_id: string;
   date: string;
   pair: string;
-  side: 'BUY' | 'SELL';
+  side: 'buy' | 'sell';
   entry: number;
   exit: number;
   lots: number;
@@ -42,6 +42,8 @@ export interface Trade {
   notes: string;
   screenshot_url?: string;
   emotion?: 'fomo' | 'revenge' | 'boredom' | 'fear' | 'greed' | 'patience' | 'discipline' | 'tilt' | 'confident' | 'hesitant';
+  grade?: string;
+  tags?: string[];
   session?: 'london' | 'new_york' | 'tokyo' | 'sydney' | 'asian';
   rr_ratio?: number;
   risk_percent?: number;

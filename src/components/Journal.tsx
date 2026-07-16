@@ -105,11 +105,11 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
   const handleOpenEdit = (trade: Trade) => {
     setEditingId(trade.id);
-    // Format date local
-    const dateStr = trade.date.replace(' ', 'T').substring(0, 16);
+    // Format date local (Trade.date is YYYY-MM-DD format)
+    const dateStr = `${trade.date}T00:00`; // Set to midnight for the time input
     setDate(dateStr);
     setPair(trade.pair);
-    setSide(trade.side);
+    setSide(trade.side.toUpperCase() as 'BUY' | 'SELL');
     setEntry(trade.entry.toString());
     setExit(trade.exit.toString());
     setLots(trade.lots.toString());
@@ -117,6 +117,23 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
     setPnl(trade.pnl.toString());
     setSetup(trade.setup);
     setMindset(trade.mindset);
+    // Map emotion from English (database) to French (form state)
+    const emotionMapReverse: { [key: string]: string } = {
+      'fomo': 'FOMO',
+      'revenge': 'Revanche',
+      'boredom': 'Anxieux',
+      'fear': 'Anxieux',
+      'greed': 'FOMO',
+      'patience': 'Disciplined',
+      'discipline': 'Disciplined',
+      'tilt': 'FOMO',
+      'confident': 'Confident',
+      'hesitant': 'Anxieux'
+    };
+    const frenchEmotion = emotionMapReverse[trade.emotion || ''] || 'Disciplined';
+    // Find the matching mindset value from our predefined list
+    const matchingMindset = MINDSETS.find(m => m === frenchEmotion) || 'Disciplined';
+    setMindset(matchingMindset);
     setNotes(notes !== null ? notes : trade.notes);
     setScreenshot(trade.screenshot_url || null);
     setSession(trade.session || null);
@@ -147,37 +164,45 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
       let calculatedSession = session;
       if (!calculatedSession) {
         const hour = new Date(date).getUTCHours(); // Using UTC for simplicity
-        if (hour >= 0 && hour < 8) calculatedSession = 'Asian';
-        else if (hour >= 8 && hour < 16) calculatedSession = 'London';
-        else if (hour >= 16 && hour < 24) calculatedSession = 'New York';
+        if (hour >= 0 && hour < 8) calculatedSession = 'asian';
+        else if (hour >= 8 && hour < 16) calculatedSession = 'london';
+        else if (hour >= 16 && hour < 24) calculatedSession = 'new_york';
         // Note: This is a simplification - proper session detection would need exchange times and timezone
       }
 
-      // Map mindset to emotion
-      const emotion = MINDSET_TO_EMOTION[mindset] || 'Neutre'; // Default to Neutre if not found
+      // Map mindset to emotion (English values for Trade interface)
+      const emotionMap: { [key: string]: 'fomo' | 'revenge' | 'boredom' | 'fear' | 'greed' | 'patience' | 'discipline' | 'tilt' | 'confident' | 'hesitant' } = {
+        'Disciplined': 'discipline',
+        'FOMO': 'fomo',
+        'Impatient': 'boredom', // Closest match
+        'Confident': 'confident',
+        'Revenge': 'revenge'
+      };
+      const emotion = emotionMap[mindset] || 'hesitant'; // Default to hesitant if not found
 
       // Prepare trade object with DB schema field names
       const tradeData = {
-        accountId: activeAccount.id,
-        userId: activeAccount.user_id,
-        symbol: pair.trim().toUpperCase(),
+        account_id: activeAccount.id,
+        user_id: activeAccount.user_id,
+        pair: pair.trim().toUpperCase(),
         side: side.toLowerCase() as 'buy' | 'sell',
-        entry_price: parseFloat(entry) || 0,
-        exit_price: parseFloat(exit) || 0,
-        size_lots: parseFloat(lots) || 0.01,
-        profit_loss: parseFloat(pnl) || 0,
-        trade_date: date.split('T')[0], // YYYY-MM-DD part
-        execution_time_entry: date.replace(' ', 'T') + ':00Z', // ISO timestamp
-        execution_time_exit: null, // Not available yet for open trades
-        session: calculatedSession,
-        emotion: emotion as 'Neutre' | 'Confiant' | 'Anxieux' | 'FOMO' | 'Revanche' | 'Discipliné',
+        entry: parseFloat(entry) || 0,
+        exit: parseFloat(exit) || 0,
+        lots: parseFloat(lots) || 0.01,
+        fees: parseFloat(fees) || 0,
+        pnl: parseFloat(pnl) || 0,
+        date: date.split('T')[0], // YYYY-MM-DD part
         setup: setup,
+        mindset: mindset,
         notes: notes.trim(),
-        screenshot_urls: screenshot ? [screenshot] : [],
-        rr_ratio: rrRatio,
-        risk_percent: riskPercent,
-        grade: grade,
-        tags: tags,
+        screenshot_url: screenshot || undefined,
+        emotion: emotion as 'fomo' | 'revenge' | 'boredom' | 'fear' | 'greed' | 'patience' | 'discipline' | 'tilt' | 'confident' | 'hesitant',
+        session: (calculatedSession ?? undefined) as 'london' | 'new_york' | 'tokyo' | 'sydney' | 'asian' | undefined,
+        rr_ratio: rrRatio ?? undefined,
+        risk_percent: riskPercent ?? undefined,
+        grade: grade ?? undefined,
+        tags: tags || undefined,
+        // created_at will be set by the addTrade/updateTrade functions
         // result will be computed by the proxy based on profit_loss
       };
 
@@ -207,10 +232,10 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   const filteredTrades = trades.filter(t => {
     const term = search.toLowerCase();
     const matchSearch =
-      t.symbol.toLowerCase().includes(term) ||
+      t.pair.toLowerCase().includes(term) ||
       t.setup.toLowerCase().includes(term) ||
       t.notes.toLowerCase().includes(term) ||
-      t.emotion.toLowerCase().includes(term);
+      (t.emotion && t.emotion.toLowerCase().includes(term));
 
     const matchSetup = setupFilter === '' || t.setup === setupFilter;
     const matchPnl =
@@ -257,10 +282,10 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
     // Calculations
     const totalTrades = sortedFiltered.length;
-    const wins = sortedFiltered.filter(t => t.profit_loss > 0).length;
-    const losses = sortedFiltered.filter(t => t.profit_loss < 0).length;
+    const wins = sortedFiltered.filter(t => t.pnl > 0).length;
+    const losses = sortedFiltered.filter(t => t.pnl < 0).length;
     const winRate = totalTrades > 0 ? ((wins / (wins + losses || 1)) * 100).toFixed(1) : '0.0';
-    const totalPnl = sortedFiltered.reduce((sum, t) => sum + t.profit_loss, 0);
+    const totalPnl = sortedFiltered.reduce((sum, t) => sum + t.pnl, 0);
     const totalFees = sortedFiltered.reduce((sum, t) => sum + t.fees, 0);
     const netProfit = totalPnl - totalFees;
 
@@ -316,18 +341,18 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
 
     // Table data
     const data = sortedFiltered.map(t => {
-      const netTrade = t.profit_loss - t.fees;
+      const netTrade = t.pnl - t.fees;
       return [
         t.date,
-        t.symbol,
-        t.side,
+        t.pair,
+        t.side.toUpperCase(),
         t.lots.toString(),
-        t.entry_price ? t.entry_price.toString() : '—',
-        t.exit_price ? t.exit_price.toString() : '—',
+        t.entry ? t.entry.toString() : '—',
+        t.exit ? t.exit.toString() : '—',
         `$${t.fees.toFixed(2)}`,
-        `$${t.profit_loss.toFixed(2)}`,
+        `$${t.pnl.toFixed(2)}`,
         `$${netTrade.toFixed(2)}`,
-        `${t.setup}\n[${t.emotion}]`,
+        `${t.setup}\n[${t.emotion || '—'}]`,
         t.notes || '—'
       ];
     });
@@ -365,10 +390,10 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
       },
       didParseCell: (dataCell) => {
         if (dataCell.section === 'body' && dataCell.column.index === 2) {
-          if (dataCell.cell.raw === 'BUY') {
+          if (dataCell.cell.raw === 'buy') {
             dataCell.cell.styles.textColor = [16, 124, 65];
             dataCell.cell.styles.fontStyle = 'bold';
-          } else if (dataCell.cell.raw === 'SELL') {
+          } else if (dataCell.cell.raw === 'sell') {
             dataCell.cell.styles.textColor = [180, 35, 24];
             dataCell.cell.styles.fontStyle = 'bold';
           }
@@ -401,508 +426,595 @@ export default function Journal({ trades, onAddTrade, onEditTrade, onDeleteTrade
   };
 
   return (
-    <div className="space-y-6 text-slate-200">
-
-      {/* Search and Filters Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[var(--bg-secondary)] p-4 rounded-2xl border border-white/[0.06] relative">
-        <div className="md:col-span-3 relative">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-300">
-            <Search size={16} />
-          </span>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('search_pair_placeholder')}
-            className="w-full pl-9 pr-4 py-2 bg-[#050505] border border-white/[0.06] rounded-xl text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-          />
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-bold font-mono tracking-wider text-white">{t(
+            'trade_journal'
+          )}</h1>
+          <p className="text-[13px] text-slate-400">{t('journal_subtitle')}</p>
         </div>
-
-        <div className="md:col-span-2">
-          <select
-            value={setupFilter}
-            onChange={(e) => setSetupFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-[#050505] border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
-          >
-            <option value="">{t('all_setups')}</option>
-            {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-
-        <div className="md:col-span-2">
-          <select
-            value={pnlFilter}
-            onChange={(e) => setPnlFilter(e.target.value as any)}
-            className="w-full px-3 py-2 bg-[#050505] border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
-          >
-            <option value="all">{t('all_results')}</option>
-            <option value="win">{t('only_gains')}</option>
-            <option value="loss">{t('only_losses')}</option>
-          </select>
-        </div>
-
-        <div className="md:col-span-2">
+        <div className="flex sm:gap-3 w-full sm:w-auto">
           <button
-            type="button"
-            onClick={handleExportPDF}
-            className="w-full py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
-          >
-            <FileDown size={14} /> {t('export_pdf')}
-          </button>
-        </div>
-
-        <div className="md:col-span-3">
-          <button
-            type="button"
-            id="tour-add-trade"
             onClick={handleOpenNew}
-            className="w-full py-2 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg shadow-[#3DDC97]/10"
+            disabled={isSaving}
+            className="flex-1 min-w-[120px] px-4 py-3 bg-[var(--accent)]/20 rounded-xl border border-[var(--accent)]/30 text-[var(--accent)] font-mono text-[13px] hover:bg-[var(--accent)]/30 transition-all"
           >
-            <Plus size={14} /> {t('add_trade')}
+            {t('new_trade')}
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={isSaving || sortedFiltered.length === 0}
+            className="flex-1 min-w-[120px] px-4 py-3 bg-[var(--secondary)]/20 rounded-xl border border-[var(--secondary)]/30 text-[var(--secondary)] font-mono text-[13px] hover:bg-[var(--secondary)]/30 transition-all"
+          >
+            {t('export_pdf')}
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Trades Grid Container */}
-      {sortedFiltered.length > 0 ? (
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
-        >
-          <AnimatePresence mode="popLayout">
-            {sortedFiltered.map((t) => (
+      {/* Filters */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-[var(--bg-secondary)]/50 rounded-xl p-4 border border-white/[0.03] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+      >
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder={t('search_trades')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 w-[200px] sm:w-auto"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-slate-400" />
+            <select
+              value={setupFilter}
+              onChange={(e) => setSetupFilter(e.target.value)}
+              className="bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+            >
+              <option value="">{t('all_setups')}</option>
+              {SETUPS.map((setup) => (
+                <option key={setup} value={setup}>
+                  {setup}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-slate-400" />
+            <select
+              value={pnlFilter}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'all' || value === 'win' || value === 'loss') {
+                  setPnlFilter(value);
+                }
+              }}
+              className="bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+            >
+              <option value="all">{t('all')}</option>
+              <option value="win">{t('profit')}</option>
+              <option value="loss">{t('loss')}</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex items-center justify-end text-[11px] text-slate-500">
+          {t('showing')} {sortedFiltered.length} {t('of')} {trades.length} {t('trades')}
+        </div>
+      </motion.div>
+
+      {/* Trades List or Empty State */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="min-h-[200px]"
+      >
+        {sortedFiltered.length > 0 ? (
+          <div className="space-y-3">
+            {sortedFiltered.map((trade) => (
               <motion.div
-                key={t.id}
-                layout
-                initial={{ opacity: 0, y: 40, scale: 0.92 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85, y: -20 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 30,
-                  layout: { type: "spring", stiffness: 350, damping: 30 }
-                }}
-                className="bg-[var(--bg-secondary)] rounded-2xl border border-white/[0.06] overflow-hidden flex flex-col justify-between hover:scale-[1.015] hover:shadow-xl hover:shadow-black/70 hover:border-[#3DDC97]/40 transition-all duration-300 p-4 space-y-4"
+                key={trade.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.7 + trade.id.length * 0.01 }}
+                className="bg-[var(--bg-secondary)]/50 rounded-xl p-4 border border-white/[0.03] cursor-pointer hover:bg-[var(--bg-secondary)]/70 transition-all"
+                onClick={() => handleOpenEdit(trade)}
               >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-mono ${
+                            trade.side.toUpperCase() === 'BUY'
+                              ? 'bg-[#52D17C]/20 text-[#52D17C]'
+                              : 'bg-[#E8544F]/20 text-[#E8544F]'
+                          }`}
+                        >
+                          {trade.side.toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-mono text-white">
+                            {trade.pair}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {trade.date}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right text-[11px] font-mono">
+                        {trade.pnl >= 0 ? (
+                          <span className="text-[#52D17C]">+${trade.pnl.toFixed(
+                            2
+                          )}</span>
+                        ) : (
+                          <span className="text-[#E8544F]">${trade.pnl.toFixed(
+                            2
+                          )}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {trade.setup} • {trade.emotion?.toUpperCase() || '—'}
+                  </div>
+                </div>
+                {trade.notes && (
+                  <p className="mt-2 text-[12px] text-slate-300 line-clamp-2">
+                    {trade.notes}
+                  </p>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <FileText className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+            <p className="text-[14px] text-slate-400">{t('no_trades_found')}</p>
+            <p className="text-[12px] text-slate-500">
+              {t('no_trades_filterHint')}
+            </p>
+          </div>
+        )}
+      </motion.div>
 
-                {/* Card top */}
-                <div className="flex justify-between items-start border-b border-zinc-800/30 pb-3">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-extrabold text-white font-mono">{t.pair}</span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold font-mono ${
-                        t.side === 'BUY' ? 'bg-emerald-500/10 text-[#52D17C]' : 'bg-rose-500/10 text-rose-400'
-                      }`}>
-                        {t.side}
+      {/* Modal */}
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[var(--bg-secondary)]/80 backdrop-blur-lg rounded-2xl p-6 border border-white/[0.08] w-full max-w-2xl mx-4"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-mono text-white">
+                  {editingId ? t('edit_trade') : t('add_trade')}
+                </h2>
+                <button
+                  onClick={() => {
+                    setModalOpen(false);
+                    setIsSaving(false);
+                  }}
+                  className="text-[12px] text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Date & Pair */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('date')}
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('pair')}
+                    </label>
+                    <input
+                      type="text"
+                      value={pair}
+                      onChange={(e) => setPair(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Side & Lots */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('side')}
+                    </label>
+                    <div className="flex gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="BUY"
+                          checked={side === 'BUY'}
+                          onChange={(e) => setSide(e.target.value as 'BUY')}
+                          className="h-3 w-3 text-[var(--accent)]"
+                        />
+                        <span className="text-[12px] text-slate-200">BUY</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="SELL"
+                          checked={side === 'SELL'}
+                          onChange={(e) => setSide(e.target.value as 'SELL')}
+                          className="h-3 w-3 text-[var(--accent)]"
+                        />
+                        <span className="text-[12px] text-slate-200">SELL</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('lots')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={lots}
+                      onChange={(e) => setLots(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Entry & Exit */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('entry_price')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={entry}
+                      onChange={(e) => setEntry(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('exit_price')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={exit}
+                      onChange={(e) => setExit(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Fees & P&L */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('fees')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={fees}
+                      onChange={(e) => setFees(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('pnl')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pnl}
+                      onChange={(e) => setPnl(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Setup & Mindset */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('setup')}
+                    </label>
+                    <select
+                      value={setup}
+                      onChange={(e) => setSetup(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    >
+                      {SETUPS.map((setupName) => (
+                        <option key={setupName} value={setupName}>
+                          {setupName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('mindset')}
+                    </label>
+                    <select
+                      value={mindset}
+                      onChange={(e) => setMindset(e.target.value)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    >
+                      {MINDSETS.map((mindsetName) => (
+                        <option key={mindsetName} value={mindsetName}>
+                          {mindsetName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Session, RR Ratio, Risk % */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('session')}
+                    </label>
+                    <select
+                      value={session || ''}
+                      onChange={(e) => setSession(e.target.value || null)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    >
+                      <option value="">{t('auto_detect')}</option>
+                      <option value="asian">{t('asian_session')}</option>
+                      <option value="london">{t('london_session')}</option>
+                      <option value="new_york">{t('new_york_session')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('rr_ratio')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={rrRatio ?? ''}
+                      onChange={(e) => setRrRatio(e.target.value === '' ? null : parseFloat(e.target.value))}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Risk % & Grade */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('risk_percent')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={riskPercent ?? ''}
+                      onChange={(e) => setRiskPercent(e.target.value === '' ? null : parseFloat(e.target.value))}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                      {t('grade')}
+                    </label>
+                    <input
+                      type="text"
+                      value={grade ?? ''}
+                      onChange={(e) => setGrade(e.target.value || null)}
+                      className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                    {t('tags')}
+                  </label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="bg-[var(--accent)]/20 text-[var(--accent)] text-[11px] px-2 py-1 rounded-full font-mono"
+                      >
+                        {tag}
+                        <button
+                          onClick={() => {
+                            const newTags = [...tags];
+                            newTags.splice(index, 1);
+                            setTags(newTags);
+                          }}
+                          className="ml-1 text-[10px] text-slate-400 hover:text-slate-200"
+                        >
+                          ×
+                        </button>
                       </span>
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                      <Calendar size={11} /> {t.date}
-                    </span>
-                  </span>
-
-                  {/* Result Tag Badge */}
-                  <div className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${
-                    t.profit_loss >= 0 ? 'bg-[#52D17C]/10 text-[#52D17C] border border-[#52D17C]/25' : 'bg-rose-500/10 text-[#E8544F] border border-rose-500/25'
-                  }`}>
-                    {t.profit_loss >= 0 ? '+' : ''}${t.profit_loss.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Screenshot thumbnail if available */}
-              {t.screenshot_urls && t.screenshot_urls.length > 0 && (
-                <div
-                  onClick={() => setActiveLightboxImage(t.screenshot_urls[0]!)}
-                  className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-xl overflow-hidden cursor-zoom-in group relative"
-                >
-                  <img src={t.screenshot_urls[0]} alt="Visual Screenshot" className="w-[102%] h-[102%] object-cover group-hover:scale-[1.03] transition-all" />
-                  <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-mono transition-all">
-                    <ImageIcon size={16} className="mr-1.5" /> Agrandir
+                    ))}
+                    <input
+                      type="text"
+                      placeholder={t('add_tag')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const input = e.target as HTMLInputElement;
+                          if (input.value.trim()) {
+                            e.preventDefault();
+                            setTags([...tags, input.value.trim()]);
+                            input.value = '';
+                          }
+                        }
+                      }}
+                      className="mt-2 w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* Data grid */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-3 font-mono text-xs text-left bg-[var(--bg-secondary)]/40 p-2.5 rounded-xl border border-white/[0.06]">
+                {/* Notes */}
                 <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Entrée :</span>
-                  <span className="text-slate-200 font-bold">{t.entry_price || '—'}</span>
+                  <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                    {t('notes')}
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => {
+                      const textarea = e.target as HTMLTextAreaElement;
+                      setNotes(textarea.value);
+                    }}
+                    className="w-full bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 h-20"
+                  />
                 </div>
+
+                {/* Screenshot */}
                 <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Sortie :</span>
-                  <span className="text-slate-200 font-bold">{t.exit_price || '—'}</span>
+                  <label className="text-[11px] text-slate-400 mb-1 block font-mono">
+                    {t('screenshot')}
+                  </label>
+                  <div className="flex items-center gap-3 mt-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshotChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        document.getElementById('screenshot-upload')?.click();
+                      }}
+                      className="px-4 py-2 bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg text-sm text-slate-200 hover:bg-[var(--bg-secondary)]/70 transition-colors font-mono"
+                    >
+                      {t('upload_screenshot')}
+                    </button>
+                    {screenshot && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveLightboxImage(screenshot)}
+                          className="ml-3 h-8 w-8 rounded-xl overflow-hidden border border-white/[0.1]"
+                        >
+                          <img
+                            src={screenshot}
+                            alt="screenshot"
+                            className="object-cover w-full h-full"
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScreenshot(null)}
+                          className="ml-2 text-[10px] text-slate-400 hover:text-slate-200"
+                        >
+                          {t('remove')}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Lots :</span>
-                  <span className="text-slate-200 font-bold">{t.lots} lot</span>
+
+                {/* Lightbox */}
+                {activeLightboxImage && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-60 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                    onClick={() => setActiveLightboxImage(null)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.5 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0.5 }}
+                      className="relative z-10 max-h-[80vh] max-w-[80vw]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <img
+                        src={activeLightboxImage}
+                                        alt="screenshot"
+                          className="rounded-xl max-w-full max-h-full"
+                        />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveLightboxImage(null);
+                        }}
+                        className="absolute top-2 right-2 text-slate-400 hover:text-white hover:bg-black/30 rounded-full p-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+
+                {/* Buttons */}
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalOpen(false);
+                      setIsSaving(false);
+                    }}
+                    disabled={isSaving}
+                    className="px-5 py-3 bg-[var(--bg-secondary)]/50 border border-white/[0.05] rounded-lg text-sm text-slate-200 hover:bg-[var(--bg-secondary)]/70 transition-colors font-mono"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || !pair.trim() || !pnl}
+                    className="px-5 py-3 bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent)] font-mono text-sm hover:bg-[var(--accent)]/30 transition-colors"
+                  >
+                    {isSaving ? t('saving') : editingId ? t('update') : t('add_trade')}
+                  </button>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Frais :</span>
-                  <span className="text-slate-400">${t.fees.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Setup and mindset tags */}
-              <div className="flex flex-wrap gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-[#3DDC97]/10 text-[#3DDC97] border border-[#3DDC97]/15">
-                  🏷️ {t.setup}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-300 border border-amber-500/10">
-                  🧠 {t.emotion}
-                </span>
-              </div>
-
-              {/* Observations notes */}
-              {t.notes && (
-                <p className="text-xs text-slate-400 bg-slate-950/15 p-2 rounded-lg italic leading-relaxed border-l-2 border-[#3DDC97]">
-                  "{t.notes}"
-                </p>
-              )}
-
-              {/* Action strips */}
-              <div className="flex justify-end gap-1.5 pt-3 border-t border-zinc-800/30">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(t)}
-                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all"
-                >
-                  <Edit2 size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { (window as any).showCustomConfirm('Confirmation de suppression', 'Êtes-vous sûr de vouloir supprimer définitivement ce trade ? Cette action est irréversible.', () => onDeleteTrade(t.id)); }}
-                  className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-
+              </form>
             </motion.div>
-          ))}
-        </AnimatePresence>
-      ) : (
-        <div className="text-center py-20 bg-slate-900/10 border border-dashed border-slate-900 rounded-3xl space-y-2">
-          <FileText size={44} className="mx-auto text-slate-600 animate-bounce" />
-          <h4 className="text-slate-200 font-bold text-sm">Aucun trade ne correspond à vos filtres</h4>
-          <p className="text-xs text-slate-400">Ajoutez de nouveaux trades ou ajustez les critères de recherche.</p>
-        </div>
-      )}
-
-      {/* STUNNING LIGHTBOX VIEWER */}
-      {activeLightboxImage && (
-        <div
-          onClick={() => setActiveLightboxImage(null)}
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
-        >
-          <div className="absolute top-5 right-5 text-white/70 hover:text-white cursor-pointer bg-slate-900/40 p-2 rounded-full">
-            <X size={24} />
-          </div>
-          <img src={activeLightboxImage} alt="Fullscreen Graph" className="max-w-full max-h-[92vh] object-contain rounded-lg border border-slate-800 shadow-2xl" />
-        </div>
-      )}
-
-      {/* PREMIUM MODAL: CREATION & EDITION FORM */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="max-w-xl w-full bg-[#0c0c0e] rounded-2xl border border-white/[0.06] p-6 md:p-8 space-y-5 animate-scale-in relative">
-
-            <div className="flex justify-between items-center border-b border-zinc-800/40 pb-4">
-              <h4 className="text-base font-black font-mono text-white tracking-widest uppercase">
-                {editingId ? 'Modifier les spécifications d\'un Trade' : 'Ajouter un Enregistrement Trade'}
-              </h4>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#0c0c0e] border border-white/[0.06] flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">DATE ET HEURE</label>
-                  <input
-                    type="datetime-local"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">ACTIF / PAIRE *</label>
-                  <input
-                    type="text"
-                    value={pair}
-                    onChange={(e) => setPair(e.target.value)}
-                    placeholder="EUR/USD, BTC/USDT, GOLD"
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Action BUY/SELL Switcher */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono block">DIRECTION (*)</label>
-                  <div className="flex bg-black p-1 border border-white/[0.06] rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setSide('BUY')}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        side === 'BUY' ? 'bg-[#52D17C]/20 text-[#52D17C] border border-[#52D17C]/20' : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                    >
-                      BUY
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSide('SELL')}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        side === 'SELL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/20' : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                    >
-                      SELL
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">PRIX D'ENTRÉE</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={entry}
-                    onChange={(e) => setEntry(e.target.value)}
-                    placeholder="1.08250"
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">PRIX DE SORTIE</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={exit}
-                    onChange={(e) => setExit(e.target.value)}
-                    placeholder="1.08500"
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* PnL Size metrics block */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">LOTS / VOLUME</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={lots}
-                    onChange={(e) => setLots(e.target.value)}
-                    placeholder="1.00 lot"
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">FRAIS / SPREAD ($)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={fees}
-                    onChange={(e) => setFees(e.target.value)}
-                    placeholder="7.50"
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1 col-span-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">NET PROFIT / PERTE ($) *</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={pnl}
-                    onChange={(e) => setPnl(e.target.value)}
-                    placeholder="Ex: +150 ou -40"
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-zinc-650 text-xs font-bold focus:outline-none focus:border-[#3DDC97] font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Setups Tag selectors */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">CONCEPTS / SETUPS</label>
-                  <select
-                    value={setup}
-                    onChange={(e) => setSetup(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
-                  >
-                    {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-300 font-semibold font-mono">PSYCHOLOGIE / MINDSET</label>
-                  <select
-                    value={mindset}
-                    onChange={(e) => setMindset(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
-                  >
-                    {MINDSETS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Description comments */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">OBSERVATIONS / RECITS DU TRADING</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setNotes(val);
-                    if (editingId) {
-                      onEditTrade(editingId, { notes: val });
-                      localStorage.setItem(`tv_journal_draft_notes_${editingId}`, val);
-                    } else {
-                      localStorage.setItem('tv_journal_draft_notes_new', val);
-                    }
-                  }}
-                  rows={2}
-                  placeholder="Expliquez la structure du marché et la raison de votre entrée / sortie..."
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] leading-relaxed font-sans"
-                />
-              </div>
-
-              {/* Session selector */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">SESSION DE TRADING</label>
-                <select
-                  value={session || ''}
-                  onChange={(e) => setSession(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]"
-                >
-                  <option value="">Sélectionner une session</option>
-                  <option value="Asian">Asian (00:00-08:00 UTC)</option>
-                  <option value="London">London (08:00-16:00 UTC)</option>
-                  <option value="New York">New York (16:00-24:00 UTC)</option>
-                </select>
-              </div>
-
-              {/* RR Ratio input */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">RATIO RÉCOMPENSE/RISQUE</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={rrRatio !== null ? rrRatio : ''}
-                  onChange={(e) => setRrRatio(e.target.value === '' ? null : parseFloat(e.target.value))}
-                  placeholder="Ex: 2.0"
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                />
-              </div>
-
-              {/* Risk Percent input */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">PRISE DE RISQUE (%)</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={riskPercent !== null ? riskPercent : ''}
-                  onChange={(e) => setRiskPercent(e.target.value === '' ? null : parseFloat(e.target.value))}
-                  placeholder="Ex: 2.0"
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                />
-              </div>
-
-              {/* Grade input */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">NOTE DU TRADE (A+, A, B, etc.)</label>
-                <input
-                  type="text"
-                  value={grade || ''}
-                  onChange={(e) => setGrade(e.target.value)}
-                  placeholder="Ex: A+"
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                />
-              </div>
-
-              {/* Tags input */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">TAGS (séparés par des virgules)</label>
-                <input
-                  type="text"
-                  value={tags.join(', ')}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    setTags(val ? val.split(',').map(t => t.trim()).filter(t => t.length > 0) : []);
-                  }}
-                  placeholder="Ex: swing, breakout, news"
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] font-mono"
-                />
-              </div>
-
-              {/* Description comments */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300 font-semibold font-mono">OBSERVATIONS / RECITS DU TRADING</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setNotes(val);
-                    if (editingId) {
-                      onEditTrade(editingId, { notes: val });
-                      localStorage.setItem(`tv_journal_draft_notes_${editingId}`, val);
-                    } else {
-                      localStorage.setItem('tv_journal_draft_notes_new', val);
-                    }
-                  }}
-                  rows={2}
-                  placeholder="Expliquez la structure du marché et la raison de votre entrée / sortie..."
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white placeholder-slate-650 text-xs focus:outline-none focus:border-[#3DDC97] leading-relaxed font-sans"
-                />
-              </div>
-
-              <div className="flex pt-4 gap-2 border-t border-zinc-800/20">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-zinc-800 text-slate-400 text-xs hover:bg-slate-900 text-center font-semibold"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="flex-1 py-2.5 bg-[#3DDC97] hover:bg-[#2BB87E] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md shadow-[#3DDC97]/10 transition-all duration-300"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="w-3 h-3 border-2 border-slate-900 border-t-black rounded-full animate-spin" />
-                      Enregistrement...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={14} /> Enregistrer le Trade
-                    </>
-                  )}
-                </button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
-
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

@@ -95,13 +95,13 @@ const customSupabaseFetch = async (
   }
 };
 
-const isMissingEnv = supabaseUrl === dummyUrl || supabaseAnonKey === dummyKey;
+const isMissingEnv = SUPABASE_URL === dummyUrl || SUPABASE_ANON_KEY === dummyKey;
 if (isMissingEnv) {
   isSupabaseOnline = false;
   console.warn('⚠️ [TradeVault] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY manquantes.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(url, key, {
   auth: {
     storage:          safeLocalStorage,
     persistSession:   true,
@@ -113,5 +113,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: customSupabaseFetch,
   },
 });
-
-export const isSupabaseOnline = !isMissingEnv;
+export { isSupabaseOnline };

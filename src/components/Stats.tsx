@@ -151,7 +151,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                   account_id: activeAccount.id,
                   date: cols[0],
                   pair: cols[1],
-                  side: cols[2].toUpperCase().includes('SELL') ? 'SELL' : 'BUY',
+                  side: cols[2].toUpperCase().includes('SELL') ? 'sell' : 'buy',
                   lots: parseFloat(cols[3]) || 0.01,
                   entry: parseFloat(cols[4]) || 0,
                   exit: parseFloat(cols[5]) || 0,
@@ -460,8 +460,8 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
                   <tr key={t.id} className="hover:bg-slate-900/40 text-slate-300">
                     <td className="p-3 whitespace-nowrap text-slate-400">{t.date}</td>
                     <td className="p-3 font-bold text-white whitespace-nowrap">{t.pair}</td>
-                    <td className={`p-3 whitespace-nowrap font-bold ${t.side === 'BUY' ? 'text-[#52D17C]' : 'text-[#E8544F]'}`}>
-                      {t.side}
+                    <td className={`p-3 whitespace-nowrap font-bold ${t.side.toUpperCase() === 'BUY' ? 'text-[#52D17C]' : 'text-[#E8544F]'}`}>
+                      {t.side.toUpperCase()}
                     </td>
                     <td className="p-3 whitespace-nowrap">{t.entry || '—'}</td>
                     <td className="p-3 whitespace-nowrap">{t.exit || '—'}</td>

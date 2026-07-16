@@ -99,6 +99,8 @@ const Challenges = safeLazy(() => import('./components/Challenges'));
 const Admin = safeLazy(() => import('./components/AdminEnhanced'));
 const ResetPassword = safeLazy(() => import('./components/ResetPassword'));
 
+// Define ActiveTab type for InteractiveTour prop typing
+type ActiveTab = 'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin';
 
 export function getAdminEmailsList(): string[] {
   const envEmails = import.meta.env.VITE_ADMIN_EMAILS;
@@ -1815,10 +1817,10 @@ export default function App() {
         <div className="flex-1 flex flex-col lg:flex-row min-h-[100vh] min-h-[100dvh] relative z-0">
           
           {/* INTERACTIVE ONBOARDING TOUR */}
-          <InteractiveTour 
-            userId={currentUser.id} 
-            activeTab={activeTab} 
-            setActiveTab={(tab) => setActiveTab(tab)} 
+          <InteractiveTour
+            userId={currentUser.id}
+            activeTab={activeTab}
+            setActiveTab={(tab: ActiveTab) => setActiveTab(tab)}
           />
           
           {/* YOUTUBE BACKGROUND LOOP */}
@@ -1997,7 +1999,7 @@ export default function App() {
                     src={currentUser.avatar_url} 
                     alt={currentUser.username} 
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-[#3DDC97]/25 group-hover:ring-[#3DDC97]/50 transition-all shrink-0"
-                    referrerPolicy="no-referrer"
+                   
                   />
                 ) : (
                   <DefaultLogoAvatar className="w-8 h-8 ring-2 ring-[#3DDC97]/25 group-hover:ring-[#3DDC97]/50 transition-all" />
@@ -2350,7 +2352,7 @@ export default function App() {
                           src={profileAvatar} 
                           alt="Avatar" 
                           className="w-full h-full object-cover rounded-full"
-                          referrerPolicy="no-referrer"
+                         
                         />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
                            <Camera size={18} className="text-white mb-0.5" />
