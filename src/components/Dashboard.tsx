@@ -1,6 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { Variants } from 'framer-motion';
+import { motion, Variants, useReducedMotion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Trade, Account } from '../types';
 import { Calendar, Zap, Award, BadgeInfo } from 'lucide-react';
@@ -54,6 +53,15 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
     const sign = convertedVal >= 0 ? (forcePlusSign ? '+' : '') : '-';
     return `${sign}${symbol}${Math.abs(convertedVal).toFixed(2)}`;
   };
+
+  // Scroll animation variants
+  const scrollVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  };
+
+  // Respect user's motion preference
+  const reduceMotion = useReducedMotion();
 
   const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -130,16 +138,19 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
       />
 
       {/* 4 PRIMARY KPIS — quiet, uniform, no per-card accent box */}
-      <motion.div 
+      <div
         id="tour-dashboard-panel"
-        variants={containerVariants} 
-        initial="hidden" 
-        animate="show" 
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
         
         {/* Total P&L Card */}
-        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+        <motion.div
+          whileInView={!reduceMotion ? "visible" : "hidden"}
+          viewport={{ once: true, margin: "-200px" }}
+          initial={false}
+          variants={scrollVariants}
+          className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]"
+        >
           <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('net_total_pnl')}</span>
           <div className={`text-2xl font-bold font-mono ${totalPnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
             {formatWithCurrency(totalPnl, true)}
@@ -148,7 +159,13 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
         </motion.div>
 
         {/* Winrate Card */}
-        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+        <motion.div
+          whileInView={!reduceMotion ? "visible" : "hidden"}
+          viewport={{ once: true, margin: "-200px" }}
+          initial={false}
+          variants={scrollVariants}
+          className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]"
+        >
           <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('winrate')}</span>
           <div className="text-2xl font-bold font-mono text-neutral-100">
             {winrate.toFixed(1)}%
@@ -159,7 +176,13 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
         </motion.div>
 
         {/* Average Risk/Reward Card */}
-        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+        <motion.div
+          whileInView={!reduceMotion ? "visible" : "hidden"}
+          viewport={{ once: true, margin: "-200px" }}
+          initial={false}
+          variants={scrollVariants}
+          className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]"
+        >
           <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('avg_risk_reward')}</span>
           <div className="text-2xl font-bold font-mono text-neutral-100">
             {avgRRObj}
@@ -168,7 +191,13 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
         </motion.div>
 
         {/* Max Drawdown Card */}
-        <motion.div variants={cardVariants} className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]">
+        <motion.div
+          whileInView={!reduceMotion ? "visible" : "hidden"}
+          viewport={{ once: true, margin: "-200px" }}
+          initial={false}
+          variants={scrollVariants}
+          className="bg-[var(--bg-secondary)] rounded-2xl p-5 border border-white/[0.06]"
+        >
           <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">{t('max_drawdown')}</span>
           <div className="text-2xl font-bold font-mono text-neutral-100">
             {formatWithCurrency(maxDrawdown, false)}
@@ -176,7 +205,7 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
           <span className="text-[10px] text-neutral-500 block mt-1">{t('max_cumulative_drawdown_legend')}</span>
         </motion.div>
 
-      </motion.div>
+      </div>
 
 
       {/* TODAY RECAP PANELS */}

@@ -1843,7 +1843,7 @@ export default function App() {
                 <div className="bg-[var(--bg-tertiary)]/60 p-3 rounded-xl border border-white/[0.06] space-y-2">
                   <span className="text-[9px] text-neutral-300 font-bold uppercase tracking-wider block">PORTEFEUILLE ACTIF</span>
                   <div className="flex gap-1.5 items-center">
-                    <AccountSelector 
+                    <AccountSelector
                       accounts={accounts}
                       selectedAccountId={selectedAccountId}
                       onSelect={setSelectedAccountId}
@@ -1861,7 +1861,13 @@ export default function App() {
                         );
                       }}
                     />
-                    {/* Add account button removed as per user request */}
+                    {/* Add account button - restored functionality */}
+                    <button
+                      onClick={() => setAddAccountOpen(true)}
+                      className="w-flex flex items-center gap-2 px-3 py-2.5 text-[#00FF9C] hover:bg-[#00FF9C]/10 rounded-xl transition-colors text-sm font-medium"
+                    >
+                      <span>＋</span> Ajouter un compte
+                    </button>
                   </div>
                 </div>
               )}
