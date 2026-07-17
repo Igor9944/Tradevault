@@ -11,6 +11,7 @@ import {
   Plus, Send, Trash2, Eye, Check, X
 } from 'lucide-react';
 import Admin from './Admin';
+import AdminLogsPanel from './AdminLogsPanel';
 import { getSupabase } from '../utils/supabaseSync';
 import { User, PaymentRequest } from '../types';
 
@@ -56,7 +57,7 @@ interface AuditEntry {
   profiles?: { email: string };
 }
 
-type Tab = 'stats' | 'main' | 'payments' | 'announcements' | 'kyc' | 'audit';
+type Tab = 'stats' | 'main' | 'payments' | 'announcements' | 'kyc' | 'logs';
 
 // ─── Props (reprend exactement les props d'Admin.tsx) ─────────────────────────
 interface AdminEnhancedProps {
@@ -88,7 +89,6 @@ export default function AdminEnhanced(props: AdminEnhancedProps) {
   const [stats,         setStats]         = useState<Stats | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [kyc,           setKyc]           = useState<KYCEntry[]>([]);
-  const [audit,         setAudit]         = useState<AuditEntry[]>([]);
   const [loading,       setLoading]       = useState(false);
 
   // Annonce form
@@ -133,20 +133,10 @@ export default function AdminEnhanced(props: AdminEnhancedProps) {
     setKyc(data || []);
   }, [sb]);
 
-  const loadAudit = useCallback(async () => {
-    if (!sb) return;
-    const { data } = await sb.from('audit_logs')
-      .select('*, profiles(email)')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    setAudit(data || []);
-  }, [sb]);
-
   useEffect(() => {
     loadStats();
     if (tab === 'announcements') loadAnnouncements();
     if (tab === 'kyc')           loadKyc();
-    if (tab === 'audit')         loadAudit();
   }, [tab]);
 
   const createAnnouncement = async () => {
@@ -186,7 +176,7 @@ export default function AdminEnhanced(props: AdminEnhancedProps) {
     { id: 'payments',      label: 'Paiements',    icon: <CreditCard size={15} />,   badge: props.paymentRequests?.filter(p => p.status === 'pending').length },
     { id: 'announcements', label: 'Annonces',     icon: <Megaphone size={15} /> },
     { id: 'kyc',           label: 'KYC',          icon: <ShieldCheck size={15} />,  badge: kyc.filter(k => k.status === 'pending').length },
-    { id: 'audit',         label: 'Audit',        icon: <ClipboardList size={15} /> },
+    { id: 'logs',          label: 'Logs & Sessions', icon: <ClipboardList size={15} /> },
   ];
 
   const STAT_CARDS = stats ? [
@@ -385,34 +375,9 @@ export default function AdminEnhanced(props: AdminEnhancedProps) {
         </div>
       )}
 
-      {/* ── AUDIT LOGS ────────────────────────────────────────────────── */}
-      {tab === 'audit' && (
-        <div className="bg-[#0d0d0d] border border-white/[0.06] rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-            <h3 className="text-sm font-black font-mono uppercase tracking-widest text-white flex items-center gap-2">
-              <ClipboardList size={14} className="text-[#00FF9C]" /> Journal d'audit
-            </h3>
-            <button onClick={loadAudit} className="text-xs text-zinc-600 hover:text-[#00FF9C] font-mono">↻</button>
-          </div>
-          <div className="divide-y divide-white/[0.04] max-h-[600px] overflow-y-auto">
-            {audit.length === 0 ? (
-              <p className="text-zinc-600 text-sm text-center py-8 font-mono">Aucun événement enregistré.</p>
-            ) : audit.map(a => (
-              <div key={a.id} className="px-5 py-3 flex items-center gap-4 hover:bg-white/[0.02]">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00FF9C]/60 shrink-0" />
-                <code className="text-[#00FF9C] text-xs bg-[#00FF9C]/5 px-2 py-0.5 rounded font-mono shrink-0">
-                  {a.action}
-                </code>
-                <span className="text-zinc-500 text-xs truncate flex-1">
-                  {a.profiles?.email || a.user_id?.slice(0, 12) || 'system'}
-                </span>
-                <span className="text-zinc-600 text-[10px] font-mono shrink-0">
-                  {new Date(a.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ── LOGS & SESSIONS PANEL ──────────────────────────────────────────────── */}
+      {tab === 'logs' && (
+        <AdminLogsPanel />
       )}
 
     </div>

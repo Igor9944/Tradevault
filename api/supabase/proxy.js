@@ -703,6 +703,125 @@ module.exports = async (req, res) => {
       return res.json({ success: true, announcement: data });
     }
 
+    // ─── ADMIN LOGS PANEL ─────────────────────────────────────────────────────
+    if (action === 'getAuditLogs') {
+      const { data: adminOk } = await supabase.rpc('is_admin')
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+
+      const { page = 1, limit = 50, action: act, tableName } = args
+      const from = (Number(page) - 1) * Number(limit)
+
+      let query = supabase
+        .from('audit_logs')
+        .select(`
+          *,
+          profiles!audit_logs_user_id_fkey(email)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, from + Number(limit) - 1)
+
+      if (act)       query = query.eq('action', act)
+      if (tableName) query = query.eq('table_name', tableName)
+
+      const { data, error, count } = await query
+      if (error) throw error
+
+      // Flatten email
+      const flat = (data ?? []).map(row => ({
+        ...row,
+        _email: row.profiles?.email ?? null,
+        profiles: undefined,
+      }))
+      return res.status(200).json({ data: flat, count, error: null })
+    }
+
+    if (action === 'getSystemLogs') {
+      const { data: adminOk } = await supabase.rpc('is_admin')
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+
+      const { page = 1, limit = 50, search } = args
+      const from = (Number(page) - 1) * Number(limit)
+
+      let query = supabase
+        .from('system_logs')
+        .select(`
+          *,
+          profiles!system_logs_user_id_fkey(email)
+        `)
+        .order('created_at', { ascending: false })
+        .range(from, from + Number(limit) - 1)
+
+      if (search) query = query.ilike('action', `%${search}%`)
+
+      const { data, error } = await query
+      if (error) throw error
+
+      const flat = (data ?? []).map(row => ({
+        ...row,
+        _email: row.profiles?.email ?? null,
+        profiles: undefined,
+      }))
+      return res.status(200).json({ data: flat, error: null })
+    }
+
+    if (action === 'getSessions') {
+      const { data: adminOk } = await supabase.rpc('is_admin')
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+
+      const { activeOnly } = args
+
+      let query = supabase
+        .from('sessions')
+        .select(`
+          *,
+          profiles!sessions_user_id_fkey(email)
+        `)
+        .order('last_active', { ascending: false })
+        .limit(200)
+
+      if (activeOnly === true)  query = query.eq('is_active', true)
+      if (activeOnly === false) query = query.eq('is_active', false)
+
+      const { data, error } = await query
+      if (error) throw error
+
+      const flat = (data ?? []).map(row => ({
+        ...row,
+        _email: row.profiles?.email ?? null,
+        profiles: undefined,
+      }))
+      return res.status(200).json({ data: flat, error: null })
+    }
+
+    if (action === 'revokeSession') {
+      const { data: adminOk } = await supabase.rpc('is_admin')
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+
+      const { sessionId } = args
+      if (!sessionId) return res.status(400).json({ error: { message: 'sessionId requis' } })
+
+      const { data, error } = await supabase
+        .from('sessions')
+        .update({
+          is_active:  false,
+          revoked_at: new Date().toISOString(),
+        })
+        .eq('id', sessionId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Logger l'action admin dans system_logs
+      await supabase.from('system_logs').insert({
+        user_id: userId,
+        action: 'ADMIN_REVOKE_SESSION',
+        details: { revoked_session_id: sessionId, revoked_at: new Date().toISOString() },
+      })
+
+      return res.status(200).json({ data, error: null })
+    }
+
     if (action === 'health') {
       return res.json({ success: true, dbOnline: !!sb, version: '3.1.0', ts: new Date().toISOString() });
     }
