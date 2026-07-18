@@ -1,8 +1,9 @@
 /**
  * api/supabase/proxy.js — TradeVault v3.1 FINAL
  * Rate limiting + Auth + All actions + Email notifications
+ * ES Module version for Vercel compatibility
  */
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -131,16 +132,16 @@ function emailReminderExpiry(username, daysLeft, expiryDate, renewalUrl, subscri
 }
 
 function emailNewSignup(username, email, country, network, amount, adminUrl) {
-  return emailHtml(`
+  return `
     <div style="font-family: Helvetica, Arial, sans-serif; color: #fff; line-height: 1.6;">
       <h2 style="color: #00FF9C;">Bienvenue sur TradeVault, ${username} !</h2>
       <p>Nous avons bien reçu votre inscription pour le montant de <strong>${amount} USDT (${network})</strong>.</p>
       <p>Votre compte sera activé dès validation de votre paiement par notre équipe.</p>
-      <p>Vous pouvez suivre l'évolution de votre demande directement depuis votre tableau de bord : <a href="${link}" style="color: #00FF9C; text-decoration: underline;">${link}</a></p>
+      <p>Vous pouvez suivre l'évolution de votre demande directement depuis votre tableau de bord : <a href="${adminUrl}" style="color: #00FF9C; text-decoration: underline;">${adminUrl}</a></p>
       <hr style="border-color: #333;">
       <p style="font-size: 0.9em; color: #888;">Ceci est un email automatique, merci de ne pas y répondre.</p>
     </div>
-  `);
+  `;
 }
 
 function emailRenewalRequest(username, email, network, amount, isExpired, expiryDate) {
@@ -175,7 +176,8 @@ function checkRateLimit(identifier, action, max, windowMs) {
   if (entry.count >= max) {
     return { allowed: false, remaining: 0, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
   }
-  element.count++;
+  // Fixed: was 'element.count++' which was wrong
+  entry.count++;
   return { allowed: true, remaining: max - entry.count };
 }
 
@@ -225,7 +227,7 @@ async function logAudit(sb, userId, action, details = {}) {
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
-module.exports = async (req, res) => {
+export default async (req, res) => {
   // === ENV GUARD (patch v3.2b) ===
   const REQUIRED_ENV = [
     'SUPABASE_URL',
@@ -272,7 +274,7 @@ module.exports = async (req, res) => {
     if (!action) return res.json({ success: false, error: 'Action manquante.' });
 
     // Identifier pour rate limiting
-    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.connection?.remoteAddress || 'unknown';
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || 'unknown';
     const limitCfg = RATE_LIMITS[action] || RATE_LIMITS.default;
     const rl = checkRateLimit(ip, action, limitCfg.max, limitCfg.windowMs);
 
@@ -300,9 +302,9 @@ module.exports = async (req, res) => {
       adminUserId = guard.userId;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
     // AUTH ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
     if (action === 'signIn') {
       const { email, password } = args;
@@ -358,15 +360,15 @@ module.exports = async (req, res) => {
       // Emails notifications
       const uName = username?.trim() || email.split('@')[0];
       const signupHtml = emailNewSignup(uName, email, country || 'TG', selectedNetwork || 'TRC20', subscriptionPrice || 30, 'https://tradevault-silk.vercel.app');
-      sendEmail(email, '✅ TradeVault — Inscription reçue', signupHtml).catch(()=>{});
+      await sendEmail(email, '✅ TradeVault — Inscription reçue', signupHtml).catch(()=>{});
       const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${email}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px:border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
-      sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(()=>{});
+      await sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(()=>{});
       return res.json({ success: true, user: { id: userId, email, username: username?.trim(), country, paid: false, status: 'pending', createdAt: new Date().toISOString() } });
     }
 
-    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
     // DATA ACTIONS
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
     if (action === 'loadUserData') {
       const { userId } = args;
@@ -423,7 +425,7 @@ module.exports = async (req, res) => {
       // Ensure account has an ID
       const accountId = account.id || generateUUID();
       // Determine type: prefer account.type, then account_type, then account_type_app, default 'personal'
-      const type = account.type || account.account_type || account_type_app || 'personal';
+      const type = account.type || account.account_type || account.account_type_app || 'personal';
       // Remove alias fields before sending to DB
       const { account_type: _, account_type_app: __, type: ___, ...payload } = account;
       const { error } = await sb.from('trading_accounts').upsert(
@@ -840,9 +842,9 @@ module.exports = async (req, res) => {
       return res.json({ success: true });
     }
 
-    // ════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
     // ADMIN ACTIONS
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════
 
     if (action === 'adminLoadAllUsers') {
       const { data, error } = await sb.from('profiles')
@@ -923,9 +925,16 @@ module.exports = async (req, res) => {
     if (action === 'adminCreateAnnouncement') {
       const { title, content, type, target_role, pinned, expires_at } = args;
       const { data, error } = await sb.from('announcements').insert({
-        title, content, type: type || 'info', target_role: target_role || 'all',
-        pinned: pinned || false, expires_at, is_active: true,
-        created_by: adminUserId, published_at: new Date().toISOString(), created_at: new Date().toISOString()
+        title: title,
+        content: content,
+        type: type || 'info',
+        target_role: target_role || 'all',
+        pinned: pinned || false,
+        expires_at: expires_at,
+        is_active: true,
+        created_by: adminUserId,
+        published_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
       }).select().single();
       if (error) return res.json({ success: false, error: error.message });
       return res.json({ success: true, announcement: data });
@@ -933,102 +942,106 @@ module.exports = async (req, res) => {
 
     // ─── ADMIN LOGS PANEL ─────────────────────────────────────────────────────
     if (action === 'getAuditLogs') {
-      const { data: adminOk } = await supabase.rpc('is_admin')
-      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+      // Fix: use sb instead of undefined supabase
+      const { data: adminOk } = await sb.rpc('is_admin');
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } });
 
-      const { page = 1, limit = 50, action: act, tableName } = args
-      const from = (Number(page) - 1) * Number(limit)
+      const { page = 1, limit = 50, action: act, tableName } = args;
+      const from = (Number(page) - 1) * Number(limit);
 
-      let query = supabase
+      let query = sb
         .from('audit_logs')
         .select(`
           *,
           profiles!audit_logs_user_id_fkey(email)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
-        .range(from, from + Number(limit) - 1)
+        .range(from, from + Number(limit) - 1);
 
-      if (act)       query = query.eq('action', act)
-      if (tableName) query = query.eq('table_name', tableName)
+      if (act)       query = query.eq('action', act);
+      if (tableName) query = query.eq('table_name', tableName);
 
-      const { data, error, count } = await query
-      if (error) throw error
+      const { data, error, count } = await query;
+      if (error) throw error;
 
       // Flatten email
       const flat = (data ?? []).map(row => ({
         ...row,
         _email: row.profiles?.email ?? null,
         profiles: undefined,
-      }))
-      return res.status(200).json({ data: flat, count, error: null })
+      }));
+      return res.status(200).json({ data: flat, count, error: null });
     }
 
     if (action === 'getSystemLogs') {
-      const { data: adminOk } = await supabase.rpc('is_admin')
-      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+      // Fix: use sb instead of undefined supabase
+      const { data: adminOk } = await sb.rpc('is_admin');
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } });
 
-      const { page = 1, limit = 50, search } = args
-      const from = (Number(page) - 1) * Number(limit)
+      const { page = 1, limit = 50, search } = args;
+      const from = (Number(page) - 1) * Number(limit);
 
-      let query = supabase
+      let query = sb
         .from('system_logs')
         .select(`
           *,
           profiles!system_logs_user_id_fkey(email)
         `)
         .order('created_at', { ascending: false })
-        .range(from, from + Number(limit) - 1)
+        .range(from, from + Number(limit) - 1);
 
-      if (search) query = query.ilike('action', `%${search}%`)
+      if (search) query = query.ilike('action', `%${search}%`);
 
-      const { data, error } = await query
-      if (error) throw error
+      const { data, error } = await query;
+      if (error) throw error;
 
       const flat = (data ?? []).map(row => ({
         ...row,
         _email: row.profiles?.email ?? null,
         profiles: undefined,
-      }))
-      return res.status(200).json({ data: flat, error: null })
+      }));
+      return res.status(200).json({ data: flat, error: null });
     }
 
     if (action === 'getSessions') {
-      const { data: adminOk } = await supabase.rpc('is_admin')
-      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+      // Fix: use sb instead of undefined supabase
+      const { data: adminOk } = await sb.rpc('is_admin');
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } });
 
-      const { activeOnly } = args
+      const { activeOnly } = args;
 
-      let query = supabase
+      let query = sb
         .from('sessions')
         .select(`
           *,
           profiles!sessions_user_id_fkey(email)
         `)
         .order('last_active', { ascending: false })
-        .limit(200)
+        .limit(200);
 
-      if (activeOnly === true)  query = query.eq('is_active', true)
-      if (activeOnly === false) query = query.eq('is_active', false)
+      if (activeOnly === true)  query = query.eq('is_active', true);
+      if (activeOnly === false) query = query.eq('is_active', false);
 
-      const { data, error} = await query
-      if (error) throw error
+      const { data, error} = await query;
+      if (error) throw error;
 
       const flat = (data ?? []).map(row => ({
         ...row,
         _email: row.profiles?.email ?? null,
         profiles: undefined,
-      }))
-      return res.status(200).json({ data: flat, error: null })
+      }));
+      return res.status(200).json({ data: flat, error: null });
     }
 
     if (action === 'revokeSession') {
-      const { data: adminOk } = await supabase.rpc('is_admin')
-      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } })
+      // Fix: use sb instead of undefined supabase
+      const { data: adminOk } = await sb.rpc('is_admin');
+      if (!adminOk) return res.status(403).json({ error: { message: 'Admin requis' } });
 
-      const { sessionId } = args
-      if (!sessionId) return res.status(400).json({ error: { message: 'sessionId requis' } })
+      const { sessionId } = args;
+      if (!sessionId) return res.status(400).json({ error: { message: 'sessionId requis' } });
 
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('sessions')
         .update({
           is_active:  false,
@@ -1036,18 +1049,18 @@ module.exports = async (req, res) => {
         })
         .eq('id', sessionId)
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
       // Logger l'action admin dans system_logs
-      await supabase.from('system_logs').insert({
+      await sb.from('system_logs').insert({
         user_id: userId,
         action: 'ADMIN_REVOKE_SESSION',
         details: { revoked_session_id: sessionId, revoked_at: new Date().toISOString() },
-      })
+      });
 
-      return res.status(200).json({ data, error: null })
+      return res.status(200).json({ data, error: null });
     }
 
     if (action === 'health') {

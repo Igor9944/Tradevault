@@ -233,7 +233,7 @@ export async function signUpWithSupabase(
   // Emails notifications
   const uName = usernameInput?.trim() || emailInput.split('@')[0];
   const signupHtml = emailNewSignup(uName, emailInput, countryInput || 'TG', selectedNetwork || 'TRC20', subscriptionPrice || 30, 'https://tradevault-silk.vercel.app');
-  await emailService.triggerSignupEmail(emailInput, uName, paymentScreenshot || '', subscriptionPrice || 30, selectedNetwork || 'TRC20').catch(() => {});
+  await sendEmail(emailInput, '✅ TradeVault — Inscription reçue', signupHtml).catch(() => {});
   const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${emailInput}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
   await sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(() => {});
   return {
@@ -815,6 +815,16 @@ export async function adminDeleteUserFromSupabase(userId: string): Promise<boole
 
 export async function adminUpdateUserFromSupabase(userId: string, updates: any): Promise<boolean> {
   const res = await invokeProxy('adminUpdateUser', { userId, updates });
+  return !!res.success;
+}
+
+export async function adminGetStatsFromSupabase(): Promise<any> {
+  const res = await invokeProxy('adminGetStats', {});
+  return res.success ? res.stats : null;
+}
+
+export async function adminCreateAnnouncementToSupabase(announcement: any): Promise<boolean> {
+  const res = await invokeProxy('adminCreateAnnouncement', { announcement });
   return !!res.success;
 }
 
