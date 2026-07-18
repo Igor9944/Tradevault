@@ -333,7 +333,7 @@ export default function Stats({ trades, onImportTrades, onResetTrades, activeAcc
             🏷️ Taux de Succès par Concept de Stratégie Setup
           </h4>
           <div className="h-60 w-full">
-            <ChartWrapper height={240} minHeight={200}>
+            <ChartWrapper height={240} minHeight={200} style={{ paddingTop: 0 }}>
               <BarChart data={setupChartData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorVictoires" x1="0" y1="0" x2="0" y2="1">

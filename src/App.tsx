@@ -114,17 +114,17 @@ export function getAdminEmailsList(): string[] {
 // Sleek loading fallback for major screens or portals with TradeVault aesthetic
 function SleekNeonLoader() {
   return (
-    <div className="min-h-[100vh] min-h-[100dvh] bg-black flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#3DDC97]/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#3DDC97]/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="min-h-[100vh] min-h-[100dvh] bg-[var(--bg-primary)] flex flex-col justify-center items-center py-20 px-4 text-center font-sans space-y-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[var(--accent-primary)]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[var(--accent-primary)]/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="relative z-10 flex flex-col items-center space-y-5">
         <div className="relative">
-          <div className="w-16 h-16 rounded-full border border-[#3DDC97]/10 animate-ping absolute inset-0"></div>
-          <div className="w-16 h-16 rounded-full border-t-2 border-r-2 border-b border-[#3DDC97]/30 border-t-[#3DDC97] border-r-[#3DDC97] animate-spin"></div>
+          <div className="w-16 h-16 rounded-full border border-[var(--accent-primary)]/10 animate-ping absolute inset-0"></div>
+          <div className="w-16 h-16 rounded-full border-t-2 border-r-2 border-b border-[var(--accent-primary)]/30 border-t-[var(--accent-primary)] border-r-[var(--accent-primary)] animate-spin"></div>
         </div>
         <div className="space-y-1">
-          <h2 className="text-sm font-black font-display tracking-tight text-white uppercase">TRADE<span className="text-[#3DDC97]">VAULT</span></h2>
-          <div className="text-[10px] uppercase tracking-widest text-[#3DDC97] font-mono animate-pulse">
+          <h2 className="text-sm font-black font-display tracking-tight text-[var(--text-primary)] uppercase">TRADE<span className="text-[var(--accent-primary)]">VAULT</span></h2>
+          <div className="text-[10px] uppercase tracking-widest text-[var(--accent-primary)] font-mono animate-pulse">
             Chiffrement sécurisé en cours...
           </div>
         </div>
@@ -139,23 +139,23 @@ function TabLoaderSkeleton() {
     <div className="w-full space-y-6 animate-pulse p-4">
       <div className="flex justify-between items-center bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6">
         <div className="space-y-2">
-          <div className="h-4 w-36 bg-zinc-900 rounded"></div>
-          <div className="h-3 w-56 bg-zinc-900/60 rounded"></div>
+          <div className="h-4 w-36 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-3 w-56 bg-[var(--bg-tertiary)]/60 rounded"></div>
         </div>
-        <div className="h-8 w-24 bg-zinc-900 rounded-xl"></div>
+        <div className="h-8 w-24 bg-[var(--bg-tertiary)] rounded-xl"></div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-3">
-          <div className="h-3 w-16 bg-zinc-900 rounded flex items-center justify-center"></div>
-          <div className="h-6 w-28 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-16 bg-[var(--bg-tertiary)] rounded flex items-center justify-center"></div>
+          <div className="h-6 w-28 bg-[var(--bg-tertiary)] rounded"></div>
         </div>
         <div className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-3">
-          <div className="h-3 w-16 bg-zinc-900 rounded"></div>
-          <div className="h-6 w-28 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-6 w-28 bg-[var(--bg-tertiary)] rounded"></div>
         </div>
         <div className="h-32 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-3">
-          <div className="h-3 w-16 bg-zinc-900 rounded"></div>
-          <div className="h-6 w-28 bg-zinc-900 rounded"></div>
+          <div className="h-3 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-6 w-28 bg-[var(--bg-tertiary)] rounded"></div>
         </div>
       </div>
     </div>
@@ -169,36 +169,36 @@ function AdminLoaderSkeleton() {
       {/* Admin Header */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-4 w-48 bg-zinc-900 rounded"></div>
-          <div className="h-3 w-72 bg-zinc-900/60 rounded"></div>
+          <div className="h-4 w-48 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-3 w-72 bg-[var(--bg-tertiary)]/60 rounded"></div>
         </div>
-        <div className="h-8 w-32 bg-zinc-900 rounded-xl"></div>
+        <div className="h-8 w-32 bg-[var(--bg-tertiary)] rounded-xl"></div>
       </div>
       {/* Admin Status metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-24 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-4 space-y-3">
-            <div className="h-3 w-16 bg-zinc-900 rounded"></div>
-            <div className="h-6 w-24 bg-zinc-900 rounded"></div>
+            <div className="h-3 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+            <div className="h-6 w-24 bg-[var(--bg-tertiary)] rounded"></div>
           </div>
         ))}
       </div>
       {/* Users / Subscriptions list table */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-4">
-        <div className="h-4 w-32 bg-zinc-900 rounded mb-2"></div>
+        <div className="h-4 w-32 bg-[var(--bg-tertiary)] rounded mb-2"></div>
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-zinc-900"></div>
+                <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)]"></div>
                 <div className="space-y-1.5">
-                  <div className="h-3.5 w-24 bg-zinc-900 rounded"></div>
-                  <div className="h-2.5 w-32 bg-zinc-900/60 rounded"></div>
+                  <div className="h-3.5 w-24 bg-[var(--bg-tertiary)] rounded"></div>
+                  <div className="h-2.5 w-32 bg-[var(--bg-tertiary)]/60 rounded"></div>
                 </div>
               </div>
               <div className="flex gap-2">
-                <div className="h-6 w-16 bg-zinc-900 rounded"></div>
-                <div className="h-6 w-8 bg-zinc-900 rounded"></div>
+                <div className="h-6 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+                <div className="h-6 w-8 bg-[var(--bg-tertiary)] rounded"></div>
               </div>
             </div>
           ))}
@@ -215,42 +215,42 @@ function StatsLoaderSkeleton() {
       {/* Header */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-4 w-40 bg-zinc-900 rounded"></div>
-          <div className="h-3 w-64 bg-zinc-900/60 rounded"></div>
+          <div className="h-4 w-40 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-3 w-64 bg-[var(--bg-tertiary)]/60 rounded"></div>
         </div>
-        <div className="h-8 w-24 bg-zinc-900 rounded-xl"></div>
+        <div className="h-8 w-24 bg-[var(--bg-tertiary)] rounded-xl"></div>
       </div>
       {/* Stats Cards (4) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-24 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-4 space-y-3">
-            <div className="h-3 w-16 bg-zinc-900 rounded"></div>
-            <div className="h-6 w-20 bg-zinc-900 rounded"></div>
+            <div className="h-3 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+            <div className="h-6 w-20 bg-[var(--bg-tertiary)] rounded"></div>
           </div>
         ))}
       </div>
       {/* Graph Area / advanced metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 h-80 flex flex-col justify-between">
-          <div className="h-4 w-32 bg-zinc-900 rounded"></div>
+          <div className="h-4 w-32 bg-[var(--bg-tertiary)] rounded"></div>
           {/* Mock Area Chart pulse effect */}
           <div className="flex-1 flex items-end gap-2 border-b border-l border-white/[0.06] p-2 mt-4">
             {[35, 60, 45, 80, 55, 90, 70, 40, 85].map((height, index) => (
               <div 
                 key={index} 
-                className="flex-1 bg-gradient-to-t from-[#3DDC97]/10 to-[#3DDC97]/30 rounded-t"
+                className="flex-1 bg-gradient-to-t from-[var(--accent-primary)]/10 to-[var(--accent-primary)]/30 rounded-t"
                 style={{ height: `${height}%` }}
               ></div>
             ))}
           </div>
         </div>
         <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 h-80 space-y-4">
-          <div className="h-4 w-28 bg-zinc-900 rounded"></div>
+          <div className="h-4 w-28 bg-[var(--bg-tertiary)] rounded"></div>
           <div className="space-y-3 pt-2">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2">
-                <div className="h-3 w-16 bg-zinc-900 rounded"></div>
-                <div className="h-3 w-12 bg-zinc-900 rounded"></div>
+                <div className="h-3 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+                <div className="h-3 w-12 bg-[var(--bg-tertiary)] rounded"></div>
               </div>
             ))}
           </div>
@@ -267,31 +267,31 @@ function CalendarLoaderSkeleton() {
       {/* Calendar Header */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-4 w-52 bg-zinc-900 rounded"></div>
-          <div className="h-3 w-80 bg-zinc-900/60 rounded"></div>
+          <div className="h-4 w-52 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-3 w-80 bg-[var(--bg-tertiary)]/60 rounded"></div>
         </div>
       </div>
       {/* Calendar Grid wrapper */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-4">
         {/* Month Selector bar */}
         <div className="flex justify-between items-center border-b border-white/5 pb-4">
-          <div className="h-6 w-32 bg-zinc-900 rounded"></div>
+          <div className="h-6 w-32 bg-[var(--bg-tertiary)] rounded"></div>
           <div className="flex gap-2">
-            <div className="h-8 w-8 bg-zinc-900 rounded-xl"></div>
-            <div className="h-8 w-8 bg-zinc-900 rounded-xl"></div>
+            <div className="h-8 w-8 bg-[var(--bg-tertiary)] rounded-xl"></div>
+            <div className="h-8 w-8 bg-[var(--bg-tertiary)] rounded-xl"></div>
           </div>
         </div>
         {/* Days of week header */}
         <div className="grid grid-cols-7 gap-1 text-center py-2">
           {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, idx) => (
-            <div key={idx} className="h-3 w-8 bg-zinc-900 rounded mx-auto"></div>
+            <div key={idx} className="h-3 w-8 bg-[var(--bg-tertiary)] rounded mx-auto"></div>
           ))}
         </div>
         {/* Days grid 7x5 */}
         <div className="grid grid-cols-7 gap-2">
           {Array.from({ length: 35 }).map((_, i) => (
             <div key={i} className="aspect-square bg-[var(--bg-tertiary)]/40 border border-white/[0.06] rounded-xl flex items-center justify-center p-1">
-              <div className="h-3 w-3 bg-zinc-900 rounded mb-1"></div>
+              <div className="h-3 w-3 bg-[var(--bg-tertiary)] rounded mb-1"></div>
             </div>
           ))}
         </div>
@@ -307,10 +307,10 @@ function ChallengesLoaderSkeleton() {
       {/* Challenges Header */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-4 w-48 bg-zinc-900 rounded"></div>
-          <div className="h-3 w-72 bg-zinc-900/60 rounded"></div>
+          <div className="h-4 w-48 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-3 w-72 bg-[var(--bg-tertiary)]/60 rounded"></div>
         </div>
-        <div className="h-9 w-36 bg-[#3DDC97]/20 border border-[#3DDC97]/10 rounded-xl"></div>
+        <div className="h-9 w-36 bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/10 rounded-xl"></div>
       </div>
       {/* Active Challenge Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -318,27 +318,27 @@ function ChallengesLoaderSkeleton() {
           <div key={i} className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-4">
             <div className="flex justify-between items-start">
               <div className="space-y-2">
-                <div className="h-4 w-40 bg-zinc-900 rounded"></div>
-                <div className="h-3 w-24 bg-zinc-900/60 rounded"></div>
+                <div className="h-4 w-40 bg-[var(--bg-tertiary)] rounded"></div>
+                <div className="h-3 w-24 bg-[var(--bg-tertiary)]/60 rounded"></div>
               </div>
-              <div className="h-5 w-20 bg-zinc-900 rounded-full"></div>
+              <div className="h-5 w-20 bg-[var(--bg-tertiary)] rounded-full"></div>
             </div>
             {/* Grid metrics details */}
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="p-3 bg-zinc-950/60 border border-white/[0.06] rounded-xl space-y-2">
-                <div className="h-2.5 w-12 bg-zinc-900 rounded"></div>
-                <div className="h-4 w-16 bg-zinc-900 rounded"></div>
+                <div className="h-2.5 w-12 bg-[var(--bg-tertiary)] rounded"></div>
+                <div className="h-4 w-16 bg-[var(--bg-tertiary)] rounded"></div>
               </div>
               <div className="p-3 bg-zinc-950/60 border border-white/[0.06] rounded-xl space-y-2">
-                <div className="h-2.5 w-12 bg-zinc-900 rounded"></div>
-                <div className="h-4 w-16 bg-zinc-900 rounded"></div>
+                <div className="h-2.5 w-12 bg-[var(--bg-tertiary)] rounded"></div>
+                <div className="h-4 w-16 bg-[var(--bg-tertiary)] rounded"></div>
               </div>
             </div>
             {/* Target Slider indicator and rules list */}
             <div className="space-y-2 pt-2">
               <div className="flex justify-between text-[10px]">
-                <div className="h-3 w-28 bg-zinc-900 rounded"></div>
-                <div className="h-3 w-12 bg-zinc-900 rounded"></div>
+                <div className="h-3 w-28 bg-[var(--bg-tertiary)] rounded"></div>
+                <div className="h-3 w-12 bg-[var(--bg-tertiary)] rounded"></div>
               </div>
               <div className="h-2 bg-zinc-950 border border-white/[0.06] rounded-full"></div>
             </div>
@@ -356,36 +356,36 @@ function JournalLoaderSkeleton() {
       {/* Journal Header */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-4 w-40 bg-zinc-900 rounded"></div>
-          <div className="h-3 w-80 bg-zinc-900/60 rounded"></div>
+          <div className="h-4 w-40 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-3 w-80 bg-[var(--bg-tertiary)]/60 rounded"></div>
         </div>
         <div className="flex gap-2">
-          <div className="h-9 w-24 bg-zinc-900 rounded-xl"></div>
-          <div className="h-9 w-32 bg-[#3DDC97]/20 border border-[#3DDC97]/10 rounded-xl"></div>
+          <div className="h-9 w-24 bg-[var(--bg-tertiary)] rounded-xl"></div>
+          <div className="h-9 w-32 bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/10 rounded-xl"></div>
         </div>
       </div>
       {/* Journal entries placeholder */}
       <div className="bg-[var(--bg-secondary)] border border-white/[0.06] rounded-2xl p-6 space-y-4">
         <div className="flex justify-between items-center mb-2">
-          <div className="h-4 w-28 bg-zinc-900 rounded"></div>
-          <div className="h-6 w-36 bg-zinc-900 rounded-lg"></div>
+          <div className="h-4 w-28 bg-[var(--bg-tertiary)] rounded"></div>
+          <div className="h-6 w-36 bg-[var(--bg-tertiary)] rounded-lg"></div>
         </div>
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="p-4 bg-[var(--bg-tertiary)]/40 border border-[#080808]/50 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div key={i} className="p-4 bg-[var(--bg-tertiary)]/40 border border-[var(--bg-primary)]/50 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-16 bg-zinc-900 rounded flex items-center justify-center"></div>
+                <div className="h-8 w-16 bg-[var(--bg-tertiary)] rounded flex items-center justify-center"></div>
                 <div className="space-y-1.5">
-                  <div className="h-3.5 w-16 bg-zinc-900 rounded"></div>
-                  <div className="h-2.5 w-24 bg-zinc-900/60 rounded"></div>
+                  <div className="h-3.5 w-16 bg-[var(--bg-tertiary)] rounded"></div>
+                  <div className="h-2.5 w-24 bg-[var(--bg-tertiary)]/60 rounded"></div>
                 </div>
               </div>
               <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
                 <div className="space-y-1.5 text-right flex-1 select-none">
-                  <div className="h-3 w-12 bg-zinc-900 rounded ms-auto"></div>
-                  <div className="h-2.5 w-16 bg-zinc-900/60 rounded ms-auto"></div>
+                  <div className="h-3 w-12 bg-[var(--bg-tertiary)] rounded ms-auto"></div>
+                  <div className="h-2.5 w-16 bg-[var(--bg-tertiary)]/60 rounded ms-auto"></div>
                 </div>
-                <div className="h-6 w-12 bg-zinc-900 rounded"></div>
+                <div className="h-6 w-12 bg-[var(--bg-tertiary)] rounded"></div>
               </div>
             </div>
           ))}
@@ -579,7 +579,7 @@ export default function App() {
           name: 'Compte Personnel',
           account_type: 'personal',
           type: 'personal',
-          color: '#00FF9C',
+          color: 'var(--success)',
           emoji: '💼',
           created_at: new Date().toISOString()
         },
@@ -594,7 +594,7 @@ export default function App() {
           target: 8,
           daily_loss: 5,
           global_loss: 10,
-          color: '#FFB347',
+          color: 'var(--warning)',
           emoji: '🏆',
           created_at: new Date().toISOString()
         }
@@ -613,7 +613,7 @@ export default function App() {
         name: 'Compte Personnel',
         account_type: 'personal',
         type: 'personal',
-        color: '#00FF9C',
+        color: 'var(--success)',
         emoji: '💼',
         created_at: new Date().toISOString()
       },
@@ -628,7 +628,7 @@ export default function App() {
         target: 8,
         daily_loss: 5,
         global_loss: 10,
-        color: '#FFB347',
+        color: 'var(--warning)',
         emoji: '🏆',
         created_at: new Date().toISOString()
       }
@@ -1130,7 +1130,7 @@ export default function App() {
                   ...a,
                   account_type: normalizedType,
                   type: normalizedType,
-                  color: a.color || (normalizedType === 'prop_firm' ? '#FFB347' : '#00FF9C'),
+                  color: a.color || (normalizedType === 'prop_firm' ? 'var(--warning)' : 'var(--success)'),
                   emoji: a.emoji || (normalizedType === 'prop_firm' ? '🏆' : '💼'),
                 };
               }));
@@ -1764,7 +1764,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-[100vh] min-h-[100dvh] bg-black text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+      <div className="min-h-[100vh] min-h-[100dvh] bg-[var(--bg-primary)] text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
       <SpeedInsights />
       
       {/* 1. PORTAL PAGE SCREEN */}
@@ -1820,7 +1820,7 @@ export default function App() {
           <InteractiveTour
             userId={currentUser.id}
             activeTab={activeTab}
-            setActiveTab={(tab: ActiveTab) => setActiveTab(tab)}
+            setActiveTab={(tab: string) => setActiveTab(tab as typeof activeTab)}
           />
           
           {/* YOUTUBE BACKGROUND LOOP */}
@@ -1833,8 +1833,8 @@ export default function App() {
               {/* Brand Logo and Name */}
               <div className="flex items-center px-1 border-b border-white/[0.06] pb-4">
                 <div>
-                  <h2 className="text-xl font-black font-display tracking-tight text-white drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[#3DDC97]">VAULT</span></h2>
-                  <span className="text-[9px] text-[#475569] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
+                  <h2 className="text-xl font-black font-display tracking-tight text-[var(--text-primary)] drop-shadow-[0_0_15px_rgba(0,168,107,0.4)]">TRADE<span className="text-[var(--accent-primary)]">VAULT</span></h2>
+                  <span className="text-[9px] text-[var(--text-muted)] block tracking-wider uppercase font-semibold">Track log PRO v1.2</span>
                 </div>
               </div>
 
@@ -1864,7 +1864,7 @@ export default function App() {
                     {/* Add account button - restored functionality */}
                     <button
                       onClick={() => setAddAccountOpen(true)}
-                      className="w-flex flex items-center gap-2 px-3 py-2.5 text-[#00FF9C] hover:bg-[#00FF9C]/10 rounded-xl transition-colors text-sm font-medium"
+                      className="w-flex flex items-center gap-2 px-3 py-2.5 text-[var(--success)] hover:bg-[var(--success)]/10 rounded-xl transition-colors text-sm font-medium"
                     >
                       <span>＋</span> Ajouter un compte
                     </button>
@@ -1877,26 +1877,26 @@ export default function App() {
                 const daysLeft = Math.max(0, Math.ceil((new Date(currentUser.paid_until).getTime() - new Date().getTime()) / (1000 * 3600 * 24)));
                 const isNearingExpiry = daysLeft <= 7;
                 return (
-                  <div className={`${isNearingExpiry ? 'bg-rose-900/20 border-rose-500/40 text-rose-300' : 'bg-[#3DDC97]/5 border-[#3DDC97]/20 text-[#3DDC97]'} border p-3 rounded-xl flex flex-col gap-2`}>
+                  <div className={`${isNearingExpiry ? 'bg-rose-900/20 border-rose-500/40 text-rose-300' : 'bg-[var(--accent-primary)]/5 border-[var(--accent-primary)]/20 text-[var(--accent-primary)]'} border p-3 rounded-xl flex flex-col gap-2`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isNearingExpiry ? 'text-rose-400' : 'text-[#3DDC97]'}`}>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isNearingExpiry ? 'text-[var(--danger)]' : 'text-[var(--accent-primary)]'}`}>
                           Accès PRO {isNearingExpiry && '⚠️'}
                         </span>
                         <span className="text-[10px] text-neutral-300 font-medium font-sans">
-                          Jours restants : <strong className={`font-mono text-xs ml-1 ${isNearingExpiry ? 'text-rose-400' : 'text-white'}`}>
+                          Jours restants : <strong className={`font-mono text-xs ml-1 ${isNearingExpiry ? 'text-[var(--danger)]' : 'text-[var(--text-primary)]'}`}>
                             {daysLeft}
                           </strong> / 90
                         </span>
                       </div>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border shadow-inner overflow-hidden shrink-0 ${isNearingExpiry ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' : 'bg-[#3DDC97]/10 border-[#3DDC97]/30 text-[#3DDC97]'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border shadow-inner overflow-hidden shrink-0 ${isNearingExpiry ? 'bg-[var(--danger)]/20 border-[var(--danger)]/40 text-[var(--danger)]' : 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]'}`}>
                          <span className="text-[10px] font-black font-mono">
                           {daysLeft}
                          </span>
                       </div>
                     </div>
                     {isNearingExpiry && (
-                      <p className="text-[9px] text-rose-300/80 leading-tight">
+                      <p className="text-[9px] text-[var(--danger)]/80 leading-tight">
                         Votre abonnement expire bientôt ! Renouvelez vite pour éviter toute coupure.
                       </p>
                     )}
@@ -1906,7 +1906,7 @@ export default function App() {
                       className={`w-full py-1.5 mt-1 border rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors ${
                         isNearingExpiry 
                           ? 'bg-rose-600/30 hover:bg-rose-600/50 border-rose-500/30 text-rose-300'
-                          : 'bg-[#3DDC97]/10 hover:bg-[#3DDC97]/20 border-[#3DDC97]/30 text-[#3DDC97]'
+                          : 'bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]'
                       }`}
                     >
                       Renouvellement Anticipé
@@ -1924,7 +1924,7 @@ export default function App() {
                       type="button"
                       onClick={() => setActiveTab('dashboard')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
-                        activeTab === 'dashboard' ? 'bg-[#3DDC97]/10 border-[#3DDC97]/20 text-[#3DDC97] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-neutral-900'
+                        activeTab === 'dashboard' ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)] shadow' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-900'
                       }`}
                     >
                       <Grid size={15} /> Dashboard
@@ -1934,7 +1934,7 @@ export default function App() {
                       type="button"
                       onClick={() => setActiveTab('journal')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
-                        activeTab === 'journal' ? 'bg-[#3DDC97]/10 border-[#3DDC97]/20 text-[#3DDC97] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-neutral-900'
+                        activeTab === 'journal' ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)] shadow' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-900'
                       }`}
                     >
                       <FileText size={15} /> Journal Trading
@@ -1944,7 +1944,7 @@ export default function App() {
                       type="button"
                       onClick={() => setActiveTab('calendar')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
-                        activeTab === 'calendar' ? 'bg-[#3DDC97]/10 border-[#3DDC97]/20 text-[#3DDC97] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-slate-900'
+                        activeTab === 'calendar' ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)] shadow' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-slate-900'
                       }`}
                     >
                       <CalendarIcon size={15} /> Calendrier Mensuel
@@ -1954,7 +1954,7 @@ export default function App() {
                       type="button"
                       onClick={() => setActiveTab('stats')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
-                        activeTab === 'stats' ? 'bg-[#3DDC97]/10 border-[#3DDC97]/20 text-[#3DDC97] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-slate-900'
+                        activeTab === 'stats' ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)] shadow' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-slate-900'
                       }`}
                     >
                       <TrendingUp size={15} /> Statistiques
@@ -1964,7 +1964,7 @@ export default function App() {
                         type="button"
                         onClick={() => setActiveTab('challenges')}
                         className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-semibold ${
-                          activeTab === 'challenges' ? 'bg-[#3DDC97]/10 border-[#3DDC97]/20 text-[#3DDC97] shadow' : 'border-transparent text-[#94a3b8] hover:text-white hover:bg-slate-900'
+                          activeTab === 'challenges' ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)] shadow' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-slate-900'
                         }`}
                       >
                         <Award size={15} /> Tracker Propfirm
@@ -1979,7 +1979,7 @@ export default function App() {
                     type="button"
                     onClick={() => setActiveTab('admin')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border font-semibold mt-6 ${
-                      activeTab === 'admin' ? 'bg-[#3DDC97]/10 border-[#3DDC97]/20 text-[#3DDC97] shadow' : 'border-transparent text-[#94a3b8] bg-zinc-950/20'
+                      activeTab === 'admin' ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)] shadow' : 'border-transparent text-[var(--text-secondary)] bg-zinc-950/20'
                     }`}
                   >
                     🛡️ Espace Admin
@@ -1997,36 +1997,36 @@ export default function App() {
               <div 
                 id="tour-profile-trigger"
                 onClick={openProfileModal}
-                className="flex gap-2.5 items-center px-2 py-1.5 rounded-xl hover:bg-slate-900/60 border border-transparent hover:border-[#3DDC97]/10 active:scale-[0.98] transition-all cursor-pointer group"
+                className="flex gap-2.5 items-center px-2 py-1.5 rounded-xl hover:bg-slate-900/60 border border-transparent hover:border-[var(--accent-primary)]/10 active:scale-[0.98] transition-all cursor-pointer group"
                 title="Modifier mon profil"
               >
                 {currentUser.avatar_url ? (
                   <img 
                     src={currentUser.avatar_url} 
                     alt={currentUser.username} 
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-[#3DDC97]/25 group-hover:ring-[#3DDC97]/50 transition-all shrink-0"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-[var(--accent-primary)]/25 group-hover:ring-[var(--accent-primary)]/50 transition-all shrink-0"
                    
                   />
                 ) : (
-                  <DefaultLogoAvatar className="w-8 h-8 ring-2 ring-[#3DDC97]/25 group-hover:ring-[#3DDC97]/50 transition-all" />
+                  <DefaultLogoAvatar className="w-8 h-8 ring-2 ring-[var(--accent-primary)]/25 group-hover:ring-[var(--accent-primary)]/50 transition-all" />
                 )}
                 <div className="overflow-hidden flex-1">
-                  <span className="text-xs font-bold text-white block leading-none truncate mb-1 group-hover:text-[#3DDC97] transition-colors">
+                  <span className="text-xs font-bold text-[var(--text-primary)] block leading-none truncate mb-1 group-hover:text-[var(--accent-primary)] transition-colors">
                     {currentUser.username || 'Utilisateur'}
                   </span>
-                  <span className="text-[9px] text-[#475569] block font-mono truncate leading-none">
+                  <span className="text-[9px] text-[var(--text-muted)] block font-mono truncate leading-none">
                     {currentUser.email}
                   </span>
                 </div>
                 {/* Visual click-to-edit indicator */}
-                <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] opacity-0 group-hover:opacity-100 transition-opacity"></span>
               </div>
 
               {deferredPrompt && (
                 <button
                   type="button"
                   onClick={handleInstallClick}
-                  className="w-full py-2 bg-[#3DDC97]/10 hover:bg-[#3DDC97]/20 border border-[#3DDC97]/30 rounded-xl text-[#3DDC97] font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  className="w-full py-2 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/30 rounded-xl text-[var(--accent-primary)] font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
                 >
                   <Sparkles size={14} /> INSTALLER L'APPLICATION
                 </button>
@@ -2053,7 +2053,7 @@ export default function App() {
                   safeSessionStorage.removeItem('tv_current_user');
                   safeLocalStorage.removeItem('tv_current_user');
                 }}
-                className="w-full py-2 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/20 rounded-xl text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
+                className="w-full py-2 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 border border-[var(--danger)]/20 rounded-xl text-[var(--danger)] hover:text-[var(--danger)] font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
               >
                 <LogOut size={13} /> Se Déconnecter
               </motion.button>
@@ -2067,7 +2067,7 @@ export default function App() {
             {/* Header top strip bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-indigo-950/40 gap-4">
               <div>
-                <h1 className="text-2xl font-extrabold text-white">
+                <h1 className="text-2xl font-extrabold text-[var(--text-primary)]">
                   {activeTab === 'stats' ? t('statistics') : 
                    activeTab === 'challenges' ? t('propfirm_tracker') : 
                    activeTab === 'admin' ? t('admin_space') : 
@@ -2081,7 +2081,7 @@ export default function App() {
               {!isAdmin && (
                 <div className="flex items-center gap-2.5 font-mono text-[11px]">
                   <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-1 ${
-                    totalAccountPnl >= 0 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    totalAccountPnl >= 0 ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]' : 'bg-[var(--danger)]/10 border-[var(--danger)]/30 text-[var(--danger)]'
                   }`}>
                     P&L : {totalAccountPnl >= 0 ? '+' : ''}${totalAccountPnl.toFixed(2)}
                   </div>
@@ -2204,15 +2204,15 @@ export default function App() {
 
       {/* POPUP MODAL: ADD PORTFOLIO ACCOUNT */}
       {addAccountOpen && (
-        <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[var(--bg-secondary)] rounded-2xl border border-[#3DDC97]/20 p-6 space-y-4 custom-scrollbar responsive-form-container">
+        <div className="fixed inset-0 bg-[var(--bg-primary)]/85 z-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[var(--bg-secondary)] rounded-2xl border border-[var(--accent-primary)]/20 p-6 space-y-4 custom-scrollbar responsive-form-container">
             
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
-              <h3 className="text-sm font-black font-mono text-white uppercase tracking-widest">Nouveau Portefeuille</h3>
+              <h3 className="text-sm font-black font-mono text-[var(--text-primary)] uppercase tracking-widest">Nouveau Portefeuille</h3>
               <button 
                 type="button" 
                 onClick={() => setAddAccountOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-950 border border-slate-900 flex items-center justify-center text-slate-400 hover:text-white"
+                className="w-8 h-8 rounded-full bg-slate-950 border border-slate-900 flex items-center justify-center text-slate-400 hover:text-[var(--text-primary)]"
               >
                 <X size={16} />
               </button>
@@ -2226,7 +2226,7 @@ export default function App() {
                   value={newAccName}
                   onChange={(e) => setNewAccName(e.target.value)}
                   placeholder="Ex: FTMO Challenge 50k"
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40"
+                  className="w-full px-4 py-2.5 bg-[var(--bg-primary)] border border-white/[0.06] rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40"
                   required
                 />
               </div>
@@ -2236,7 +2236,7 @@ export default function App() {
                 <select
                   value={newAccType}
                   onChange={(e) => setNewAccType(e.target.value as any)}
-                  className="w-full px-4 py-2.5 bg-black border border-white/[0.06] rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40"
+                  className="w-full px-4 py-2.5 bg-[var(--bg-primary)] border border-white/[0.06] rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40"
                 >
                   <option value="personal">Personnel</option>
                   <option value="prop_firm">Prop Firm</option>
@@ -2254,7 +2254,7 @@ export default function App() {
                         value={newAccCapital}
                         onChange={(e) => setNewAccCapital(e.target.value)}
                         placeholder="100000"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-[var(--text-primary)]"
                       />
                     </div>
                     <div className="space-y-1">
@@ -2264,7 +2264,7 @@ export default function App() {
                         value={newAccTarget}
                         onChange={(e) => setNewAccTarget(e.target.value)}
                         placeholder="8"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-[var(--text-primary)]"
                       />
                     </div>
                   </div>
@@ -2277,7 +2277,7 @@ export default function App() {
                         value={newAccDailyLoss}
                         onChange={(e) => setNewAccDailyLoss(e.target.value)}
                         placeholder="5"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-[var(--text-primary)]"
                       />
                     </div>
                     <div className="space-y-1">
@@ -2287,7 +2287,7 @@ export default function App() {
                         value={newAccGlobalLoss}
                         onChange={(e) => setNewAccGlobalLoss(e.target.value)}
                         placeholder="10"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-[var(--text-primary)]"
                       />
                     </div>
                   </div>
@@ -2306,7 +2306,7 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={isSavingAccount}
-                  className="flex-1 py-2 bg-[#3DDC97] hover:bg-[#2BB87E] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
                 >
                   {isSavingAccount ? (
                     <>
@@ -2324,18 +2324,18 @@ export default function App() {
 
       {/* POPUP MODAL: PROFILE EDITION */}
       {profileModalOpen && (
-        <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[var(--bg-secondary)] rounded-2xl border border-[#3DDC97]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in custom-scrollbar responsive-form-container">
+        <div className="fixed inset-0 bg-[var(--bg-primary)]/85 z-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[var(--bg-secondary)] rounded-2xl border border-[var(--accent-primary)]/20 backdrop-blur-md p-6 space-y-6 shadow-2xl animate-fade-in custom-scrollbar responsive-form-container">
             
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
-                <span className="text-[#3DDC97]">✨</span>
-                <h3 className="text-sm font-black font-mono text-white uppercase tracking-widest">Édition du Profil</h3>
+                <span className="text-[var(--accent-primary)]">✨</span>
+                <h3 className="text-sm font-black font-mono text-[var(--text-primary)] uppercase tracking-widest">Édition du Profil</h3>
               </div>
               <button 
                 type="button" 
                 onClick={() => setProfileModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-950 border border-slate-900 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-full bg-slate-950 border border-slate-900 flex items-center justify-center text-slate-400 hover:text-[var(--text-primary)] transition-colors"
               >
                 <X size={16} />
               </button>
@@ -2347,11 +2347,11 @@ export default function App() {
               <div className="flex flex-col items-center gap-2">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Photo de Profil</span>
                 <div 
-                  className="relative group cursor-pointer w-24 h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-emerald-500 via-[#3DDC97] to-emerald-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#3DDC97]/20"
+                  className="relative group cursor-pointer w-24 h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-emerald-500 via-[var(--accent-primary)] to-emerald-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[var(--accent-primary)]/20"
                   onClick={() => document.getElementById('profile-avatar-upload-input')?.click()}
                   title="Modifier votre photo de profil"
                 >
-                  <div className="w-full h-full rounded-full bg-[#040611] flex items-center justify-center relative overflow-hidden">
+                  <div className="w-full h-full rounded-full bg-[var(--bg-primary)] flex items-center justify-center relative overflow-hidden">
                     {profileAvatar ? (
                       <>
                         <img 
@@ -2360,24 +2360,24 @@ export default function App() {
                           className="w-full h-full object-cover rounded-full"
                          
                         />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
-                           <Camera size={18} className="text-white mb-0.5" />
+                        <div className="absolute inset-0 bg-[var(--bg-primary)]/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[var(--text-primary)] transition-opacity duration-200">
+                           <Camera size={18} className="text-[var(--text-primary)] mb-0.5" />
                            <span className="text-[8px] font-bold uppercase tracking-wider">Modifier</span>
                         </div>
                       </>
                     ) : (
                       <>
                         <DefaultLogoAvatar className="w-full h-full" />
-                        <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
-                          <Camera size={18} className="text-white mb-0.5" />
-                          <span className="text-[8px] font-bold uppercase tracking-widest text-[#3DDC97]">Uploader</span>
+                        <div className="absolute inset-0 bg-[var(--bg-primary)]/65 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[var(--text-primary)] transition-opacity duration-200">
+                          <Camera size={18} className="text-[var(--text-primary)] mb-0.5" />
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-[var(--accent-primary)]">Uploader</span>
                         </div>
                       </>
                     )}
                   </div>
                   
                   {/* Plus badge */}
-                  <span className="absolute bottom-1 right-1 flex h-5 w-5 rounded-full bg-[#3DDC97] items-center justify-center border-2 border-[#040611] text-black font-bold text-[9px]">
+                  <span className="absolute bottom-1 right-1 flex h-5 w-5 rounded-full bg-[var(--accent-primary)] items-center justify-center border-2 border-[var(--bg-primary)] text-black font-bold text-[9px]">
                     +
                   </span>
                 </div>
@@ -2411,7 +2411,7 @@ export default function App() {
                     type="text"
                     value={profileUsername}
                     onChange={(e) => setProfileUsername(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40 font-sans"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40 font-sans"
                     required
                   />
                 </div>
@@ -2427,26 +2427,26 @@ export default function App() {
                     type="text"
                     value={profileCountry}
                     onChange={(e) => setProfileCountry(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40 font-mono"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40 font-mono"
                     placeholder="Ex: FR"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-[#3DDC97] font-bold uppercase tracking-wide block">Devise de la plateforme (P&L)</label>
+                <label className="text-[10px] text-[var(--accent-primary)] font-bold uppercase tracking-wide block">Devise de la plateforme (P&L)</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500 pointer-events-none font-mono text-xs font-bold text-[#3DDC97]">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500 pointer-events-none font-mono text-xs font-bold text-[var(--accent-primary)]">
                     {profileCurrency === 'EUR' ? '€' : profileCurrency === 'GBP' ? '£' : '$'}
                   </span>
                   <select
                     value={profileCurrency}
                     onChange={(e) => setProfileCurrency(e.target.value as 'USD' | 'EUR' | 'GBP')}
-                    className="w-full pl-10 pr-8 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40 appearance-none cursor-pointer font-sans"
+                    className="w-full pl-10 pr-8 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40 appearance-none cursor-pointer font-sans"
                   >
-                    <option value="USD" className="bg-black text-white">USD ($ - Dollar Américain)</option>
-                    <option value="EUR" className="bg-black text-white">EUR (€ - Euro)</option>
-                    <option value="GBP" className="bg-black text-white">GBP (£ - Livre Sterling)</option>
+                    <option value="USD" className="bg-[var(--bg-primary)] text-[var(--text-primary)]">USD ($ - Dollar Américain)</option>
+                    <option value="EUR" className="bg-[var(--bg-primary)] text-[var(--text-primary)]">EUR (€ - Euro)</option>
+                    <option value="GBP" className="bg-[var(--bg-primary)] text-[var(--text-primary)]">GBP (£ - Livre Sterling)</option>
                   </select>
                   <span className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 pointer-events-none text-[9px]">▼</span>
                 </div>
@@ -2462,13 +2462,13 @@ export default function App() {
                     type={showProfileOldPassword ? "text" : "password"}
                     value={profileOldPassword}
                     onChange={(e) => setProfileOldPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40 font-mono"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40 font-mono"
                     placeholder="Saisissez votre ancien mot de passe"
                   />
                   <button
                     type="button"
                     onClick={() => setShowProfileOldPassword(!showProfileOldPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-[var(--text-primary)] transition-colors"
                   >
                     {showProfileOldPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -2476,7 +2476,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-[#3DDC97] font-bold uppercase tracking-wide block">Nouveau Mot de Passe</label>
+                <label className="text-[10px] text-[var(--accent-primary)] font-bold uppercase tracking-wide block">Nouveau Mot de Passe</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
                     <Lock size={14} />
@@ -2485,13 +2485,13 @@ export default function App() {
                     type={showProfileNewPassword ? "text" : "password"}
                     value={profileNewPassword}
                     onChange={(e) => setProfileNewPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40 font-mono"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40 font-mono"
                     placeholder="Nouveau mot de passe"
                   />
                   <button
                     type="button"
                     onClick={() => setShowProfileNewPassword(!showProfileNewPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-[var(--text-primary)] transition-colors"
                   >
                     {showProfileNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -2508,13 +2508,13 @@ export default function App() {
                     type={showProfileConfirmPassword ? "text" : "password"}
                     value={profileConfirmPassword}
                     onChange={(e) => setProfileConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-[#3DDC97]/40 font-mono"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-primary)]/40 font-mono"
                     placeholder="Confirmez"
                   />
                   <button
                     type="button"
                     onClick={() => setShowProfileConfirmPassword(!showProfileConfirmPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-white transition-colors"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-[var(--text-primary)] transition-colors"
                   >
                     {showProfileConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -2524,23 +2524,23 @@ export default function App() {
               {/* GOOGLE INTEGRATION SECTION */}
               {currentUser && (
                 <div className="pt-4 border-t border-white/5 space-y-2.5">
-                  <span className="text-[10px] text-[#3DDC97] font-bold uppercase tracking-wider block">Liaison Google</span>
+                  <span className="text-[10px] text-[var(--accent-primary)] font-bold uppercase tracking-wider block">Liaison Google</span>
                   
                   {currentUser.google_linked ? (
-                    <div className="p-3 bg-[#3DDC97]/5 border border-[#3DDC97]/20 rounded-xl flex items-center justify-between">
+                    <div className="p-3 bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20 rounded-xl flex items-center justify-between">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] animate-pulse"></span>
-                          <span className="text-[10px] font-bold text-[#3DDC97] uppercase tracking-wider font-mono">Compte Lié à Google</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse"></span>
+                          <span className="text-[10px] font-bold text-[var(--accent-primary)] uppercase tracking-wider font-mono">Compte Lié à Google</span>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-tight">
                           E-mail : <span className="font-mono text-zinc-350 font-semibold">{currentUser.google_email || currentUser.email}</span>
                         </p>
                       </div>
-                      <span className="text-[#3DDC97] text-sm">✅</span>
+                      <span className="text-[var(--accent-primary)] text-sm">✅</span>
                     </div>
                   ) : (
-                    <div className="p-3 bg-[var(--bg-secondary)] border border-[#3DDC97]/10 rounded-xl space-y-2">
+                    <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--accent-primary)]/10 rounded-xl space-y-2">
                       <p className="text-[10px] text-slate-455 leading-relaxed font-sans">
                         Associez votre compte à Google pour pouvoir vous connecter de manière interchangeable avec votre e-mail ou via Google d'un simple clic.
                       </p>
@@ -2569,7 +2569,7 @@ export default function App() {
                             customAlert("Erreur", "Échec d'ouverture du popup d'authentification.");
                           }
                         }}
-                        className="w-full py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-lg text-[10px] font-bold font-mono tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full py-2 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 hover:border-white/20 rounded-lg text-[10px] font-bold font-mono tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -2596,7 +2596,7 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={isSavingProfile}
-                  className="flex-1 py-2.5 bg-[#3DDC97] hover:bg-[#2BB87E] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] disabled:bg-slate-800 disabled:text-slate-500 text-black rounded-xl text-xs font-bold transition-all font-mono tracking-wide flex items-center justify-center gap-2"
                 >
                   {isSavingProfile ? (
                     <>
@@ -2617,11 +2617,11 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-[white/10] rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col items-center text-center">
             
-            <div className="w-16 h-16 rounded-full bg-[#3DDC97]/10 flex items-center justify-center mb-5 shrink-0 border-4 border-slate-900 shadow-[0_0_20px_rgba(0,255,156,0.1)]">
+            <div className="w-16 h-16 rounded-full bg-[var(--accent-primary)]/10 flex items-center justify-center mb-5 shrink-0 border-4 border-slate-900 shadow-[0_0_20px_rgba(0,255,156,0.1)]">
               <span className="text-2xl animate-bounce">🚀</span>
             </div>
 
-            <h3 className="text-xl font-bold font-sans text-white mb-2 tracking-tight">Bienvenue sur TradeVault !</h3>
+            <h3 className="text-xl font-bold font-sans text-[var(--text-primary)] mb-2 tracking-tight">Bienvenue sur TradeVault !</h3>
             
             <p className="text-xs text-slate-400 font-mono mb-6 leading-relaxed px-2">
               Votre accès est correctement configuré. Préparez-vous à tracker vos trades, analyser vos setups et gérer votre capital Propfirm de manière organisée.
@@ -2629,7 +2629,7 @@ export default function App() {
 
             <button
               onClick={() => setShowWelcomeModal(false)}
-              className="w-full py-3 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-black transition-all shadow-lg hover:shadow-[#3DDC97]/10 active:scale-[0.98]"
+              className="w-full py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] text-black rounded-xl text-xs font-black transition-all shadow-lg hover:shadow-[var(--accent-primary)]/10 active:scale-[0.98]"
             >
               🚀 Let's Go
             </button>
@@ -2640,13 +2640,13 @@ export default function App() {
       {/* CUSTOM DIALOG MODAL (REPLACING native window.alert/window.confirm) */}
       {dialogState.isOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-[var(--bg-secondary)] border border-[#3DDC97]/20 rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col space-y-4 shadow-2xl">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--accent-primary)]/20 rounded-2xl p-6 w-full max-w-sm relative animate-scale-in flex flex-col space-y-4 shadow-2xl">
             
             <div className="flex items-center gap-3 border-b border-white/5 pb-3">
               <span className="text-xl">
                 {dialogState.isConfirm ? '❓' : '🚨'}
               </span>
-              <h3 className="text-sm font-black font-sans text-[#3DDC97] uppercase tracking-wider">
+              <h3 className="text-sm font-black font-sans text-[var(--accent-primary)] uppercase tracking-wider">
                 {dialogState.title}
               </h3>
             </div>
@@ -2664,7 +2664,7 @@ export default function App() {
                       if (dialogState.onCancel) dialogState.onCancel();
                       setDialogState(prev => ({ ...prev, isOpen: false }));
                     }}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-all hover:text-white"
+                    className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-xs hover:bg-slate-900/60 font-semibold transition-all hover:text-[var(--text-primary)]"
                   >
                     Annuler
                   </button>
@@ -2674,7 +2674,7 @@ export default function App() {
                       if (dialogState.onConfirm) dialogState.onConfirm();
                       setDialogState(prev => ({ ...prev, isOpen: false }));
                     }}
-                    className="flex-1 py-2.5 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-[#3DDC97]/10 active:scale-[0.98]"
+                    className="flex-1 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] text-black rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-[var(--accent-primary)]/10 active:scale-[0.98]"
                   >
                     Confirmer
                   </button>
@@ -2683,7 +2683,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setDialogState(prev => ({ ...prev, isOpen: false }))}
-                  className="w-full py-2.5 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-bold transition-all text-center shadow-md hover:shadow-[#3DDC97]/10 active:scale-[0.98]"
+                  className="w-full py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] text-black rounded-xl text-xs font-bold transition-all text-center shadow-md hover:shadow-[var(--accent-primary)]/10 active:scale-[0.98]"
                 >
                   OK
                 </button>

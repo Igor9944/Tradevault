@@ -1,9 +1,10 @@
 /**
  * useAccounts.ts — Gestion multi-comptes TradeVault
- * CRUD complet + stats par compte via Supabase
+ * Optimized version with selective field fetching, improved performance, and caching
  */
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../utils/supabaseSync';
+import { clientCache, useCachedQuery } from '../utils/cacheUtils';
 
 export interface TradingAccount {
   id: string;
@@ -72,6 +73,9 @@ interface CreateAccountData {
 
 const ACTIVE_KEY = 'tv_active_account';
 
+/**
+ * Optimized hook for managing trading accounts with caching
+ */
 export function useAccounts(userId: string | null): UseAccounts {
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [activeAccount, setActiveAccountState] = useState<TradingAccount | null>(null);
@@ -79,14 +83,23 @@ export function useAccounts(userId: string | null): UseAccounts {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAccounts = useCallback(async () => {
-    if (!userId) { setLoading(false); return; }
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     const sb = getSupabase();
-    if (!sb) { setLoading(false); return; }
+    if (!sb) {
+      setLoading(false);
+      return;
+    }
 
     try {
+      // Select only necessary fields instead of '*'
       const { data, error: err } = await sb
         .from('trading_accounts')
-        .select('*')
+        .select(
+          'id, user_id, name, broker, type, account_type, starting_balance, current_balance, currency, is_active, is_default, color, emoji, description, prop_firm_name, capital, target, daily_loss, global_loss, challenge_status, created_at, updated_at'
+        )
         .eq('user_id', userId)
         .eq('is_active', true)
         .order('created_at', { ascending: true });
@@ -100,7 +113,7 @@ export function useAccounts(userId: string | null): UseAccounts {
       })) as TradingAccount[];
       setAccounts(accs);
 
-      // Restaurer le compte actif depuis localStorage
+      // Restore active account from localStorage
       const savedId = localStorage.getItem(ACTIVE_KEY);
       const saved = accs.find(a => a.id === savedId);
       const defaultAcc = accs.find(a => a.is_default) || accs[0];
@@ -113,7 +126,9 @@ export function useAccounts(userId: string | null): UseAccounts {
     }
   }, [userId]);
 
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const setActiveAccount = useCallback((account: TradingAccount) => {
     setActiveAccountState(account);
@@ -125,49 +140,82 @@ export function useAccounts(userId: string | null): UseAccounts {
     const sb = getSupabase();
     if (!sb) return null;
 
-    const { data: result, error: err } = await sb
-      .from('trading_accounts')
-      .insert({
-        user_id: userId,
-        name: data.name.trim(),
-        broker: data.broker || data.prop_firm_name || 'Manual',
-        type: data.type,
-        starting_balance: data.starting_balance,
-        current_balance: data.starting_balance,
-        currency: data.currency || 'USD',
-        color: data.color || '#00FF9C',
-        emoji: data.emoji || (data.type === 'personal' ? '💼' : '🏆'),
-        prop_firm_name: data.prop_firm_name,
-        description: data.description,
-        capital: data.capital,
-        target: data.target,
-        daily_loss: data.daily_loss,
-        global_loss: data.global_loss,
-        is_active: true,
-        is_default: false,
-        challenge_status: 'not_started',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    const accountData = {
+      user_id: userId,
+      name: data.name.trim(),
+      broker: data.broker || data.prop_firm_name || 'Manual',
+      type: data.type,
+      starting_balance: data.starting_balance,
+      current_balance: data.starting_balance,
+      currency: data.currency || 'USD',
+      color: data.color || '#00FF9C',
+      emoji: data.emoji || (data.type === 'personal' ? '💼' : '🏆'),
+      prop_firm_name: data.prop_firm_name,
+      description: data.description,
+      capital: data.capital,
+      target: data.target,
+      daily_loss: data.daily_loss,
+      global_loss: data.global_loss,
+      is_active: true,
+      is_default: false,
+      challenge_status: 'not_started',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-    if (err || !result) return null;
-    await fetchAccounts();
-    return { ...result, account_type: result.type || 'personal' } as TradingAccount;
+    try {
+      const { data: result, error: err } = await sb
+        .from('trading_accounts')
+        .insert(accountData)
+        .select()
+        .single();
+
+      if (err || !result) return null;
+
+      // Refresh accounts list
+      await fetchAccounts();
+
+      // Invalidate cached stats for this user since we added a new account
+      const statsCacheKey = `account_stats_${userId}`;
+      clientCache.delete(statsCacheKey);
+
+      return { ...result, account_type: result.type || 'personal' } as TradingAccount;
+    } catch (e: any) {
+      setError(e.message);
+      return null;
+    }
   }, [userId, fetchAccounts]);
 
   const updateAccount = useCallback(async (id: string, data: Partial<TradingAccount>): Promise<boolean> => {
     const sb = getSupabase();
     if (!sb) return false;
-    const { error: err } = await sb
-      .from('trading_accounts')
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId!);
-    if (err) return false;
-    await fetchAccounts();
-    return true;
+
+    try {
+      const updateData = {
+        ...data,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: err } = await sb
+        .from('trading_accounts')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', userId!);
+
+      if (err) return false;
+
+      // Refresh accounts list
+      await fetchAccounts();
+
+      // Invalidate cached stats for this account since it was modified
+      const statsCacheKey = `account_stats_${id}`;
+      clientCache.delete(statsCacheKey);
+
+      return true;
+    } catch (e: any) {
+      setError(e.message);
+      return false;
+    }
   }, [userId, fetchAccounts]);
 
   const deleteAccount = useCallback(async (id: string): Promise<boolean> => {
@@ -177,34 +225,77 @@ export function useAccounts(userId: string | null): UseAccounts {
     }
     const sb = getSupabase();
     if (!sb) return false;
-    // Soft delete
-    const { error: err } = await sb
-      .from('trading_accounts')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId!);
-    if (err) return false;
-    // Changer de compte actif si nécessaire
-    if (activeAccount?.id === id) {
-      const next = accounts.find(a => a.id !== id);
-      if (next) setActiveAccount(next);
+
+    try {
+      // Soft delete
+      const { error: err } = await sb
+        .from('trading_accounts')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', userId!);
+
+      if (err) return false;
+
+      // Update active account if needed
+      if (activeAccount?.id === id) {
+        const next = accounts.find(a => a.id !== id);
+        if (next) setActiveAccount(next);
+      }
+
+      // Refresh accounts list
+      await fetchAccounts();
+
+      // Invalidate cached stats for this account since it was deleted
+      const statsCacheKey = `account_stats_${id}`;
+      clientCache.delete(statsCacheKey);
+
+      return true;
+    } catch (e: any) {
+      setError(e.message);
+      return false;
     }
-    await fetchAccounts();
-    return true;
   }, [accounts, activeAccount, userId, fetchAccounts, setActiveAccount]);
 
+  // Cached version of getStats to avoid recalculating frequently
   const getStats = useCallback(async (accountId: string): Promise<AccountStats | null> => {
     const sb = getSupabase();
     if (!sb) return null;
-    const { data, error: err } = await sb
-      .rpc('get_account_stats', { p_account_id: accountId });
-    if (err || !data) return null;
-    return data as AccountStats;
+
+    // Check cache first
+    const cacheKey = `account_stats_${accountId}`;
+    const cachedStats = clientCache.get<AccountStats>(cacheKey);
+    if (cachedStats !== null) {
+      return cachedStats;
+    }
+
+    try {
+      const { data, error: err } = await sb
+        .rpc('get_account_stats', { p_account_id: accountId });
+
+      if (err || !data) return null;
+
+      const stats = data as AccountStats;
+
+      // Cache for 2 minutes (stats don't change extremely frequently)
+      clientCache.set(cacheKey, stats, 2 * 60 * 1000);
+
+      return stats;
+    } catch (e: any) {
+      setError(e.message);
+      return null;
+    }
   }, []);
 
   return {
-    accounts, activeAccount, loading, error,
-    setActiveAccount, createAccount, updateAccount,
-    deleteAccount, getStats, refresh: fetchAccounts,
+    accounts,
+    activeAccount,
+    loading,
+    error,
+    setActiveAccount,
+    createAccount,
+    updateAccount,
+    deleteAccount,
+    getStats,
+    refresh: fetchAccounts,
   };
 }

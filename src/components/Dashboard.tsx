@@ -1,5 +1,6 @@
 import React from 'react';
-import { motion, Variants, useReducedMotion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
+import type { Variants, Transition } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Trade, Account } from '../types';
 import { Calendar, Zap, Award, BadgeInfo } from 'lucide-react';
@@ -33,13 +34,11 @@ const containerVariants = {
   }
 };
 
+const SPRING: Transition = { type: 'spring' as const, stiffness: 120, damping: 18 };
+
 const cardVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.95 },
-  show: {
-    opacity: 1,
-    scale: 1,
-    transition: { type: 'spring' as const, stiffness: 100 }
-  }
+  hidden: { opacity: 0, scale: 0.94 },
+  show:   { opacity: 1, scale: 1, transition: SPRING }
 };
 
 export default function Dashboard({ trades, activeAccount, currency = 'USD' }: DashboardProps) {

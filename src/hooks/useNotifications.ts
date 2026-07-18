@@ -1,9 +1,10 @@
 /**
  * useNotifications.ts — Gestion des notifications en temps réel
- * Lit et écrit dans Supabase table 'notifications' si connecté, sinon fallback local
+ * Optimized version with selective field fetching, caching, and improved performance
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../utils/supabaseSync';
+import { clientCache, useCachedQuery } from '../utils/cacheUtils';
 import {
   getNotifications as getLocalNotifications,
   saveNotifications as saveLocalNotifications,
@@ -20,32 +21,116 @@ export interface AppNotification {
   user_id?: string;
 }
 
-export function useNotifications(userId: string | null) {
+interface UseNotifications {
+  notifications: AppNotification[];
+  loading: boolean;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  addNotification: (title: string, message: string, type: AppNotification['type']) => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+/**
+ * Optimized hook for managing notifications with caching and real-time updates
+ */
+export function useNotifications(userId: string | null): UseNotifications {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const realtimeSub = useRef<any>(null);
+  const isMounted = useRef(true);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      realtimeSub.current?.unsubscribe();
+    };
+  }, []);
+
+  // Fetch notifications with caching
   const fetchNotifications = useCallback(async () => {
+    // Prevent state updates on unmounted component
+    if (!isMounted.current) return;
+
     if (!userId) {
-      setNotifications(getLocalNotifications() as AppNotification[]);
+      // For guest users, use local storage only
+      const localNotifications = getLocalNotifications() as AppNotification[];
+      setNotifications(localNotifications);
+      setLoading(false);
       return;
     }
 
     const sb = getSupabase();
     if (!sb) {
-      setNotifications(getLocalNotifications() as AppNotification[]);
+      // Fallback to local storage if Supabase unavailable
+      const localNotifications = getLocalNotifications() as AppNotification[];
+      setNotifications(localNotifications);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    try {
+      setLoading(true);
+
+      // Check cache first (cache for 30 seconds as notifications change frequently)
+      const cacheKey = `notifications_${userId}`;
+      const cachedNotifications = clientCache.get<AppNotification[]>(cacheKey);
+
+      if (cachedNotifications !== null) {
+        setNotifications(cachedNotifications);
+        setLoading(false);
+        // Still fetch fresh data in background for stale-while-revalidate
+        fetchFreshNotifications().catch(() => {}); // Ignore background errors
+        return;
+      }
+
+      // Fetch fresh data
+      await fetchFreshNotifications();
+    } catch (error: any) {
+      if (isMounted.current) {
+        console.error('[NOTIFICATIONS] Fetch error:', error);
+        // Fallback to local storage on error
+        const localNotifications = getLocalNotifications() as AppNotification[];
+        setNotifications(localNotifications);
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    }
+  }, [userId]);
+
+  // Helper to fetch fresh notifications from Supabase
+  const fetchFreshNotifications = useCallback(async () => {
+    if (!userId) {
+      // For guest users, use local storage only
+      const localNotifications = getLocalNotifications() as AppNotification[];
+      if (isMounted.current) {
+        setNotifications(localNotifications);
+      }
+      return;
+    }
+
+    const sb = getSupabase();
+    if (!sb) {
+      // Fallback to local storage if Supabase unavailable
+      const localNotifications = getLocalNotifications() as AppNotification[];
+      if (isMounted.current) {
+        setNotifications(localNotifications);
+      }
+      return;
+    }
+
     try {
       const { data, error } = await sb
         .from('notifications')
-        .select('*')
+        .select('id, title, message, type, created_at, read, user_id')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (error) throw error;
+
+      if (data && isMounted.current) {
         const mapped = data.map((n: any) => ({
           id: n.id,
           title: n.title,
@@ -55,21 +140,31 @@ export function useNotifications(userId: string | null) {
           read: n.read || false,
           user_id: n.user_id,
         }));
+
+        // Cache for 30 seconds
+        const cacheKey = `notifications_${userId}`;
+        clientCache.set(cacheKey, mapped, 30 * 1000);
+
         setNotifications(mapped);
-      } else {
-        setNotifications(getLocalNotifications() as AppNotification[]);
       }
-    } catch {
-      setNotifications(getLocalNotifications() as AppNotification[]);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      if (isMounted.current) {
+        console.error('[NOTIFICATIONS] Fresh fetch error:', error);
+        // Fallback to local storage
+        const localNotifications = getLocalNotifications() as AppNotification[];
+        setNotifications(localNotifications);
+      }
     }
   }, [userId]);
 
+  // Initial setup and real-time subscription
   useEffect(() => {
+    if (!userId) return;
+
+    // Initial fetch
     fetchNotifications();
 
-    if (!userId) return;
+    // Realtime subscription for updates
     const sb = getSupabase();
     if (!sb) return;
 
@@ -80,8 +175,10 @@ export function useNotifications(userId: string | null) {
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${userId}`,
-      }, () => {
-        fetchNotifications();
+      }, async () => {
+        // Instead of full refresh, we could handle individual events
+        // For simplicity and consistency, we refresh but could be optimized
+        await fetchNotifications();
       })
       .subscribe();
 
@@ -91,16 +188,37 @@ export function useNotifications(userId: string | null) {
   }, [userId, fetchNotifications]);
 
   const markAsRead = useCallback(async (id: string) => {
+    // Optimistic update
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, read: true } : n))
     );
 
     const sb = getSupabase();
-    if (sb && userId && !id.startsWith('n_')) {
+    if (sb && userId && !id.startsWith('n_')) { // Skip local-only notifications
       try {
         await sb.from('notifications').update({ read: true }).eq('id', id);
+
+        // Update cache if exists
+        const cacheKey = `notifications_${userId}`;
+        const cached = clientCache.get<AppNotification[]>(cacheKey);
+        if (cached !== null) {
+          const updated = cached.map(n =>
+            n.id === id ? { ...n, read: true } : n
+          );
+          clientCache.set(cacheKey, updated, 30 * 1000); // Refresh cache
+        }
       } catch (e) {
         console.warn('Failed to mark read in DB, fallback:', e);
+        // Revert optimistic update on failure
+        setNotifications(prev =>
+          prev.map(n => (n.id === id ? { ...n, read: false } : n))
+        );
+
+        // Local fallback
+        const local = (getLocalNotifications() as AppNotification[]).map(n =>
+          n.id === id ? { ...n, read: true } : n
+        );
+        saveLocalNotifications(local);
       }
     } else {
       // Local fallback
@@ -112,6 +230,7 @@ export function useNotifications(userId: string | null) {
   }, [userId]);
 
   const markAllAsRead = useCallback(async () => {
+    // Optimistic update
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
 
     const sb = getSupabase();
@@ -122,10 +241,25 @@ export function useNotifications(userId: string | null) {
           .update({ read: true })
           .eq('user_id', userId)
           .eq('read', false);
+
+        // Update cache
+        const cacheKey = `notifications_${userId}`;
+        const cached = clientCache.get<AppNotification[]>(cacheKey);
+        if (cached !== null) {
+          const updated = cached.map(n => ({ ...n, read: true }));
+          clientCache.set(cacheKey, updated, 30 * 1000); // Refresh cache
+        }
       } catch (e) {
         console.warn('Failed to mark all read in DB, fallback:', e);
+        // Revert optimistic update on failure
+        setNotifications(prev => prev.map(n => ({ ...n, read: false })));
+
+        // Local fallback
+        const local = (getLocalNotifications() as AppNotification[]).map(n => ({ ...n, read: true }));
+        saveLocalNotifications(local);
       }
     } else {
+      // Local fallback
       const local = (getLocalNotifications() as AppNotification[]).map(n => ({ ...n, read: true }));
       saveLocalNotifications(local);
     }
@@ -143,14 +277,34 @@ export function useNotifications(userId: string | null) {
           read: false,
           created_at: new Date().toISOString(),
         });
+
+        // Update cache
+        const cacheKey = `notifications_${userId}`;
+        const cached = clientCache.get<AppNotification[]>(cacheKey);
+        if (cached !== null) {
+          const newNotification: AppNotification = {
+            id: 'temp_' + Date.now(), // Temporary ID until we get real one from DB
+            title,
+            message,
+            type,
+            date: new Date().toISOString(),
+            read: false,
+            user_id: userId,
+          };
+          const updated = [newNotification, ...cached];
+          clientCache.set(cacheKey, updated, 30 * 1000); // Refresh cache
+
+          // Trigger refresh to get real ID from DB
+          await fetchNotifications();
+        }
       } catch (e) {
         console.warn('Failed to add DB notification, fallback:', e);
         await sendLocalPush(title, message, type);
-        fetchNotifications();
+        await fetchNotifications();
       }
     } else {
       await sendLocalPush(title, message, type);
-      fetchNotifications();
+      await fetchNotifications();
     }
   }, [userId, fetchNotifications]);
 

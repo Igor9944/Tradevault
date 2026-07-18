@@ -9,9 +9,10 @@ interface Props {
   children: React.ReactNode;
   height?: number | string;
   minHeight?: number;
+  style?: React.CSSProperties;
 }
 
-export default function ChartWrapper({ children, height = 300, minHeight = 200 }: Props) {
+export default function ChartWrapper({ children, height = 300, minHeight = 200, style }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
 
@@ -31,7 +32,7 @@ export default function ChartWrapper({ children, height = 300, minHeight = 200 }
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height, minHeight, position: 'relative' }}
+      style={{ width: '100%', height, minHeight, position: 'relative', ...style }}
     >
       {ready && (
         <ResponsiveContainer width="100%" height="100%">

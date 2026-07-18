@@ -16,29 +16,9 @@ html, body, #root {
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-:root {
-  --bg-primary: #0B0E11;
-  --bg-secondary: #161B22;
-  --bg-tertiary: #1C232C;
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-secondary: rgba(255, 255, 255, 0.04);
-  --border-focus: rgba(61, 220, 151, 0.4);
-  --accent-primary: #3DDC97;
-  --accent-secondary: #2BB87E;
-  --accent-glow: rgba(61, 220, 151, 0.15);
-  --success: #52D17C;
-  --success-bg: rgba(82, 209, 124, 0.08);
-  --danger: #E8544F;
-  --danger-bg: rgba(232, 84, 79, 0.08);
-  --warning: #E8A23D;
-  --warning-bg: rgba(232, 162, 61, 0.08);
-}
-
-
-
 /* Custom cursor elements hiding default cursor */
 @media (any-hover: hover) {
-  html.custom-cursor-active, 
+  html.custom-cursor-active,
   html.custom-cursor-active * {
     cursor: none !important;
   }
@@ -69,9 +49,9 @@ html, body, #root {
   pointer-events: none;
   z-index: 99998;
   transform: translate(-50%, -50%);
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
-              height 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
-              background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
               border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -253,4 +233,3 @@ html, body, #root {
   width:  100% !important;
   height: 100% !important;
 }
-

@@ -1,9 +1,12 @@
 /**
- * useTrades.ts — Trades persistants par compte via Supabase
- * Sync temps réel + cache local pour performance
+ * useTrades.ts - Trades persistants par compte via Supabase
+ * Optimized version with selective field fetching, pagination, and caching
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../utils/supabaseSync';
+
+// Constants for pagination
+const PAGE_SIZE = 50;
 
 export interface Trade {
   id: string;
@@ -43,47 +46,108 @@ interface UseTrades {
   trades: Trade[];
   loading: boolean;
   error: string | null;
+  hasMore: boolean;
+  page: number;
   addTrade: (data: CreateTradeData) => Promise<Trade | null>;
   updateTrade: (id: string, data: Partial<Trade>) => Promise<boolean>;
   deleteTrade: (id: string) => Promise<boolean>;
   refresh: () => Promise<void>;
+  loadMore: () => Promise<void>;
+  setPage: (page: number) => void;
 }
 
+/**
+ * Optimized hook for fetching trades with pagination and selective field loading
+ */
 export function useTrades(accountId: string | null, userId: string | null): UseTrades {
-  const [trades, setTrades]   = useState<Trade[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const realtimeSub = useRef<any>(null);
+  const isMounted = useRef(true);
 
-  const fetchTrades = useCallback(async () => {
-    if (!accountId || !userId) return;
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      realtimeSub.current?.unsubscribe();
+    };
+  }, []);
+
+  /**
+   * Fetch trades for a specific page with optimized field selection
+   */
+  const fetchTrades = useCallback(async (pageNum: number = 0) => {
+    // Prevent state updates on unmounted component
+    if (!isMounted.current) return;
+
+    if (!userId || !accountId) {
+      setLoading(false);
+      return;
+    }
+
     const sb = getSupabase();
-    if (!sb) return;
+    if (!sb) {
+      setLoading(false);
+      return;
+    }
 
-    setLoading(true);
     try {
-      const { data, error: err } = await sb
+      setLoading(true);
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      // Select only necessary fields instead of '*'
+      const query = sb
         .from('trades')
-        .select('*')
+        .select(
+          'id, user_id, account_id, symbol, pair, side, entry_price, exit_price, size_lots, profit_loss, fees, commission, execution_time_entry, execution_time_exit, trade_date, result, rr_ratio, risk_percent, session, setup, pattern, emotion, mindset, duration_minutes, notes, screenshot_urls, tags, created_at, updated_at'
+        )
         .eq('account_id', accountId)
         .eq('user_id', userId)
         .order('trade_date', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      const { data, error: err } = await query;
 
       if (err) throw err;
-      setTrades((data || []) as Trade[]);
+
+      // Only update state if component is still mounted
+      if (isMounted.current) {
+        const newTrades = (data || []) as Trade[];
+
+        // For first page, replace; for subsequent pages, append
+        if (pageNum === 0) {
+          setTrades(newTrades);
+        } else {
+          setTrades(prev => [...prev, ...newTrades]);
+        }
+
+        setHasMore(newTrades.length === PAGE_SIZE);
+        if (pageNum === 0) setPage(0); // Reset page on refresh
+      }
     } catch (e: any) {
-      setError(e.message);
+      if (isMounted.current) {
+        setError(e.message);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [accountId, userId]);
 
-  // Realtime subscription
+  // Initial load and real-time subscription
   useEffect(() => {
-    if (!accountId || !userId) return;
-    fetchTrades();
+    if (!userId || !accountId) return;
 
+    // Initial fetch
+    fetchTrades(0);
+
+    // Realtime subscription for updates
     const sb = getSupabase();
     if (!sb) return;
 
@@ -94,7 +158,11 @@ export function useTrades(accountId: string | null, userId: string | null): UseT
         schema: 'public',
         table: 'trades',
         filter: `account_id=eq.${accountId}`,
-      }, () => fetchTrades())
+      }, async () => {
+        // Instead of full refresh, we could optimize further by handling individual events
+        // For now, refresh first page to maintain consistency
+        await fetchTrades(0);
+      })
       .subscribe();
 
     return () => {
@@ -116,55 +184,121 @@ export function useTrades(accountId: string | null, userId: string | null): UseT
       updated_at: new Date().toISOString(),
     };
 
-    const { data: result, error: err } = await sb
-      .from('trades')
-      .insert(payload)
-      .select()
-      .single();
+    try {
+      const { data: result, error: err } = await sb
+        .from('trades')
+        .insert(payload)
+        .select(
+          'id, user_id, account_id, symbol, pair, side, entry_price, exit_price, size_lots, profit_loss, fees, commission, execution_time_entry, execution_time_exit, trade_date, result, rr_ratio, risk_percent, session, setup, pattern, emotion, mindset, duration_minutes, notes, screenshot_urls, tags, created_at, updated_at'
+        )
+        .single();
 
-    if (err) { setError(err.message); return null; }
+      if (err) {
+        setError(err.message);
+        return null;
+      }
 
-    // Optimistic update
-    setTrades(prev => [result as Trade, ...prev]);
+      // Optimistic update - add to beginning of list
+      setTrades(prev => [result as Trade, ...prev]);
 
-    // Update account current_balance
-    if (result.profit_loss != null) {
-      await sb.from('trading_accounts')
-        .update({
-          current_balance: sb.rpc('get_account_balance', { p_account_id: data.account_id }),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', data.account_id);
+      // Update account balance if Profit/Loss exists
+      if (result.profit_loss != null) {
+        try {
+          await sb.from('trading_accounts')
+            .update({
+              current_balance: sb.rpc('get_account_balance', { p_account_id: data.account_id }),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', data.account_id);
+        } catch (balanceErr) {
+          console.warn('Failed to update account balance:', balanceErr);
+        }
+      }
+
+      return result as Trade;
+    } catch (e: any) {
+      setError(e.message);
+      return null;
     }
-
-    return result as Trade;
   }, [userId]);
 
   const updateTrade = useCallback(async (id: string, data: Partial<Trade>): Promise<boolean> => {
     const sb = getSupabase();
     if (!sb) return false;
-    const { error: err } = await sb
-      .from('trades')
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId!);
-    if (err) { setError(err.message); return false; }
-    setTrades(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
-    return true;
+
+    try {
+      const { error: err } = await sb
+        .from('trades')
+        .update({
+          ...data,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', userId!);
+
+      if (err) {
+        setError(err.message);
+        return false;
+      }
+
+      // Optimistic update
+      setTrades(prev => prev.map(t =>
+        t.id === id ? { ...t, ...data } : t
+      ));
+
+      return true;
+    } catch (e: any) {
+      setError(e.message);
+      return false;
+    }
   }, [userId]);
 
   const deleteTrade = useCallback(async (id: string): Promise<boolean> => {
     const sb = getSupabase();
     if (!sb) return false;
-    const { error: err } = await sb
-      .from('trades')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId!);
-    if (err) { setError(err.message); return false; }
-    setTrades(prev => prev.filter(t => t.id !== id));
-    return true;
+
+    try {
+      const { error: err } = await sb
+        .from('trades')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId!);
+
+      if (err) {
+        setError(err.message);
+        return false;
+      }
+
+      // Optimistic update
+      setTrades(prev => prev.filter(t => t.id !== id));
+
+      return true;
+    } catch (e: any) {
+      setError(e.message);
+      return false;
+    }
   }, [userId]);
 
-  return { trades, loading, error, addTrade, updateTrade, deleteTrade, refresh: fetchTrades };
+  return {
+    trades,
+    loading,
+    error,
+    hasMore,
+    page,
+    refresh: () => Promise.resolve().then(() => fetchTrades(0)),
+    loadMore: () => Promise.resolve().then(() => {
+      if (hasMore && !loading) {
+        setPage(prev => prev + 1);
+      }
+    }),
+    setPage: (pageNum) => {
+      if (pageNum >= 0) {
+        setPage(pageNum);
+        fetchTrades(pageNum);
+      }
+    },
+    addTrade,
+    updateTrade,
+    deleteTrade
+  };
 }

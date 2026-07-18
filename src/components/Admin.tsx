@@ -633,7 +633,7 @@ export default function Admin({
                     <td className="p-3 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
                         {trader.avatar_url ? (
-                          <img src={trader.avatar_url} alt={trader.username} className="w-7 h-7 rounded-full object-cover border border-[white/10]" referrerPolicy="no-referrer" />
+                          <img src={trader.avatar_url} alt={trader.username} className="w-7 h-7 rounded-full object-cover border border-[white/10]" />
                         ) : (
                           <DefaultLogoAvatar className="w-7 h-7" />
                         )}
