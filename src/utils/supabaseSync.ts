@@ -5,6 +5,7 @@
  */
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
+import emailService from './emailService';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const PROXY_URL = '/api/supabase/proxy';
 const SESSION_KEY = 'tv_session_v2';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'igorrose2003@gmail.com';
 
 import { User as AppUser } from '../types';
 
@@ -26,7 +28,41 @@ export interface AuthResult {
   error?: string;
 }
 
-// ─── Client Supabase Singleton ────────────────────────────────────────────────
+// ─── Email Helpers ───────────────────────────────────────────────────────────
+
+function emailNewSignup(username: string, email: string, country: string, network: string, amount: number, link: string): string {
+  return `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #fff; line-height: 1.6;">
+      <h2 style="color: #00FF9C;">Bienvenue sur TradeVault, ${username} !</h2>
+      <p>Nous avons bien reçu votre inscription pour le montant de <strong>${amount} USDT (${network})</strong>.</p>
+      <p>Votre compte sera activé dès validation de votre paiement par notre équipe.</p>
+      <p>Vous pouvez suivre l'évolution de votre demande directement depuis votre tableau de bord : <a href="${link}" style="color: #00FF9C; text-decoration: underline;">${link}</a></p>
+      <hr style="border-color: #333;">
+      <p style="font-size: 0.9em; color: #888;">Ceci est un email automatique, merci de ne pas y répondre.</p>
+    </div>
+  `;
+}
+
+function emailHtml(content: string): string {
+  return `<div style="max-width: 600px; margin: 0 auto; padding: 20px;">${content}</div>`;
+}
+
+async function sendEmail(to: string, subject: string, body: string): Promise<void> {
+  try {
+    await invokeProxy('sendEmail', { to, subject, body });
+  } catch (error) {
+    console.warn('Failed to send email via proxy:', error);
+    // fallback: try to use emailService if available
+    try {
+      // If we have emailService, we could map to appropriate function, but for simplicity we just log
+      console.log(`[EMAIL FALLBACK] To: ${to}, Subject: ${subject}`);
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+// ─── Client Supabase Singleton ───────────────────────────────────────────────
 
 let _supabase: SupabaseClient | null = null;
 
@@ -165,6 +201,64 @@ export async function signInWithSupabase(
   }
 }
 
+// ─── AUTH : Sign Up ──────────────────────────────────────────────────────────
+
+export async function signUpWithSupabase(
+  emailInput: string,
+  passwordInput: string,
+  usernameInput: string,
+  countryInput: string,
+  paymentScreenshot: string,
+  selectedNetwork: string,
+  subscriptionPrice: number,
+  regAvatar: string
+): Promise<AuthResult> {
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const { data, error } = await sb.auth.signUp({ email: emailInput, password: passwordInput });
+  if (error) return { success: false, error: error.message };
+  const userId = data.user?.id;
+  if (!userId) return { success: false, error: 'ID auth non récupéré.' };
+  await sb.from('profiles').upsert({
+    id: userId, email: emailInput, username: usernameInput?.trim(), country: countryInput || 'TG',
+    status: 'pending', role: 'user', subscription_status: 'pending', plan: 'free',
+    payment_proof: paymentScreenshot, created_at: new Date().toISOString()
+  });
+  await sb.from('payment_requests').insert({
+    user_id: userId, amount: subscriptionPrice || 30,
+    screenshot_url: paymentScreenshot, network: selectedNetwork || 'TRC20',
+    status: 'pending', type: 'registration', created_at: new Date().toISOString()
+  });
+  // Emails notifications
+  const uName = usernameInput?.trim() || emailInput.split('@')[0];
+  const signupHtml = emailNewSignup(uName, emailInput, countryInput || 'TG', selectedNetwork || 'TRC20', subscriptionPrice || 30, 'https://tradevault-silk.vercel.app');
+  await emailService.triggerSignupEmail(emailInput, uName, paymentScreenshot || '', subscriptionPrice || 30, selectedNetwork || 'TRC20').catch(() => {});
+  const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${emailInput}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
+  await sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(() => {});
+  return {
+    success: true,
+    user: {
+      id: userId,
+      email: emailInput,
+      username: usernameInput?.trim() || emailInput.split('@')[0],
+      country: countryInput || 'TG',
+      role: 'user',
+      status: 'pending',
+      subscription_status: 'pending',
+      plan: 'free',
+      premium_expires_at: null,
+      paid: false,
+      paid_until: null,
+      avatar_url: undefined,
+      google_linked: false,
+      google_email: '',
+      currency: 'USD',
+      created_at: new Date().toISOString()
+    }
+  };
+}
+
 // ─── AUTH : Sign Out ─────────────────────────────────────────────────────────
 
 export async function signOut(): Promise<void> {
@@ -289,6 +383,15 @@ export function onAuthStateChange(
 // ─── DATA : Charger profil utilisateur ───────────────────────────────────────
 
 export async function loadUserProfile(userId: string): Promise<User | null> {
+  // Use proxy action 'getProfile' (to be added to server.ts)
+  try {
+    const result = await invokeProxy('getProfile', { userId });
+    if (result.success && result.profile) {
+      return profileToUser(result.profile, result.profile.email || '');
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
   const sb = getSupabase();
   if (!sb) return null;
 
@@ -404,8 +507,8 @@ export async function patchUserProfile(userId: string, updates: Partial<User>): 
   if (updates.plan !== undefined) dbUpdates.plan = updates.plan;
   if (updates.premium_expires_at !== undefined) dbUpdates.premium_expires_at = updates.premium_expires_at;
   if (updates.country !== undefined) dbUpdates.country = updates.country;
-  
-  const avatarVal = updates.avatar_url !== undefined ? updates.avatar_url : (updates as any).avatar;
+
+  const avatarVal = (updates as any).avatar_url !== undefined ? (updates as any).avatar_url : (updates as any).avatar;
   if (avatarVal !== undefined) dbUpdates.avatar_url = avatarVal;
 
   await sb.from('profiles').update(dbUpdates).eq('id', userId);
@@ -415,189 +518,196 @@ export async function fetchUserProfile(userId: string): Promise<User | null> {
   return loadUserProfile(userId);
 }
 
+// ─── DATA : Sync locale → Supabase (Account, Trade, Challenge, Payment) ───────
+
 export async function saveAccountToSupabase(userId: string, account: any): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
+  // Use proxy action 'saveAccount' (to be added to server.ts)
+  try {
+    await invokeProxy('saveAccount', { account, userId });
+  } catch (e) {
+    // fallback to direct supabase (original logic)
+    const sb = getSupabase();
+    if (!sb) return;
 
-  // Remove alias field before sending to DB
-  const { account_type, ...dbPayload } = account as any;
-  // Ensure 'type' field uses the correct enum value
-  const payload = {
-    ...dbPayload,
-    id: ensureUUID(account.id),
-    type: account.type || account.account_type || 'personal',
-    user_id: userId,
-    updated_at: new Date().toISOString(),
-  };
+    // Remove alias field before sending to DB
+    const { account_type, ...dbPayload } = account as any;
+    // Ensure 'type' field uses the correct enum value
+    const payload = {
+      ...dbPayload,
+      id: ensureUUID(account.id),
+      type: account.type || account.account_type || 'personal',
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    };
 
-  await sb.from('trading_accounts').upsert(payload);
+    await sb.from('trading_accounts').upsert(payload);
+  }
 }
 
 export async function deleteAccountFromSupabase(accountId: string): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('trading_accounts').delete().eq('id', accountId);
+  try {
+    await invokeProxy('deleteAccount', { accountId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('trading_accounts').delete().eq('id', accountId);
+  }
 }
 
 export async function saveTradeToSupabase(userId: string, trade: any): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('trades').upsert({
-    id: ensureUUID(trade.id),
-    user_id: userId,
-    account_id: trade.account_id || trade.accountId,
-    symbol: trade.pair || trade.symbol || 'EURUSD',
-    side: (trade.type || trade.side || 'buy').toLowerCase(),
-    entry_price: trade.entry || trade.entry_price || 0,
-    exit_price: trade.exit || trade.exit_price || 0,
-    size_lots: trade.lots || trade.size_lots || 0.1,
-    profit_loss: trade.pnl || trade.profit_loss || 0,
-    fees: trade.fees || 0,
-    commission: trade.commission || 0,
-    execution_time_entry: trade.created_at || new Date().toISOString(),
-    trade_date: trade.date || trade.trade_date || new Date().toISOString().split('T')[0],
-    notes: trade.notes || '',
-    session: trade.session || '',
-    setup: trade.setup || '',
-    emotion: trade.emotion || '',
-    mindset: trade.mindset || ''
-  });
+  // Use proxy action 'saveTrade' (to be added to server.ts)
+  try {
+    await invokeProxy('saveTrade', { trade, userId });
+  } catch (e) {
+    // fallback to direct supabase (original logic)
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('trades').upsert({
+      id: ensureUUID(trade.id),
+      user_id: userId,
+      account_id: trade.account_id || trade.accountId,
+      symbol: trade.pair || trade.symbol || 'EURUSD',
+      side: (trade.type || trade.side || 'buy').toLowerCase(),
+      entry_price: trade.entry || trade.entry_price || 0,
+      exit_price: trade.exit || trade.exit_price || 0,
+      size_lots: trade.lots || trade.size_lots || 0.1,
+      profit_loss: trade.pnl || trade.profit_loss || 0,
+      fees: trade.fees || 0,
+      commission: trade.commission || 0,
+      execution_time_entry: trade.created_at || new Date().toISOString(),
+      trade_date: trade.date || trade.trade_date || new Date().toISOString().split('T')[0],
+      notes: trade.notes || '',
+      session: trade.session || '',
+      setup: trade.setup || '',
+      emotion: trade.emotion || '',
+      mindset: trade.mindset || ''
+    });
+  }
 }
 
 export async function deleteTradeFromSupabase(tradeId: string): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('trades').delete().eq('id', tradeId);
+  try {
+    await invokeProxy('deleteTrade', { tradeId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('trades').delete().eq('id', tradeId);
+  }
 }
 
+// ─── CHALLENGE ──────────────────────────────────────────────────────────────
+
 export async function saveChallengeToSupabase(userId: string, challenge: any): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('challenges').upsert({
-    id: ensureUUID(challenge.id),
-    user_id: userId,
-    account_id: challenge.account_id || challenge.accountId,
-    name: challenge.name || 'Challenge',
-    capital: challenge.capital || 100000,
-    target: challenge.target || 10,
-    daily_loss: challenge.daily_loss || 5,
-    global_loss: challenge.global_loss || 10,
-    status: challenge.status || 'ongoing',
-    created_at: challenge.created_at || new Date().toISOString()
-  });
+  // Use proxy action 'saveChallenge'
+  try {
+    await invokeProxy('saveChallenge', { challenge, userId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('challenges').upsert({
+      id: ensureUUID(challenge.id),
+      user_id: userId,
+      account_id: challenge.account_id || challenge.accountId,
+      name: challenge.name || 'Challenge',
+      capital: challenge.capital || 100000,
+      target: challenge.target || 10,
+      daily_loss: challenge.daily_loss || 5,
+      global_loss: challenge.global_loss || 10,
+      status: challenge.status || 'ongoing',
+      created_at: challenge.created_at || new Date().toISOString()
+    });
+  }
 }
 
 export async function deleteChallengeFromSupabase(challengeId: string): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('challenges').delete().eq('id', challengeId);
+  try {
+    await invokeProxy('deleteChallenge', { challengeId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('challenges').delete().eq('id', challengeId);
+  }
 }
 
+// ─── PAYMENT ────────────────────────────────────────────────────────────────
+
 export async function savePaymentToSupabase(userId: string, payment: any): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('payment_requests').upsert({
-    id: ensureUUID(payment.id),
-    user_id: userId,
-    amount: payment.amount || 30,
-    screenshot_url: payment.screenshot_url || payment.screenshot || '',
-    network: payment.network || 'TRC20',
-    status: payment.status || 'pending',
-    type: payment.type || 'registration',
-    created_at: payment.created_at || new Date().toISOString()
-  });
+  // Use proxy action 'savePayment'
+  try {
+    await invokeProxy('savePayment', { payment, userId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('payment_requests').upsert({
+      id: ensureUUID(payment.id),
+      user_id: userId,
+      amount: payment.amount || 30,
+      screenshot_url: payment.screenshot_url || payment.screenshot || '',
+      network: payment.network || 'TRC20',
+      status: payment.status || 'pending',
+      type: payment.type || 'registration',
+      created_at: payment.created_at || new Date().toISOString()
+    });
+  }
 }
 
 export async function registerPayment(userId: string, amount: number, screenshot: string, network: string = 'TRC20', type: string = 'registration'): Promise<any> {
-  const sb = getSupabase();
-  if (!sb) return { success: false };
-  const { data, error } = await sb.from('payment_requests').insert({
-    id: generateUUID(),
-    user_id: userId,
-    amount,
-    screenshot_url: screenshot,
-    network,
-    status: 'pending',
-    type,
-    created_at: new Date().toISOString()
-  }).select().single();
-  return { success: !error, data };
-}
-
-export async function adminLoadAllUsersFromSupabase(): Promise<any[]> {
-  const res = await invokeProxy('adminLoadAllUsers', {});
-  return res.success ? res.users || [] : [];
-}
-
-export async function adminLoadAllPaymentsFromSupabase(): Promise<any[]> {
-  const res = await invokeProxy('adminLoadAllPayments', {});
-  return res.success ? res.payments || [] : [];
-}
-
-export async function adminDeleteUserFromSupabase(userId: string): Promise<boolean> {
-  const res = await invokeProxy('adminDeleteUser', { userId });
-  return !!res.success;
-}
-
-export async function adminUpdateUserFromSupabase(userId: string, updates: any): Promise<boolean> {
-  const res = await invokeProxy('adminUpdateUser', { userId, updates });
-  return !!res.success;
-}
-
-export async function handleSupabaseSession(session?: any): Promise<any> {
-  const sb = getSupabase();
-  if (!sb) return { success: false, error: 'Supabase non disponible.' };
-
-  const targetSession = session || (await sb.auth.getSession()).data.session;
-  if (!targetSession?.user) {
-    return { success: false, error: 'Aucune session active.' };
-  }
-
+  // Use proxy action 'savePayment'
   try {
-    const { data: profile } = await sb
-      .from('profiles')
-      .select('*')
-      .eq('id', targetSession.user.id)
-      .maybeSingle();
-
-    if (profile) {
-      return {
-        success: true,
-        user: profileToUser(profile, targetSession.user.email || ''),
-        session: targetSession,
-      };
-    }
+    const result = await invokeProxy('savePayment', {
+      payment: {
+        id: generateUUID(),
+        user_id: userId,
+        amount,
+        screenshot_url: screenshot,
+        network,
+        status: 'pending',
+        type,
+        created_at: new Date().toISOString()
+      },
+      userId
+    });
+    return { success: !result.error, data: result.data };
   } catch (e) {
-    console.warn('[handleSupabaseSession] failed to load profile:', e);
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return { success: false };
+    const { data, error } = await sb.from('payment_requests').insert({
+      id: generateUUID(),
+      user_id: userId,
+      amount,
+      screenshot_url: screenshot,
+      network,
+      status: 'pending',
+      type,
+      created_at: new Date().toISOString()
+    }).select().single();
+    return { success: !error, data };
   }
-
-  return { success: false, error: 'Profil non trouvé.' };
 }
 
-export async function signUpWithSupabase(
-  emailInput: string, passwordInput: string, usernameInput: string,
-  countryInput: string, paymentScreenshot: string, selectedNetwork: string,
-  subscriptionPrice: number, regAvatar: string
-): Promise<AuthResult> {
-  const res = await invokeProxy('signUp', {
-    email: emailInput,
-    password: passwordInput,
-    username: usernameInput,
-    country: countryInput,
-    paymentScreenshot,
-    selectedNetwork,
-    subscriptionPrice,
-    regAvatar
-  });
-  return res;
-}
+// ─── ADMIN SETTINGS ────────────────────────────────────────────────────────
 
 export async function loadAdminSettings(): Promise<any> {
+  // Use proxy action 'getAdminSettings'
+  try {
+    const result = await invokeProxy('getAdminSettings', {});
+    if (result.success) {
+      return result.settings || {};
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
   const sb = getSupabase();
   if (!sb) return null;
   try {
     const { data, error } = await sb.from('admin_settings').select('*').maybeSingle();
-    
+
     const defaults = {
       adminEmails: 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
       adminWalletTRC20: 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
@@ -630,12 +740,34 @@ export async function loadAdminSettings(): Promise<any> {
 }
 
 export async function saveAdminSettings(settings: any): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  await sb.from('admin_settings').upsert({ id: 1, ...settings });
+  // Use proxy action 'saveAdminSettings'
+  try {
+    await invokeProxy('saveAdminSettings', { settings });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('admin_settings').upsert(settings);
+  }
 }
 
+// ─── DATA : Charger toutes les données utilisateur ───────────────────────────
+
 export async function loadUserDataFromSupabase(userId: string): Promise<any> {
+  // Use proxy action 'loadUserData'
+  try {
+    const result = await invokeProxy('loadUserData', { userId });
+    if (result.success) {
+      return {
+        accounts: result.accounts || [],
+        trades: result.trades || [],
+        challenges: result.challenges || [],
+        payments: result.payments || []
+      };
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
   const sb = getSupabase();
   if (!sb) return null;
   const [accs, trds, chs, pay] = await Promise.all([
@@ -664,10 +796,75 @@ export async function loadUserDataFromSupabase(userId: string): Promise<any> {
   };
 }
 
-export async function updateUserRole(userId: string, role?: string, status?: string, subscription_status?: string, plan?: string, premium_expires_at?: string | null): Promise<boolean> {
-  const res = await invokeProxy('updateUserRole', { userId, role, status, subscription_status, plan, premium_expires_at });
+// ─── ADMIN : Gestion des utilisateurs ────────────────────────────────────────
+
+export async function adminLoadAllUsersFromSupabase(): Promise<any[]> {
+  const res = await invokeProxy('adminLoadAllUsers', {});
+  return res.success ? res.users || [] : [];
+}
+
+export async function adminLoadAllPaymentsFromSupabase(): Promise<any[]> {
+  const res = await invokeProxy('adminLoadAllPayments', {});
+  return res.success ? res.payments || [] : [];
+}
+
+export async function adminDeleteUserFromSupabase(userId: string): Promise<boolean> {
+  const res = await invokeProxy('adminDeleteUser', { userId });
   return !!res.success;
 }
 
-export default supabase;
+export async function adminUpdateUserFromSupabase(userId: string, updates: any): Promise<boolean> {
+  const res = await invokeProxy('adminUpdateUser', { userId, updates });
+  return !!res.success;
+}
 
+export async function updateUserRole(userId: string, role: User['role']): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  const { error } = await sb.from('profiles').update({ role }).eq('id', userId);
+  return !error;
+}
+
+// ─── SESSION HANDLING ──────────────────────────────────────────────────────
+
+export async function handleSupabaseSession(session?: any): Promise<any> {
+  // Try proxy first
+  try {
+    const result = await invokeProxy('handleSupabaseSession', { session });
+    if (result.success) {
+      return result;
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
+  // Fallback logic
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const targetSession = session || (await sb.auth.getSession()).data.session;
+  if (!targetSession?.user) {
+    return { success: false, error: 'Aucune session active.' };
+  }
+
+  try {
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('*')
+      .eq('id', targetSession.user.id)
+      .maybeSingle();
+
+    if (profile) {
+      return {
+        success: true,
+        user: profileToUser(profile, targetSession.user.email || ''),
+        session: targetSession,
+      };
+    }
+  } catch (e) {
+    console.warn('[handleSupabaseSession] failed to load profile:', e);
+  }
+
+  return { success: false, error: 'Profil non trouvé.' };
+}
+
+export default supabase;

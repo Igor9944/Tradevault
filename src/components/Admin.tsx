@@ -246,7 +246,7 @@ export default function Admin({
         {/* ADMIN SETUP FORM CARD */}
         <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06]">
           <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase mb-4 border-b border-zinc-800/40 pb-3 flex items-center gap-1.5">
-            <Settings size={16} className="text-[#3DDC97]" /> Configuration de l'Espace Administrateur
+            <Settings size={16} className="text-[var(--accent-primary)]" /> Configuration de l'Espace Administrateur
           </h3>
 
           <form onSubmit={handleSaveEmails} className="space-y-4">
@@ -260,11 +260,11 @@ export default function Admin({
                   value={emailsInput}
                   onChange={(e) => setEmailsInput(e.target.value)}
                   placeholder="admin@tradevault.com, support@tradevault.com"
-                  className="flex-1 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-white/5 rounded-xl text-xs text-white placeholder-neutral-500 font-mono focus:outline-none focus:border-[#3DDC97]"
+                  className="flex-1 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-white/5 rounded-xl text-xs text-white placeholder-neutral-500 font-mono focus:outline-none focus:border-[var(--accent-primary)]"
                 />
                 <button
                   type="submit"
-                  className="py-2 px-5 bg-[#3DDC97] hover:bg-[#2BB87E] text-black rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all"
+                  className="py-2 px-5 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] text-black rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all"
                 >
                   Mettre à jour
                 </button>
@@ -370,8 +370,8 @@ export default function Admin({
       {/* NOTIFICATION LOG SIMULATOR */}
       <div className="bg-[var(--bg-secondary)]/60 p-5 border border-white/[0.06] rounded-2xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[#3DDC97]">
-            <Mail size={16} className="text-[#3DDC97] shrink-0" />
+          <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+            <Mail size={16} className="text-[var(--accent-primary)] shrink-0" />
             <span className="text-[11px] font-black font-mono uppercase tracking-wider block">Daemon de Notification Email & Cron</span>
           </div>
           <button
@@ -386,7 +386,7 @@ export default function Admin({
           </button>
         </div>
         <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-900 space-y-2">
-          <span className="text-[10px] text-[#3DDC97] block font-mono">
+          <span className="text-[10px] text-[var(--accent-primary)] block font-mono">
             [SYS_ALERT_MAIL_DAEMON] : Emails administrateurs cibles : <span className="text-white font-bold">{adminEmails || 'aucun'}</span>
           </span>
           <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
@@ -495,7 +495,7 @@ export default function Admin({
       {/* PENDING REGISTRATIONS PURE TABLE */}
       <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/[0.06] space-y-4">
         <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
-          <Users size={16} className="text-[#3DDC97]" /> Inscriptions et Preuves de Paiements à Valider ({pendingUsers.length})
+          <Users size={16} className="text-[var(--accent-primary)]" /> Inscriptions et Preuves de Paiements à Valider ({pendingUsers.length})
         </h3>
         <p className="text-[10.5px] text-slate-400">
           Auditez les captures de transferts des traders et validez manuellement l'activation de leur abonnement à {subscriptionPrice} USD pour {subscriptionPeriod} mois.
@@ -526,7 +526,7 @@ export default function Admin({
                         <button
                           type="button"
                           onClick={() => setActiveImage(pending.payment_proof!)}
-                          className="px-2.5 py-1 text-[10px] font-bold bg-[#3DDC97]/10 hover:bg-[#3DDC97]/20 text-[#3DDC97] border border-[#3DDC97]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                          className="px-2.5 py-1 text-[10px] font-bold bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                         >
                           <ImageIcon size={12} /> Voir capture d'écran
                         </button>
@@ -578,7 +578,7 @@ export default function Admin({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h3 className="text-sm font-black font-mono tracking-widest text-white uppercase flex items-center gap-2">
-              <Users size={16} className="text-[#3DDC97]" /> Annuaire des Traders & Statut en Direct ({users.length})
+              <Users size={16} className="text-[var(--accent-primary)]" /> Annuaire des Traders & Statut en Direct ({users.length})
             </h3>
             <p className="text-[10.5px] text-slate-400 font-sans">
               Visualisez tous les traders enregistrés sur la plateforme et suivez leur statut d'activité en temps réel.
@@ -642,13 +642,13 @@ export default function Admin({
                             type="text"
                             value={editUserName}
                             onChange={(e) => setEditUserName(e.target.value)}
-                            className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[#3DDC97]"
+                            className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[var(--accent-primary)]"
                           />
                         ) : (
                           <>
                             <span className="font-bold text-white">{trader.username}</span>
                             {trader.role === 'admin' && (
-                              <span className="text-[8.5px] font-bold text-[#3DDC97] bg-[#3DDC97]/10 px-1.5 py-0.5 rounded border border-[#3DDC97]/20 uppercase tracking-widest">Admin</span>
+                              <span className="text-[8.5px] font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-1.5 py-0.5 rounded border border-[var(--accent-primary)]/20 uppercase tracking-widest">Admin</span>
                             )}
                           </>
                         )}
@@ -660,7 +660,7 @@ export default function Admin({
                           type="email"
                           value={editUserEmail}
                           onChange={(e) => setEditUserEmail(e.target.value)}
-                          className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[#3DDC97] w-48"
+                          className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[var(--accent-primary)] w-48"
                         />
                       ) : (
                         trader.email
@@ -674,7 +674,7 @@ export default function Admin({
                         <select
                           value={editUserStatus}
                           onChange={(e) => setEditUserStatus(e.target.value as any)}
-                          className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[#3DDC97]"
+                          className="bg-slate-950 border border-slate-800 px-2 py-1 text-slate-200 text-xs rounded focus:outline-none focus:border-[var(--accent-primary)]"
                         >
                           <option value="pending">Validation</option>
                           <option value="approved">Premium Actif</option>
@@ -777,7 +777,7 @@ export default function Admin({
                           <button
                             type="button"
                             onClick={() => startEditing(trader)}
-                            className="px-2.5 py-1 text-[10px] font-bold bg-[#3DDC97]/10 hover:bg-[#3DDC97]/20 text-[#3DDC97] border border-[#3DDC97]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                           >
                             <Edit size={11} /> Éditer
                           </button>

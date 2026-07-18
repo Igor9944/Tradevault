@@ -11,6 +11,18 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIF_EMAIL || 'igorrose2003@gmail.com';
 const APP_URL = process.env.APP_URL || 'https://tradevault-silk.vercel.app';
 
+// UUID helper
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older Node.js versions
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // ─── Email Helpers ───────────────────────────────────────────────────────────
 function emailHtml(contentHtml) {
   return `
@@ -120,10 +132,14 @@ function emailReminderExpiry(username, daysLeft, expiryDate, renewalUrl, subscri
 
 function emailNewSignup(username, email, country, network, amount, adminUrl) {
   return emailHtml(`
-    <h2 style="color:#fff;margin:0 0 16px;">Inscription reçue ✅</h2>
-    <p style="color:#888;font-size:14px;">Bonjour <strong style="color:#fff;">${username}</strong>, ton inscription a été reçue. Ton compte sera activé sous 24-48h.</p>
-    <br/>
-    <a href="${APP_URL}" style="background:#00FF9C;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Accéder au portail →</a>
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #fff; line-height: 1.6;">
+      <h2 style="color: #00FF9C;">Bienvenue sur TradeVault, ${username} !</h2>
+      <p>Nous avons bien reçu votre inscription pour le montant de <strong>${amount} USDT (${network})</strong>.</p>
+      <p>Votre compte sera activé dès validation de votre paiement par notre équipe.</p>
+      <p>Vous pouvez suivre l'évolution de votre demande directement depuis votre tableau de bord : <a href="${link}" style="color: #00FF9C; text-decoration: underline;">${link}</a></p>
+      <hr style="border-color: #333;">
+      <p style="font-size: 0.9em; color: #888;">Ceci est un email automatique, merci de ne pas y répondre.</p>
+    </div>
   `);
 }
 
@@ -272,8 +288,9 @@ module.exports = async (req, res) => {
 
     const ADMIN_ACTIONS = new Set([
       'adminLoadAllUsers','adminDeleteUser','adminUpdateUser',
-      'adminLoadAllPayments','updateUserRole','savePayment',
-      'adminGetStats','adminCreateAnnouncement','adminUpdateSettings'
+      'adminLoadAllPayments','updateUserRole',
+      'adminGetStats','adminCreateAnnouncement','adminUpdateSettings',
+      'saveAdminSettings'
     ]);
 
     let adminUserId = null;
@@ -283,9 +300,9 @@ module.exports = async (req, res) => {
       adminUserId = guard.userId;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════
     // AUTH ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     if (action === 'signIn') {
       const { email, password } = args;
@@ -342,14 +359,14 @@ module.exports = async (req, res) => {
       const uName = username?.trim() || email.split('@')[0];
       const signupHtml = emailNewSignup(uName, email, country || 'TG', selectedNetwork || 'TRC20', subscriptionPrice || 30, 'https://tradevault-silk.vercel.app');
       sendEmail(email, '✅ TradeVault — Inscription reçue', signupHtml).catch(()=>{});
-      const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${email}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
+      const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${email}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px:border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
       sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(()=>{});
       return res.json({ success: true, user: { id: userId, email, username: username?.trim(), country, paid: false, status: 'pending', createdAt: new Date().toISOString() } });
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════
     // DATA ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     if (action === 'loadUserData') {
       const { userId } = args;
@@ -382,18 +399,6 @@ module.exports = async (req, res) => {
       return res.json({ success: true, accounts: (data || []).map(a => ({ ...a, account_type: a.type })) });
     }
 
-    if (action === 'saveAccount') {
-      const { account, userId } = args;
-      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
-      const { account_type, account_type_app, ...payload } = account;
-      const { error } = await sb.from('trading_accounts').upsert(
-        { ...payload, user_id: userId, updated_at: new Date().toISOString() },
-        { onConflict: 'id' }
-      );
-      if (error) return res.json({ success: false, error: error.message });
-      return res.json({ success: true });
-    }
-
     if (action === 'getAccounts') {
       const { userId } = args;
       if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
@@ -401,6 +406,32 @@ module.exports = async (req, res) => {
         .eq('user_id', userId).eq('is_active', true).order('created_at', { ascending: true });
       if (error) return res.json({ success: false, error: error.message });
       return res.json({ success: true, accounts: (data || []).map(a => ({ ...a, account_type: a.type })) });
+    }
+
+    if (action === 'getProfile') {
+      const { userId } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (error) return res.json({ success: false, error: error.message });
+      if (!data) return res.json({ success: false, error: 'Profile not found' });
+      return res.json({ success: true, profile: data });
+    }
+
+    if (action === 'saveAccount') {
+      const { account, userId } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      // Ensure account has an ID
+      const accountId = account.id || generateUUID();
+      // Determine type: prefer account.type, then account_type, then account_type_app, default 'personal'
+      const type = account.type || account.account_type || account_type_app || 'personal';
+      // Remove alias fields before sending to DB
+      const { account_type: _, account_type_app: __, type: ___, ...payload } = account;
+      const { error } = await sb.from('trading_accounts').upsert(
+        { ...payload, id: accountId, user_id: userId, type, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      );
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, id: accountId });
     }
 
     if (action === 'createAccount') {
@@ -499,6 +530,7 @@ module.exports = async (req, res) => {
       if (!symbol)    return res.json({ success: false, error: 'symbol required' });
       if (!side || !['buy','sell'].includes(side))
         return res.json({ success: false, error: "side must be 'buy' or 'sell'" });
+      if (!userId) return res.json({ success: false, error: 'userId required' });
 
       const result = profit_loss > 0 ? 'WIN' : profit_loss < 0 ? 'LOSS' : 'BE';
 
@@ -520,7 +552,7 @@ module.exports = async (req, res) => {
         notes:        notes    || null,
         screenshot_urls: Array.isArray(screenshot_urls) ? screenshot_urls : [],
         rr_ratio:     rr_ratio     ? Number(rr_ratio)     : null,
-        risk_percent: risk_percent ? Number(risk_percent) : null,
+        risk_percent: risk_percent ? Number(risk_percent)     : null,
         grade:        grade || null,
         tags:         Array.isArray(tags) ? tags : [],
         result,
@@ -570,6 +602,76 @@ module.exports = async (req, res) => {
       return res.json({ success: true, trade: data });
     }
 
+    if (action === 'saveTrade') {
+      const {
+        id,
+        accountId,
+        symbol,
+        side,
+        entry_price,
+        exit_price,
+        size_lots,
+        profit_loss,
+        trade_date,
+        execution_time_entry,
+        execution_time_exit,
+        session,
+        emotion,
+        setup,
+        notes,
+        screenshot_urls = [],
+        rr_ratio,
+        risk_percent,
+        grade,
+        tags = [],
+        userId
+      } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+
+      // Validation
+      if (!accountId) return res.json({ success: false, error: 'accountId required' });
+      if (!symbol)    return res.json({ success: false, error: 'symbol required' });
+      if (!side || !['buy','sell'].includes(side))
+        return res.json({ success: false, error: "side must be 'buy' or 'sell'" });
+      if (!userId) return res.json({ success: false, error: 'userId required' });
+
+      const result = profit_loss > 0 ? 'WIN' : profit_loss < 0 ? 'LOSS' : 'BE';
+
+      const { data, error } = await sb.from('trades')
+        .upsert(
+          {
+            id: id || generateUUID(),
+            account_id: accountId,
+            user_id: userId,
+            symbol,
+            side,
+            entry_price: entry_price ? Number(entry_price) : null,
+            exit_price:  exit_price  ? Number(exit_price)  : null,
+            size_lots:   size_lots   ? Number(size_lots)   : null,
+            profit_loss: Number(profit_loss) || 0,
+            execution_time_entry: execution_time_entry || new Date().toISOString(),
+            execution_time_exit:  execution_time_exit  || null,
+            trade_date:   trade_date || new Date().toISOString().split('T')[0],
+            session:      session  || null,
+            emotion:      emotion  || null,
+            setup:        setup    || null,
+            notes:        notes    || null,
+            screenshot_urls: Array.isArray(screenshot_urls) ? screenshot_urls : [],
+            rr_ratio:     rr_ratio     ? Number(rr_ratio)     : null,
+            risk_percent: risk_percent ? Number(risk_percent) : null,
+            grade:        grade || null,
+            tags:         Array.isArray(tags) ? tags : [],
+            result,
+          },
+          { onConflict: 'id' }
+        )
+        .select()
+        .single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, trade: data });
+    }
+
     if (action === 'getTradesByAccount') {
       const { accountId, page = 1, limit = 50, userId } = args; // Added userId
       if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
@@ -612,9 +714,135 @@ module.exports = async (req, res) => {
       return res.json({ success: true, stats: data });
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════
+    // Challenge actions
+    if (action === 'saveChallenge') {
+      const {
+        id,
+        userId,
+        account_id,
+        name,
+        capital,
+        target,
+        daily_loss,
+        global_loss,
+        status,
+        created_at
+      } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!userId) return res.json({ success: false, error: 'userId required' });
+
+      const { data, error } = await sb.from('challenges')
+        .upsert(
+          {
+            id: id || generateUUID(),
+            user_id: userId,
+            account_id: account_id || null,
+            name: name || 'Challenge',
+            capital: Number(capital) || 100000,
+            target: Number(target) || 10,
+            daily_loss: Number(daily_loss) || 5,
+            global_loss: Number(global_loss) || 10,
+            status: status || 'ongoing',
+            created_at: created_at || new Date().toISOString()
+          },
+          { onConflict: 'id' }
+        )
+        .select()
+        .single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, challenge: data });
+    }
+
+    if (action === 'deleteChallenge') {
+      const { id, userId } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!id) return res.json({ success: false, error: 'id required' });
+      if (!userId) return res.json({ success: false, error: 'userId required' });
+
+      const { error } = await sb.from('challenges')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, deleted: true, id });
+    }
+
+    // Payment actions
+    if (action === 'savePayment') {
+      const {
+        id,
+        userId,
+        amount,
+        screenshot_url,
+        network,
+        status,
+        type,
+        created_at
+      } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      if (!userId) return res.json({ success: false, error: 'userId required' });
+
+      const { data, error } = await sb.from('payment_requests')
+        .upsert(
+          {
+            id: id || generateUUID(),
+            user_id: userId,
+            amount: Number(amount) || 30,
+            screenshot_url: screenshot_url || '',
+            network: network || 'TRC20',
+            status: status || 'pending',
+            type: type || 'registration',
+            created_at: created_at || new Date().toISOString()
+          },
+          { onConflict: 'id' }
+        )
+        .select()
+        .single();
+
+      if (error) return res.json({ success: false, error: error.message });
+      return res.json({ success: true, payment: data });
+    }
+
+    // Settings actions
+    if (action === 'getAdminSettings') {
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      const { data, error } = await sb.from('admin_settings').select('*').maybeSingle();
+      if (error) return res.json({ success: false, error: error.message });
+      if (!data) {
+        // Return defaults
+        return res.json({ success: true, settings: {
+          subscription_price: 30,
+          usdt_trc20_address: '',
+          usdt_bep20_address: '',
+          notification_emails: '',
+          ftmo_profit_target: 10,
+          ftmo_daily_loss: 5,
+          ftmo_max_loss: 10,
+          maintenance_mode: false,
+          support_email: ''
+        }});
+      }
+      return res.json({ success: true, settings: data });
+    }
+
+    if (action === 'saveAdminSettings') {
+      const { settings } = args;
+      if (!sb) return res.json({ success: false, error: 'Service indisponible – veuillez réessayer plus tard.' });
+      const allowed = ['subscription_price','usdt_trc20_address','usdt_bep20_address',
+        'notification_emails','ftmo_profit_target','ftmo_daily_loss','ftmo_max_loss',
+        'maintenance_mode','support_email'];
+      const filtered = Object.fromEntries(Object.entries(settings).filter(([k]) => allowed.includes(k)));
+      const { error } = await sb.from('admin_settings').update({ ...filtered, updated_at: new Date().toISOString() }).eq('id', 1);
+      if (error) return res.json({ success: false, error: error.message });
+      await logAudit(sb, adminUserId, 'update_settings', filtered);
+      return res.json({ success: true });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════════
     // ADMIN ACTIONS
-    // ══════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     if (action === 'adminLoadAllUsers') {
       const { data, error } = await sb.from('profiles')
@@ -782,7 +1010,7 @@ module.exports = async (req, res) => {
       if (activeOnly === true)  query = query.eq('is_active', true)
       if (activeOnly === false) query = query.eq('is_active', false)
 
-      const { data, error } = await query
+      const { data, error} = await query
       if (error) throw error
 
       const flat = (data ?? []).map(row => ({
@@ -827,7 +1055,6 @@ module.exports = async (req, res) => {
     }
 
     return res.status(400).json({ success: false, error: `Action inconnue: ${action}` });
-
   } catch (err) {
     console.error('[PROXY_500]', err.message);
     return res.status(500).json({ success: false, error: 'Erreur interne: ' + err.message });

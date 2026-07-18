@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAccounts } from '../hooks/useAccounts';
 
-const COLORS = ['#00FF9C','#00D4FF','#FF6B6B','#FFB347','#C39BD3','#85C1E9','#82E0AA','#F8C471'];
+const COLORS = ['var(--account-personal)','#00D4FF','#FF6B6B','var(--account-propfirm)','#C39BD3','#85C1E9','#82E0AA','#F8C471'];
 const EMOJIS_PERSONAL  = ['💼','📈','📊','💰','🎯','⚡','🔥','💎'];
 const EMOJIS_PROPFIRM  = ['🏆','🚀','💪','🎖️','⭐','🦅','🔱','👑'];
 const PROP_FIRMS = ['FTMO','FundedNext','FundingPips','Alpha Capital','The 5%ers','E8 Funding','Topstep','True Forex Funds','Autre'];
@@ -55,7 +55,7 @@ export default function AccountSelector({
   const [form, setForm] = useState({
     name: '', type: 'personal' as 'personal' | 'prop_firm' | 'demo',
     starting_balance: 1000, currency: 'USD',
-    color: '#00FF9C', emoji: '💼',
+    color: 'var(--account-personal)', emoji: '💼',
     prop_firm_name: '', description: '',
     capital: 100000, target: 10, daily_loss: 5, global_loss: 10,
   });
@@ -85,7 +85,7 @@ export default function AccountSelector({
       type: 'personal', 
       starting_balance: 1000, 
       currency: 'USD', 
-      color: '#00FF9C', 
+      color: 'var(--account-personal)', 
       emoji: '💼', 
       prop_firm_name: '', 
       description: '', 
@@ -106,7 +106,7 @@ export default function AccountSelector({
       type: accType,
       starting_balance: acc.starting_balance || acc.capital || 1000, 
       currency: acc.currency || 'USD',
-      color: acc.color || '#00FF9C', 
+      color: acc.color || 'var(--account-personal)', 
       emoji: acc.emoji || '💼',
       prop_firm_name: acc.prop_firm_name || '', 
       description: acc.description || '',
@@ -240,7 +240,7 @@ export default function AccountSelector({
                         </p>
                       </div>
                       {isSelected && (
-                        <div className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: acc.color || '#00FF9C' }} />
+                        <div className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: acc.color || 'var(--account-personal)' }} />
                       )}
                     </div>
                     <button
@@ -255,7 +255,7 @@ export default function AccountSelector({
               <div className="border-t border-white/5 p-2">
                 <button
                   onClick={openCreate}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[#00FF9C] hover:bg-[#00FF9C]/10 rounded-xl transition-colors text-sm font-medium"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[var(--account-personal)] hover:bg-[var(--account-personal)]/10 rounded-xl transition-colors text-sm font-medium"
                 >
                   <span>＋</span> Ajouter un compte
                 </button>
@@ -268,7 +268,7 @@ export default function AccountSelector({
       {/* ── Modal Create / Edit ── */}
       {(modal === 'create' || modal === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0d0d0d] border border-white/10 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-[var(--bg-primary)] border border-white/10 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-white font-bold text-lg">
@@ -291,7 +291,7 @@ export default function AccountSelector({
                       }}
                       className={`flex items-center gap-2 p-3 rounded-xl border transition-colors ${
                         form.type === t.value
-                          ? 'border-[#00FF9C] bg-[#00FF9C]/10 text-[#00FF9C]'
+                          ? 'border-[var(--account-personal)] bg-[var(--account-personal)]/10 text-[var(--account-personal)]'
                           : 'border-white/10 text-zinc-400 hover:border-white/20'
                       }`}
                     >
@@ -309,7 +309,7 @@ export default function AccountSelector({
                   <select
                     value={form.prop_firm_name}
                     onChange={e => setForm(f => ({ ...f, prop_firm_name: e.target.value }))}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00FF9C]/50"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--account-personal)]/50"
                   >
                     <option value="">Choisir une prop firm</option>
                     {PROP_FIRMS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -324,7 +324,7 @@ export default function AccountSelector({
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder={form.type === 'personal' ? 'Ex: Scalping EUR/USD' : 'Ex: FTMO 100K Challenge'}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00FF9C]/50 placeholder:text-zinc-600"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--account-personal)]/50 placeholder:text-zinc-600"
                 />
               </div>
 
@@ -337,7 +337,7 @@ export default function AccountSelector({
                       type="number"
                       value={form.starting_balance}
                       onChange={e => setForm(f => ({ ...f, starting_balance: Number(e.target.value) }))}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00FF9C]/50"
+                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--account-personal)]/50"
                     />
                   </div>
                   <div>
@@ -345,7 +345,7 @@ export default function AccountSelector({
                     <select
                       value={form.currency}
                       onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00FF9C]/50"
+                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--account-personal)]/50"
                     >
                       {['USD','EUR','GBP','CHF'].map(c => <option key={c}>{c}</option>)}
                     </select>
@@ -370,7 +370,7 @@ export default function AccountSelector({
                 <div className="flex gap-2">
                   {COLORS.map(c => (
                     <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
-                      className={`w-7 h-7 rounded-full transition-all ${form.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0d0d0d] scale-110' : ''}`}
+                      className={`w-7 h-7 rounded-full transition-all ${form.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--bg-primary)] scale-110' : ''}`}
                       style={{ background: c }} />
                   ))}
                 </div>
@@ -387,7 +387,7 @@ export default function AccountSelector({
                 <button
                   onClick={modal === 'create' ? handleCreate : handleEdit}
                   disabled={saving || !form.name.trim()}
-                  className="flex-1 bg-[#00FF9C] hover:bg-[#00e5a0] disabled:opacity-40 text-black font-semibold py-3 rounded-xl transition-colors text-sm"
+                  className="flex-1 bg-[var(--account-personal)] hover:bg-[#00e5a0] disabled:opacity-40 text-black font-semibold py-3 rounded-xl transition-colors text-sm"
                 >
                   {saving ? '...' : modal === 'create' ? 'Créer' : 'Enregistrer'}
                 </button>
@@ -400,7 +400,7 @@ export default function AccountSelector({
       {/* ── Modal Confirmation Suppression ── */}
       {modal === 'delete' && editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0d0d0d] border border-red-500/20 rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-[var(--bg-primary)] border border-red-500/20 rounded-2xl p-6 w-full max-w-sm">
             <div className="text-center mb-6">
               <div className="text-4xl mb-3">⚠️</div>
               <h3 className="text-white font-bold mb-2">Supprimer ce compte ?</h3>
