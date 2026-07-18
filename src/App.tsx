@@ -673,7 +673,7 @@ export default function App() {
     return canAccessApp(user) ? 'app' : 'checkout';
   });
 
-  const [activeTab, setActiveTab ] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'journal' | 'calendar' | 'stats' | 'challenges' | 'admin'>('dashboard');
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
     const saved = safeLocalStorage.getItem('tv_selected_account_id');
