@@ -3,6 +3,7 @@
  * Stratégie : Supabase PRIMARY → Proxy Express FALLBACK → InMemory EMERGENCY
  * Session persistée via Supabase Auth + localStorage chiffré
  */
+// Last rebuild triggered at: 1784378329
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import emailService from './emailService';
