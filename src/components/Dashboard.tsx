@@ -33,9 +33,9 @@ const containerVariants = {
     transition: { staggerChildren: 0.1 }
   }
 };
-
-const SPRING: Transition = { type: 'spring' as const, stiffness: 120, damping: 18 };
-
+const EASE: Transition = { duration: 0.35, ease: 'easeOut' as const }
+const SPRING: Transition = { type: 'spring' as const, stiffness: 120, damping: 18 }
+const EASE: Transition = { duration: 0.35, ease: 'easeOut' as const }
 const cardVariants: Variants = {
   hidden: { opacity: 0, scale: 0.94 },
   show:   { opacity: 1, scale: 1, transition: SPRING }

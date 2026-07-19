@@ -1,0 +1,366 @@
+/**
+ * supabaseSync.ts — TradeVault
+ * Stratégie : Supabase PRIMARY → Proxy Express FALLBACK → InMemory EMERGENCY
+ * Session persistée via Supabase Auth + localStorage chiffré
+ */
+
+import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
+
+// ─── Config ────────────────────────────────────────────────────────────────
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const PROXY_URL = '/api/supabase/proxy';
+const SESSION_KEY = 'tv_session_v2';
+
+import { User as AppUser } from '../types';
+
+// ─── Types ────────────────────────────────────────────────────────────────
+
+export type User = AppUser;
+
+export interface AuthResult {
+  success: boolean;
+  user?: User;
+  session?: Session | null;
+  error?: string;
+}
+
+// ─── Client Supabase Singleton ────────────────────────────────────────────
+
+let _supabase: SupabaseClient | null = null;
+
+export function getSupabase(): SupabaseClient | null {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('[SUPABASE] Variables env manquantes — mode dégradé');
+    return null;
+  }
+  if (!_supabase) {
+    _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,           // ← Persiste la session dans localStorage
+        autoRefreshToken: true,         // ← Refresh JWT automatique
+        detectSessionInUrl: true,
+        storageKey: SESSION_KEY,
+      },
+    });
+  }
+  return _supabase;
+}
+
+export const supabase = getSupabase();
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function profileToUser(profile: Record<string, any>, email: string): User {
+  return {
+    id: profile.id,
+    email: profile.email || email,
+    username: profile.username || profile.full_name || email.split('@')[0],
+    role: (profile.role as User['role']) || 'user',
+    status: (profile.status as User['status']) || 'pending',
+    subscription_status: (profile.subscription_status as User['subscription_status']) || 'pending',
+    plan: (profile.plan as User['plan']) || 'free',
+    premium_expires_at: profile.premium_expires_at || null,
+    paid: profile.subscription_status === 'premium_active',
+    paid_until: profile.premium_expires_at || null,
+    avatar_url: profile.avatar_url || undefined,
+    country: profile.country || 'TG',
+    created_at: profile.created_at || new Date().toISOString(),
+    google_linked: profile.google_linked || false,
+    google_email: profile.google_email || '',
+    currency: profile.currency || 'USD'
+  };
+}
+
+async function invokeProxy(action: string, args: Record<string, any>): Promise<any> {
+  const sb = getSupabase();
+  const session = sb ? (await sb.auth.getSession()).data.session : null;
+
+  const res = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    },
+    body: JSON.stringify({ action, arguments: args }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Proxy HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ─── AUTH : Sign In ────────────────────────────────────────────────────────
+
+export async function signInWithSupabase(
+  emailInput: string,
+  passwordInput: string
+): Promise<AuthResult> {
+  const cleanEmail = emailInput.trim().toLowerCase();
+  const sb = getSupabase();
+
+  // ── Étape 1 : Supabase SDK direct (PRIMARY) ──────────────────────────────
+  if (sb) {
+    try {
+      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+        email: cleanEmail,
+        password: passwordInput,
+      });
+
+      if (!authError && authData?.user && authData?.session) {
+        // Charger profil
+        const { data: profile, error: profileErr } = await sb
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+
+        if (!profileErr && profile) {
+          console.info('[AUTH] ✅ Supabase direct OK');
+          return {
+            success: true,
+            user: profileToUser(profile, cleanEmail),
+            session: authData.session,
+          };
+        }
+      }
+
+      // Si erreur claire (mauvais mdp), ne pas essayer le fallback
+      if (authError?.message?.toLowerCase().includes('invalid login credentials')) {
+        return { success: false, error: 'Identifiants invalides.' };
+      }
+    } catch (clientErr) {
+      console.warn('[AUTH] SDK direct failed, routing to proxy...', clientErr);
+    }
+  }
+
+  // ── Étape 2 : Proxy Express (FALLBACK réseau) ─────────────────────────────
+  try {
+    const res = await invokeProxy('signIn', { email: cleanEmail, password: passwordInput });
+
+    if (res.success && res.user) {
+      console.info('[AUTH] ✅ Proxy fallback OK');
+      // Persister user minimal dans sessionStorage en cas de déconnexion
+      sessionStorage.setItem(SESSION_KEY + '_fallback', JSON.stringify({
+        user: res.user,
+        timestamp: Date.now(),
+      }));
+      return {
+        success: true,
+        user: res.user as User,
+        session: null, // pas de JWT Supabase en fallback
+      };
+    }
+    return { success: false, error: res.error || 'Identifiants invalides.' };
+  } catch (proxyErr: any) {
+    console.error('[AUTH] Proxy failed:', proxyErr);
+    return {
+      success: false,
+      error: 'Serveur inaccessible. Vérifiez votre connexion.',
+    };
+  }
+}
+
+// ─── AUTH : Sign Out ───────────────────────────────────────────────────────
+
+export async function signOut(): Promise<void> {
+  const sb = getSupabase();
+
+  // Nettoyer fallback
+  sessionStorage.removeItem(SESSION_KEY + '_fallback');
+
+  if (sb) {
+    try {
+      await sb.auth.signOut();
+    } catch (e) {
+      console.warn('[AUTH] signOut error:', e);
+    }
+  }
+}
+
+// ─── AUTH : Restaurer session au chargement ────────────────────────────────
+
+export async function restoreSession(): Promise<AuthResult> {
+  const sb = getSupabase();
+
+  // 1. Tenter restauration Supabase (token stocké automatiquement)
+  if (sb) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+
+      if (session?.user) {
+        const { data: profile } = await sb
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (profile) {
+          console.info('[SESSION] ✅ Session Supabase restaurée');
+          return {
+            success: true,
+            user: profileToUser(profile, session.user.email || ''),
+            session,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[SESSION] restore failed:', e);
+    }
+  }
+
+  // 2. Fallback : session temporaire (durée max 8h)
+  const fallbackRaw = sessionStorage.getItem(SESSION_KEY + '_fallback');
+  if (fallbackRaw) {
+    try {
+      const fallback = JSON.parse(fallbackRaw);
+      const age = Date.now() - (fallback.timestamp || 0);
+      if (age < 8 * 60 * 60 * 1000) {
+        console.info('[SESSION] ⚡ Session fallback restaurée (expires in', Math.round((8 * 60 * 60 * 1000 - age) / 60000), 'min)');
+        return { success: true, user: fallback.user };
+      }
+    } catch (e) {
+      sessionStorage.removeItem(SESSION_KEY + '_fallback');
+    }
+  }
+
+  return { success: false, error: 'Aucune session active.' };
+}
+
+// ─── AUTH : Google OAuth ───────────────────────────────────────────────────
+
+export async function signInWithGoogle(): Promise<AuthResult & { url?: string }> {
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const { data, error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/dashboard`,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, url: data?.url || undefined };
+}
+
+// ─── LISTENER : Changements de session ─────────────────────────────────────
+
+export function onAuthStateChange(
+  callback: (user: User | null) => void
+): () => void {
+  const sb = getSupabase();
+  if (!sb) return () => {};
+
+  const { data: { subscription } } = sb.auth.onAuthStateChange(
+    async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        sessionStorage.removeItem(SESSION_KEY + '_fallback');
+        callback(null);
+        return;
+      }
+
+      if (session?.user) {
+        try {
+          const { data: profile } = await sb
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            callback(profileToUser(profile, session.user.email || ''));
+          }
+        } catch (e) {
+          console.error('[AUTH_CHANGE]', e);
+        }
+      }
+    }
+  );
+
+  return () => subscription.unsubscribe();
+}
+
+// ─── DATA : Charger profil utilisateur ─────────────────────────────────────
+
+export async function loadUserProfile(userId: string): Promise<User | null> {
+  // Use proxy action 'getProfile' (we'll need to add it to server.ts)
+  // For now, fallback to direct supabase but we will change to proxy after adding action.
+  // We'll implement a temporary proxy call; if fails, fallback to direct.
+  try {
+    const result = await invokeProxy('getProfile', { userId });
+    if (result.success && result.profile) {
+      return profileToUser(result.profile, result.profile.email || '');
+    }
+  } catch (e) {
+    // fallback to direct
+  }
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  const { data: profile, error } = await sb
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !profile) return null;
+  return profileToUser(profile, profile.email || '');
+}
+
+// ─── DATA : Sync locale → Supabase ─────────────────────────────────────────
+
+export async function syncToSupabase<T extends Record<string, any>>(
+  table: string,
+  data: T,
+  userId: string
+): Promise<{ success: boolean; data?: T; error?: string }> {
+  const sb = getSupabase();
+  if (!sb) {
+    // Stocker en attente de synchro
+    const pending = JSON.parse(localStorage.getItem('tv_pending_sync') || '[]');
+    pending.push({ table, data, userId, timestamp: Date.now() });
+    localStorage.setItem('tv_pending_sync', JSON.stringify(pending));
+    return { success: true, data }; // optimistic
+  }
+
+  // Use proxy for write operations
+  try {
+    const result = await invokeProxy('syncToSupabase', { table, data, userId });
+    return { success: result.success, data: result.data, error: result.error };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ─── DATA : Vider la queue de synchro en attente ────────────────────────────
+
+export async function flushPendingSync(): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+
+  const pending = JSON.parse(localStorage.getItem('tv_pending_sync') || '[]');
+  if (!pending.length) return;
+
+  const done: number[] = [];
+
+  for (let i = 0; i < pending.length; i++) {
+    const { table, data, userId } = pending[i];
+    try {
+      const result = await invokeProxy('syncToSupabase', { table, data, userId });
+      if (!result.error) done.push(i);
+    } catch (e) {
+      console.warn('[SYNC_FLUSH] Failed for', table, e);
+    }
+  }
+
+  const remaining = pending.filter((_: any, i: number) => !done.includes(i));
+  localStorage.setItem('tv_pending_sync', JSON.stringify(remaining));
+  if (dications
+  }
+}
