@@ -61,21 +61,23 @@ export default function Dashboard({ trades, activeAccount, currency = 'USD' }: D
   // Respect user's motion preference
   const reduceMotion = useReducedMotion();
 
-  const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sortedTrades = React.useMemo(() => [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [trades]);
 
   // Accumulate P&L for Equity chart
-  let currentBalance = 0;
-  const equityData = sortedTrades.map((t, idx) => {
-    currentBalance += t.pnl;
-    const dateObj = new Date(t.date);
-    return {
-      name: `Trade #${idx + 1}`,
-      shortDate: dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-      Pnl: parseFloat((currentBalance * rate).toFixed(2)),
-      tradePnl: parseFloat((t.pnl * rate).toFixed(2)),
-      pair: t.pair
-    };
-  });
+  const equityData = React.useMemo(() => {
+    let currentBalance = 0;
+    return sortedTrades.map((t, idx) => {
+      currentBalance += t.pnl;
+      const dateObj = new Date(t.date);
+      return {
+        name: `Trade #${idx + 1}`,
+        shortDate: dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+        Pnl: parseFloat((currentBalance * rate).toFixed(2)),
+        tradePnl: parseFloat((t.pnl * rate).toFixed(2)),
+        pair: t.pair
+      };
+    });
+  }, [sortedTrades, rate]);
 
   // Calculate KPIs
   const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0);

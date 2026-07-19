@@ -2,7 +2,7 @@
  * ChartWrapper.tsx — Wrapper pour éviter le bug -1x-1
  * Wrap tous tes graphiques avec ce composant
  */
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, memo } from 'react';
 import { ResponsiveContainer } from 'recharts';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-export default function ChartWrapper({ children, height = 300, minHeight = 200, style }: Props) {
+function ChartWrapper({ children, height = 300, minHeight = 200, style }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
 
@@ -42,3 +42,5 @@ export default function ChartWrapper({ children, height = 300, minHeight = 200, 
     </div>
   );
 }
+
+export default memo(ChartWrapper);
