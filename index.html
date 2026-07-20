@@ -31,6 +31,13 @@
           console.warn("[Global Safety] Ignored generic cross-origin script error:", message);
           return;
         }
+        // Ignore CSP/network errors — these should NOT kill the whole app
+        if (lower.indexOf('content security policy') !== -1) { return; }
+        if (lower.indexOf('net::err') !== -1) { return; }
+        if (lower.indexOf('failed to fetch') !== -1) { return; }
+        if (lower.indexOf('refused to connect') !== -1) { return; }
+        if (lower.indexOf('vitals.vercel') !== -1) { return; }
+        if (lower.indexOf('analytics') !== -1 && lower.indexOf('blocked') !== -1) { return; }
         var root = document.getElementById('root');
         var fallback = document.getElementById('global-error-fallback');
         var details = document.getElementById('global-error-details');
