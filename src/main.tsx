@@ -68,6 +68,7 @@ import './index.css';
 import './styles/theme.css';
 import { ThemeLanguageProvider } from './utils/themeLanguageContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
 
 const isVercel = typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
 
@@ -85,7 +86,6 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <ThemeLanguageProvider>
         <App />
-        <SafeAnalytics />
       </ThemeLanguageProvider>
     </ErrorBoundary>
   </StrictMode>,
