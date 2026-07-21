@@ -23,7 +23,3 @@ npm run dev
 | `SUPABASE_SERVICE_KEY` | Clé service role (serveur uniquement) |
 | `RESEND_API_KEY` | Clé API pour les emails |
 
-## Accès Admin
-
-- Admin principal : tradonyx@vault.com
-- Admin staff : godmode@onyxtrade.pro
