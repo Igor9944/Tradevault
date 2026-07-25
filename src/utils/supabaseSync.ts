@@ -597,8 +597,6 @@ export async function deleteTradeFromSupabase(tradeId: string): Promise<void> {
   try {
     await invokeProxy('deleteTrade', { tradeId });
   } catch (e) {
-    // fallback to direct supabaseDelete tradeId)>;
-  } catch (e) {
     // fallback to direct supabase
     const sb = getSupabase();
     if (!sb) return;
