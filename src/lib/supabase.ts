@@ -1,17 +1,25 @@
-import {createClient} from '@supabase/supabase-js';
-const URL = import.meta.env.VITE_SUPABASE_URL;
-const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// src/lib/supabase.ts — v2.1 — 2026-07-12
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-let supabase: any = null;
-let isSupabaseOnline = false;
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL  ?? '';
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
-if (!URL || !ANON) {
-  console.warn('[TradeVault] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing – limited functionality');
-} else {
-  supabase = createClient(URL, ANON, {
-    auth: {persistSession:true, storageKey:'tv_session_v2', autoRefreshToken:true, detectSessionInUrl:true}
+let _client: SupabaseClient | null = null;
+
+if (SUPABASE_URL && SUPABASE_ANON) {
+  _client = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: {
+      persistSession:     true,
+      storageKey:         'tv_session_v2',
+      autoRefreshToken:   true,
+      detectSessionInUrl: true,
+    },
   });
-  isSupabaseOnline = true;
+} else {
+  console.warn(
+    '[TradeVault] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing – limited functionality'
+  );
 }
 
-export { supabase, isSupabaseOnline };
+export const supabase         = _client;
+export const isSupabaseOnline = _client !== null;

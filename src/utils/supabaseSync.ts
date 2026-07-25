@@ -14,7 +14,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const PROXY_URL = '/api/supabase/proxy';
 const SESSION_KEY = 'tv_session_v2';
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'igorrose2003@gmail.com';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
 
 import { User as AppUser } from '../types';
 
