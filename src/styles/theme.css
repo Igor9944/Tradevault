@@ -1,0 +1,22 @@
+:root {
+  --bg-primary: #0B0E11;
+  --bg-secondary: #161B22;
+  --bg-tertiary: #1C232C;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.04);
+  --border-focus: rgba(61, 220, 151, 0.4);
+  --accent-primary: #3DDC97;
+  --accent-secondary: #2BB87E;
+  --accent-glow: rgba(61, 220, 151, 0.15);
+  --success: #52D17C;
+  --success-bg: rgba(82, 209, 124, 0.08);
+  --danger: #E8544F;
+  --danger-bg: rgba(232, 84, 79, 0.08);
+  --warning: #E8A23D;
+  --warning-bg: rgba(232, 162, 61, 0.08);
+--text-primary: #ffffff;
+--account-personal: #00FF9C;
+--account-propfirm: #FFB347;
+--text-muted: #475569;
+--text-secondary: #94a3b8;
+}

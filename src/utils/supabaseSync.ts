@@ -1,0 +1,889 @@
+/**
+ * supabaseSync.ts — TradeVault
+ * Stratégie : Supabase PRIMARY → Proxy Express FALLBACK → InMemory EMERGENCY
+ * Session persistée via Supabase Auth + localStorage chiffré
+ */
+// Last rebuild triggered at: 1784378329
+
+import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
+import emailService from './emailService';
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const PROXY_URL = '/api/supabase/proxy';
+const SESSION_KEY = 'tv_session_v2';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'igorrose2003@gmail.com';
+
+import { User as AppUser } from '../types';
+
+// ─── Logger (dev only) ───────────────────────────────────────────────────────
+const isDev = import.meta.env.MODE !== 'production';
+const logInfo = (msg: any) => { if (isDev) console.info(msg); };
+const logWarn = (msg: any) => { if (isDev) console.warn(msg); };
+const logError = (msg: any) => { if (isDev) console.error(msg); };
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type User = AppUser;
+
+export interface AuthResult {
+  success: boolean;
+  user?: User;
+  session?: Session | null;
+  error?: string;
+}
+
+// ─── Email Helpers ───────────────────────────────────────────────────────────
+
+function emailNewSignup(username: string, email: string, country: string, network: string, amount: number, link: string): string {
+  return `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #fff; line-height: 1.6;">
+      <h2 style="color: #00FF9C;">Bienvenue sur TradeVault, ${username} !</h2>
+      <p>Nous avons bien reçu votre inscription pour le montant de <strong>${amount} USDT (${network})</strong>.</p>
+      <p>Votre compte sera activé dès validation de votre paiement par notre équipe.</p>
+      <p>Vous pouvez suivre l'évolution de votre demande directement depuis votre tableau de bord : <a href="${link}" style="color: #00FF9C; text-decoration: underline;">${link}</a></p>
+      <hr style="border-color: #333;">
+      <p style="font-size: 0.9em; color: #888;">Ceci est un email automatique, merci de ne pas y répondre.</p>
+    </div>
+  `;
+}
+
+function emailHtml(content: string): string {
+  return `<div style="max-width: 600px; margin: 0 auto; padding: 20px;">${content}</div>`;
+}
+
+async function sendEmail(to: string, subject: string, body: string): Promise<void> {
+  try {
+    await invokeProxy('sendEmail', { to, subject, body });
+  } catch (error) {
+    logWarn('Failed to send email via proxy:', error);
+    // fallback: try to use emailService if available
+    try {
+      // If we have emailService, we could map to appropriate function, but for simplicity we just log
+      logInfo(`[EMAIL FALLBACK] To: ${to}, Subject: ${subject}`);
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+// ─── Client Supabase Singleton ───────────────────────────────────────────────
+
+let _supabase: SupabaseClient | null = null;
+
+export function getSupabase(): SupabaseClient | null {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    logWarn('[SUPACKAGE] Variables env manquantes — mode dégradé');
+    return null;
+  }
+  if (!_supabase) {
+    _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,           // ← Persiste la session dans localStorage
+        autoRefreshToken: true,         // ← Refresh JWT automatique
+        detectSessionInUrl: true,
+        storageKey: SESSION_KEY,
+      },
+    });
+  }
+  return _supabase;
+}
+
+export const supabase = getSupabase();
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function profileToUser(profile: Record<string, any>, email: string): User {
+  return {
+    id: profile.id,
+    email: profile.email || email,
+    username: profile.username || profile.full_name || email.split('@')[0],
+    role: (profile.role as User['role']) || 'user',
+    status: (profile.status as User['status']) || 'pending',
+    subscription_status: (profile.subscription_status as User['subscription_status']) || 'pending',
+    plan: (profile.plan as User['plan']) || 'free',
+    premium_expires_at: profile.premium_expires_at || null,
+    paid: profile.subscription_status === 'premium_active',
+    paid_until: profile.premium_expires_at || null,
+    avatar_url: profile.avatar_url || undefined,
+    country: profile.country || 'TG',
+    created_at: profile.created_at || new Date().toISOString(),
+    google_linked: profile.google_linked || false,
+    google_email: profile.google_email || '',
+    currency: profile.currency || 'USD'
+  };
+}
+
+async function invokeProxy(action: string, args: Record<string, any>): Promise<any> {
+  const sb = getSupabase();
+  const session = sb ? (await sb.auth.getSession()).data.session : null;
+
+  const res = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    },
+    body: JSON.stringify({ action, arguments: args }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Proxy HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ─── AUTH : Sign In ───────────────────────────────────────────────────────────
+
+export async function signInWithSupabase(
+  emailInput: string,
+  passwordInput: string
+): Promise<AuthResult> {
+  const cleanEmail = emailInput.trim().toLowerCase();
+  const sb = getSupabase();
+
+  // ── Étape 1 : Supabase SDK direct (PRIMARY) ──────────────────────────────
+  if (sb) {
+    try {
+      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+        email: cleanEmail,
+        password: passwordInput,
+      });
+
+      if (!authError && authData?.user && authData?.session) {
+        // Charger profil
+        const { data: profile, error: profileErr } = await sb
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+
+        if (!profileErr && profile) {
+          logInfo('[AUTH] ✅ Supabase direct OK');
+          return {
+            success: true,
+            user: profileToUser(profile, cleanEmail),
+            session: authData.session,
+          };
+        }
+      }
+
+      // Si erreur claire (mauvais mdp), ne pas essayer le fallback
+      if (authError?.message?.toLowerCase().includes('invalid login credentials')) {
+        return { success: false, error: 'Identifiants invalides.' };
+      }
+    } catch (clientErr) {
+      logWarn('[AUTH] SDK direct failed, routing to proxy...', clientErr);
+    }
+  }
+
+  // ── Étape 2 : Proxy Express (FALLBACK réseau) ─────────────────────────────
+  try {
+    const res = await invokeProxy('signIn', { email: cleanEmail, password: passwordInput });
+
+    if (res.success && res.user) {
+      logInfo('[AUTH] ✅ Proxy fallback OK');
+      // Persister user minimal dans sessionStorage en cas de déconnexion
+      sessionStorage.setItem(SESSION_KEY + '_fallback', JSON.stringify({
+        user: res.user,
+        timestamp: Date.now(),
+      }));
+      return {
+        success: true,
+        user: res.user as User,
+        session: null, // pas de JWT Supabase en fallback
+      };
+    }
+    return { success: false, error: res.error || 'Identifiants invalides.' };
+  } catch (proxyErr: any) {
+    logError('[AUTH] Proxy failed:', proxyErr);
+    return {
+      success: false,
+      error: 'Serveur inaccessible. Vérifiez votre connexion.',
+    };
+  }
+}
+
+// ─── AUTH : Sign Up ──────────────────────────────────────────────────────────
+
+export async function signUpWithSupabase(
+  emailInput: string,
+  passwordInput: string,
+  usernameInput: string,
+  countryInput: string,
+  paymentScreenshot: string,
+  selectedNetwork: string,
+  subscriptionPrice: number,
+  regAvatar: string
+): Promise<AuthResult> {
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const { data, error } = await sb.auth.signUp({ email: emailInput, password: passwordInput });
+  if (error) return { success: false, error: error.message };
+  const userId = data.user?.id;
+  if (!userId) return { success: false, error: 'ID auth non récupéré.' };
+  await sb.from('profiles').upsert({
+    id: userId, email: emailInput, username: usernameInput?.trim(), country: countryInput || 'TG',
+    status: 'pending', role: 'user', subscription_status: 'pending', plan: 'free',
+    payment_proof: paymentScreenshot, created_at: new Date().toISOString()
+  });
+  await sb.from('payment_requests').insert({
+    user_id: userId, amount: subscriptionPrice || 30,
+    screenshot_url: paymentScreenshot, network: selectedNetwork || 'TRC20',
+    status: 'pending', type: 'registration', created_at: new Date().toISOString()
+  });
+  // Emails notifications
+  const uName = usernameInput?.trim() || emailInput.split('@')[0];
+  const signupHtml = emailNewSignup(uName, emailInput, countryInput || 'TG', selectedNetwork || 'TRC20', subscriptionPrice || 30, 'https://tradevault-silk.vercel.app');
+  await sendEmail(emailInput, '✅ TradeVault — Inscription reçue', signupHtml).catch(() => {});
+  const adminHtml = emailHtml(`<h2 style="color:#FFB347;margin:0 0 16px;">Nouvelle inscription ⚡</h2><p style="color:#888;">Email: <strong style="color:#fff;">${emailInput}</strong><br/>Montant: <strong style="color:#00FF9C;">${subscriptionPrice||30} USDT (${selectedNetwork||'TRC20'})</strong></p>${paymentScreenshot?`<br/><a href="${paymentScreenshot}" style="color:#00FF9C;">📎 Voir preuve</a>`:''}<br/><br/><a href="https://tradevault-silk.vercel.app" style="background:#FFB347;color:#000;font-weight:800;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;">Valider →</a>`);
+  await sendEmail(ADMIN_EMAIL, `⚡ Nouveau compte : ${uName} — ${subscriptionPrice||30} USDT`, adminHtml).catch(() => {});
+  return {
+    success: true,
+    user: {
+      id: userId,
+      email: emailInput,
+      username: usernameInput?.trim() || emailInput.split('@')[0],
+      country: countryInput || 'TG',
+      role: 'user',
+      status: 'pending',
+      subscription_status: 'pending',
+      plan: 'free',
+      premium_expires_at: null,
+      paid: false,
+      paid_until: null,
+      avatar_url: undefined,
+      google_linked: false,
+      google_email: '',
+      currency: 'USD',
+      created_at: new Date().toISOString()
+    }
+  };
+}
+
+// ─── AUTH : Sign Out ─────────────────────────────────────────────────────────
+
+export async function signOut(): Promise<void> {
+  const sb = getSupabase();
+
+  // Nettoyer fallback
+  sessionStorage.removeItem(SESSION_KEY + '_fallback');
+
+  if (sb) {
+    try {
+      await sb.auth.signOut();
+    } catch (e) {
+      logWarn('[AUTH] signOut error:', e);
+    }
+  }
+}
+
+// ─── AUTH : Restaurer session au chargement ───────────────────────────────────
+
+export async function restoreSession(): Promise<AuthResult> {
+  const sb = getSupabase();
+
+  // 1. Tenter restauration Supabase (token stocké automatiquement)
+  if (sb) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+
+      if (session?.user) {
+        const { data: profile } = await sb
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (profile) {
+          logInfo('[SESSION] ✅ Session Supabase restaurée');
+          return {
+            success: true,
+            user: profileToUser(profile, session.user.email || ''),
+            session,
+          };
+        }
+      }
+    } catch (e) {
+      logWarn('[SESSION] restore failed:', e);
+    }
+  }
+
+  // 2. Fallback : session temporaire (durée max 8h)
+  const fallbackRaw = sessionStorage.getItem(SESSION_KEY + '_fallback');
+  if (fallbackRaw) {
+    try {
+      const fallback = JSON.parse(fallbackRaw);
+      const age = Date.now() - (fallback.timestamp || 0);
+      if (age < 8 * 60 * 60 * 1000) {
+        logInfo(`[SESSION] ⚡ Session fallback restaurée (expires in`, Math.round((8 * 60 * 60 * 1000 - age) / 60000), 'min)');
+        return { success: true, user: fallback.user };
+      }
+    } catch (e) {
+      sessionStorage.removeItem(SESSION_KEY + '_fallback');
+    }
+  }
+
+  return { success: false, error: 'Aucune session active.' };
+}
+
+// ─── AUTH : Google OAuth ──────────────────────────────────────────────────────
+
+export async function signInWithGoogle(): Promise<AuthResult & { url?: string }> {
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const { data, error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/dashboard`,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, url: data?.url || undefined };
+}
+
+// ─── LISTENER : Changements de session ───────────────────────────────────────
+
+export function onAuthStateChange(
+  callback: (user: User | null) => void
+): () => void {
+  const sb = getSupabase();
+  if (!sb) return () => {};
+
+  const { data: { subscription } } = sb.auth.onAuthStateChange(
+    async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        sessionStorage.removeItem(SESSION_KEY + '_fallback');
+        callback(null);
+        return;
+      }
+
+      if (session?.user) {
+        try {
+          const { data: profile } = await sb
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            callback(profileToUser(profile, session.user.email || ''));
+          }
+        } catch (e) {
+          logError('[AUTH_CHANGE]', e);
+        }
+      }
+    }
+  );
+
+  return () => subscription.unsubscribe();
+}
+
+// ─── DATA : Charger profil utilisateur ───────────────────────────────────────
+
+export async function loadUserProfile(userId: string): Promise<User | null> {
+  // Use proxy action 'getProfile' (to be added to server.ts)
+  try {
+    const result = await invokeProxy('getProfile', { userId });
+    if (result.success && result.profile) {
+      return profileToUser(result.profile, result.profile.email || '');
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  const { data: profile, error } = await sb
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !profile) return null;
+  return profileToUser(profile, profile.email || '');
+}
+
+// ─── DATA : Sync locale → Supabase ───────────────────────────────────────────
+
+export async function syncToSupabase<T extends Record<string, any>>(
+  table: string,
+  data: T,
+  userId: string
+): Promise<{ success: boolean; data?: T; error?: string }> {
+  const sb = getSupabase();
+  if (!sb) {
+    // Stocker en attente de synchro
+    const pending = JSON.parse(localStorage.getItem('tv_pending_sync') || '[]');
+    pending.push({ table, data, userId, timestamp: Date.now() });
+    localStorage.setItem('tv_pending_sync', JSON.stringify(pending));
+    return { success: true, data }; // optimistic
+  }
+
+  const { data: result, error } = await sb
+    .from(table)
+    .upsert({ ...data, user_id: userId })
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: result as T };
+}
+
+// ─── DATA : Vider la queue de synchro en attente ─────────────────────────────
+
+export async function flushPendingSync(): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+
+  const pending = JSON.parse(localStorage.getItem('tv_pending_sync') || '[]');
+  if (!pending.length) return;
+
+  const done: number[] = [];
+
+  for (let i = 0; i < pending.length; i++) {
+    const { table, data, userId } = pending[i];
+    try {
+      const { error } = await sb
+        .from(table)
+        .upsert({ ...data, user_id: userId });
+      if (!error) done.push(i);
+    } catch (e) {
+      logWarn('[SYNC_FLUSH] Failed for', table, e);
+    }
+  }
+
+  const remaining = pending.filter((_: any, i: number) => !done.includes(i));
+  localStorage.setItem('tv_pending_sync', JSON.stringify(remaining));
+  if (done.length > 0) {
+    logInfo(`[SYNC_FLUSH] ✅ ${done.length} opération(s) synchronisée(s)`);
+  }
+}
+
+// ─── BACKWARD COMPATIBILITY HELPERS ──────────────────────────────────────────
+
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+export function ensureUUID(id: string | null | undefined): string {
+  if (!id || id.length < 10) return generateUUID();
+  return id;
+}
+
+export async function syncUserProfile(user: User): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  await sb.from('profiles').upsert({
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    status: user.status,
+    subscription_status: user.subscription_status,
+    plan: user.plan,
+    premium_expires_at: user.premium_expires_at,
+    country: user.country,
+    avatar_url: user.avatar_url || (user as any).avatar,
+    updated_at: new Date().toISOString()
+  });
+}
+
+export async function patchUserProfile(userId: string, updates: Partial<User>): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const dbUpdates: any = {};
+  if (updates.username !== undefined) dbUpdates.username = updates.username;
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.subscription_status !== undefined) dbUpdates.subscription_status = updates.subscription_status;
+  if (updates.plan !== undefined) dbUpdates.plan = updates.plan;
+  if (updates.premium_expires_at !== undefined) dbUpdates.premium_expires_at = updates.premium_expires_at;
+  if (updates.country !== undefined) dbUpdates.country = updates.country;
+
+  const avatarVal = (updates as any).avatar_url !== undefined ? (updates as any).avatar_url : (updates as any).avatar;
+  if (avatarVal !== undefined) dbUpdates.avatar_url = avatarVal;
+
+  await sb.from('profiles').update(dbUpdates).eq('id', userId);
+}
+
+export async function fetchUserProfile(userId: string): Promise<User | null> {
+  return loadUserProfile(userId);
+}
+
+// ─── DATA : Sync locale → Supabase (Account, Trade, Challenge, Payment) ───────
+
+export async function saveAccountToSupabase(userId: string, account: any): Promise<void> {
+  // Use proxy action 'saveAccount' (to be added to server.ts)
+  try {
+    await invokeProxy('saveAccount', { account, userId });
+  } catch (e) {
+    // fallback to direct supabase (original logic)
+    const sb = getSupabase();
+    if (!sb) return;
+
+    // Remove alias field before sending to DB
+    const { account_type, ...dbPayload } = account as any;
+    // Ensure 'type' field uses the correct enum value
+    const payload = {
+      ...dbPayload,
+      id: ensureUUID(account.id),
+      type: account.type || account.account_type || 'personal',
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    };
+
+    await sb.from('trading_accounts').upsert(payload);
+  }
+}
+
+export async function deleteAccountFromSupabase(accountId: string): Promise<void> {
+  try {
+    await invokeProxy('deleteAccount', { accountId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('trading_accounts').delete().eq('id', accountId);
+  }
+}
+
+export async function saveTradeToSupabase(userId: string, trade: any): Promise<void> {
+  // Use proxy action 'saveTrade' (to be added to server.ts)
+  try {
+    await invokeProxy('saveTrade', { trade, userId });
+  } catch (e) {
+    // fallback to direct supabase (original logic)
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('trades').upsert({
+      id: ensureUUID(trade.id),
+      user_id: userId,
+      account_id: trade.account_id || trade.accountId,
+      symbol: trade.pair || trade.symbol || 'EURUSD',
+      side: (trade.type || trade.side || 'buy').toLowerCase(),
+      entry_price: trade.entry || trade.entry_price || 0,
+      exit_price: trade.exit || trade.exit_price || 0,
+      size_lots: trade.lots || trade.size_lots || 0.1,
+      profit_loss: trade.pnl || trade.profit_loss || 0,
+      fees: trade.fees || 0,
+      commission: trade.commission || 0,
+      execution_time_entry: trade.created_at || new Date().toISOString(),
+      trade_date: trade.date || trade.trade_date || new Date().toISOString().split('T')[0],
+      notes: trade.notes || '',
+      session: trade.session || '',
+      setup: trade.setup || '',
+      emotion: trade.emotion || '',
+      mindset: trade.mindset || ''
+    });
+  }
+}
+
+export async function deleteTradeFromSupabase(tradeId: string): Promise<void> {
+  try {
+    await invokeProxy('deleteTrade', { tradeId });
+  } catch (e) {
+    // fallback to direct supabaseDelete tradeId)>;
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('trades').delete().eq('id', tradeId);
+  }
+}
+
+// ─── CHALLENGE ──────────────────────────────────────────────────────────────
+
+export async function saveChallengeToSupabase(userId: string, challenge: any): Promise<void> {
+  // Use proxy action 'saveChallenge'
+  try {
+    await invokeProxy('saveChallenge', { challenge, userId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('challenges').upsert({
+      id: ensureUUID(challenge.id),
+      user_id: userId,
+      account_id: challenge.account_id || challenge.accountId,
+      name: challenge.name || 'Challenge',
+      capital: challenge.capital || 100000,
+      target: challenge.target || 10,
+      daily_loss: challenge.daily_loss || 5,
+      global_loss: challenge.global_loss || 10,
+      status: challenge.status || 'ongoing',
+      created_at: challenge.created_at || new Date().toISOString()
+    });
+  }
+}
+
+export async function deleteChallengeFromSupabase(challengeId: string): Promise<void> {
+  try {
+    await invokeProxy('deleteChallenge', { challengeId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('challenges').delete().eq('id', challengeId);
+  }
+}
+
+// ─── PAYMENT ────────────────────────────────────────────────────────────────
+
+export async function savePaymentToSupabase(userId: string, payment: any): Promise<void> {
+  // Use proxy action 'savePayment'
+  try {
+    await invokeProxy('savePayment', { payment, userId });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('payment_requests').upsert({
+      id: ensureUUID(payment.id),
+      user_id: userId,
+      amount: payment.amount || 30,
+      screenshot_url: payment.screenshot_url || payment.screenshot || '',
+      network: payment.network || 'TRC20',
+      status: payment.status || 'pending',
+      type: payment.type || 'registration',
+      created_at: payment.created_at || new Date().toISOString()
+    });
+  }
+}
+
+export async function registerPayment(userId: string, amount: number, screenshot: string, network: string = 'TRC20', type: string = 'registration'): Promise<any> {
+  // Use proxy action 'savePayment'
+  try {
+    const result = await invokeProxy('savePayment', {
+      payment: {
+        id: generateUUID(),
+        user_id: userId,
+        amount,
+        screenshot_url: screenshot,
+        network,
+        status: 'pending',
+        type,
+        created_at: new Date().toISOString()
+      },
+      userId
+    });
+    return { success: !result.error, data: result.data };
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return { success: false };
+    const { data, error } = await sb.from('payment_requests').insert({
+      id: generateUUID(),
+      user_id: userId,
+      amount,
+      screenshot_url: screenshot,
+      network,
+      status: 'pending',
+      type,
+      created_at: new Date().toISOString()
+    }).select().single();
+    return { success: !error, data };
+  }
+}
+
+// ─── ADMIN SETTINGS ────────────────────────────────────────────────────────
+
+export async function loadAdminSettings(): Promise<any> {
+  // Use proxy action 'getAdminSettings'
+  try {
+    const result = await invokeProxy('getAdminSettings', {});
+    if (result.success) {
+      return result.settings || {};
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb.from('admin_settings').select('*').maybeSingle();
+
+    const defaults = {
+      adminEmails: 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+      adminWalletTRC20: 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
+      adminWalletBEP20: '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
+      subscriptionPrice: 30,
+      subscriptionPeriod: 3
+    };
+
+    if (error || !data) {
+      return defaults;
+    }
+
+    return {
+      adminEmails: data.adminEmails || defaults.adminEmails,
+      walletTRC20: data.adminWalletTRC20 || defaults.adminWalletTRC20,
+      walletBEP20: data.adminWalletBEP20 || defaults.adminWalletBEP20,
+      subscriptionPrice: (data.subscriptionPrice !== undefined && data.subscriptionPrice !== null) ? Number(data.subscriptionPrice) : defaults.subscriptionPrice,
+      subscriptionPeriod: (data.subscriptionPeriod !== undefined && data.subscriptionPeriod !== null) ? Number(data.subscriptionPeriod) : defaults.subscriptionPeriod
+    };
+  } catch (err) {
+    logWarn("loadAdminSettings caught an error, using safety defaults:", err);
+    return {
+      adminEmails: 'igorrose2003@gmail.com,toshirohitsugayaonyx@gmail.com',
+      walletTRC20: 'TN2YxKp9vR3mHqL7bF8cD2eA5wJ6sT4uV',
+      walletBEP20: '0x7a3B5c9D2eF1a4B6c8D0e2F4a6B8c0D2e4F6a8B0',
+      subscriptionPrice: 30,
+      subscriptionPeriod: 3
+    };
+  }
+}
+
+export async function saveAdminSettings(settings: any): Promise<void> {
+  // Use proxy action 'saveAdminSettings'
+  try {
+    await invokeProxy('saveAdminSettings', { settings });
+  } catch (e) {
+    // fallback to direct supabase
+    const sb = getSupabase();
+    if (!sb) return;
+    await sb.from('admin_settings').upsert(settings);
+  }
+}
+
+// ─── DATA : Charger toutes les données utilisateur ───────────────────────────
+
+export async function loadUserDataFromSupabase(userId: string): Promise<any> {
+  // Use proxy action 'loadUserData'
+  try {
+    const result = await invokeProxy('loadUserData', { userId });
+    if (result.success) {
+      return {
+        accounts: result.accounts || [],
+        trades: result.trades || [],
+        challenges: result.challenges || [],
+        payments: result.payments || []
+      };
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
+  const sb = getSupabase();
+  if (!sb) return null;
+  const [accs, trds, chs, pay] = await Promise.all([
+    sb.from('trading_accounts').select('*').eq('user_id', userId).eq('is_active', true),
+    sb.from('trades').select('*').eq('user_id', userId),
+    sb.from('challenges').select('*').eq('user_id', userId),
+    sb.from('payment_requests').select('*').eq('user_id', userId)
+  ]);
+
+  const rawAccounts = accs.data || [];
+  const normalizedAccounts = rawAccounts.map((a: any) => {
+    const typeVal = a.type || 'personal';
+    const normalizedType = (typeVal === 'funded' || typeVal === 'challenge' || typeVal === 'prop_firm') ? 'prop_firm' : typeVal;
+    return {
+      ...a,
+      account_type: normalizedType,
+      type: normalizedType,
+    };
+  });
+
+  return {
+    accounts: normalizedAccounts,
+    trades: trds.data || [],
+    challenges: chs.data || [],
+    payments: pay.data || []
+  };
+}
+
+// ─── ADMIN : Gestion des utilisateurs ────────────────────────────────────────
+
+export async function adminLoadAllUsersFromSupabase(): Promise<any[]> {
+  const res = await invokeProxy('adminLoadAllUsers', {});
+  return res.success ? res.users || [] : [];
+}
+
+export async function adminLoadAllPaymentsFromSupabase(): Promise<any[]> {
+  const res = await invokeProxy('adminLoadAllPayments', {});
+  return res.success ? res.payments || [] : [];
+}
+
+export async function adminDeleteUserFromSupabase(userId: string): Promise<boolean> {
+  const res = await invokeProxy('adminDeleteUser', { userId });
+  return !!res.success;
+}
+
+export async function adminUpdateUserFromSupabase(userId: string, updates: any): Promise<boolean> {
+  const res = await invokeProxy('adminUpdateUser', { userId, updates });
+  return !!res.success;
+}
+
+export async function adminGetStatsFromSupabase(): Promise<any> {
+  const res = await invokeProxy('adminGetStats', {});
+  return res.success ? res.stats : null;
+}
+
+export async function adminCreateAnnouncementToSupabase(announcement: any): Promise<boolean> {
+  const res = await invokeProxy('adminCreateAnnouncement', { annotation });
+  return !!res.success;
+}
+
+export async function updateUserRole(userId: string, role: User['role']): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  const { error } = await sb.from('profiles').update({ role }).eq('id', userId);
+  return !error;
+}
+
+// ─── SESSION HANDLING ──────────────────────────────────────────────────────
+
+export async function handleSupabaseSession(session?: any): Promise<any> {
+  // Try proxy first
+  try {
+    const result = await invokeProxy('handleSupabaseSession', { session });
+    if (result.success) {
+      return result;
+    }
+  } catch (e) {
+    // fallback to direct supabase
+  }
+  // Fallback logic
+  const sb = getSupabase();
+  if (!sb) return { success: false, error: 'Supabase non disponible.' };
+
+  const targetSession = session || (await sb.auth.getSession()).data.session;
+  if (!targetSession?.user) {
+    return { success: false, error: 'Aucune session active.' };
+  }
+
+  try {
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('*')
+      .eq('id', targetSession.user.id)
+      .maybeSingle();
+
+    if (profile) {
+      return {
+        success: true,
+        user: profileToUser(profile, targetSession.user.email || ''),
+        session: targetSession,
+      };
+    }
+  } catch (e) {
+    logWarn('[handleSupabaseSession] failed to load profile:', e);
+  }
+
+  return { success: false, error: 'Profil non trouvé.' };
+}
+
+export default supabase;

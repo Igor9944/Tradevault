@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr" translate="no">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google" content="notranslate">
+    <meta name="theme-color" content="#050505">
+    <link rel="apple-touch-icon" href="/logo.png">
+    <link rel="icon" type="image/png" href="/logo.png">
+    <title>TradeVault & TradeLog PRO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+    </style>
+  </head>
+  <body class="bg-black text-neutral-200">
+    <div id="root">
+      <div id="global-error-fallback" style="display: none; padding: 20px; color: white; background: #5c0000; font-family: sans-serif; min-height: 100vh; text-align: left;">
+        <h2 style="margin-top: 0;">Application Failed to Start</h2>
+        <p>A critical error occurred before the application could load. If you are the developer, please check the browser console.</p>
+        <pre id="global-error-details" style="background: rgba(0,0,0,0.5); padding: 10px; overflow-x: auto; font-size: 11px;"></pre>
+      </div>
+    </div>
+    <script>
+      function showGlobalError(message) {
+        var lower = String(message || '').toLowerCase();
+        if (!message || lower.indexOf('script error') !== -1) {
+          console.warn("[Global Safety] Ignored generic cross-origin script error:", message);
+          return;
+        }
+        // Ignore CSP/network errors — these should NOT kill the whole app
+        if (lower.indexOf('content security policy') !== -1) { return; }
+        if (lower.indexOf('net::err') !== -1) { return; }
+        if (lower.indexOf('failed to fetch') !== -1) { return; }
+        if (lower.indexOf('refused to connect') !== -1) { return; }
+        if (lower.indexOf('vitals.vercel') !== -1) { return; }
+        if (lower.indexOf('analytics') !== -1 && lower.indexOf('blocked') !== -1) { return; }
+        var root = document.getElementById('root');
+        var fallback = document.getElementById('global-error-fallback');
+        var details = document.getElementById('global-error-details');
+        if (root && root.children.length <= 1 && fallback && details) {
+          fallback.style.display = 'block';
+          details.innerText = message;
+        }
+      }
+
+      // Prevent default logging of cross-origin script errors
+      window.onerror = function(message, source, lineno, colno, error) {
+        var lower = String(message || '').toLowerCase();
+        if (lower.indexOf('script error') !== -1) {
+          console.warn("[Global Safety] Prevented default error reporting for generic cross-origin script error.");
+          return true; // True prevents the fire of the default event handler
+        }
+        return false;
+      };
+
+      window.addEventListener('error', function(event) {
+        var lower = String(event.message || '').toLowerCase();
+        if (lower.indexOf('script error') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        showGlobalError(event.error ? event.error.stack : event.message);
+      });
+
+      window.addEventListener('unhandledrejection', function(event) {
+        var reasonStr = String(event.reason ? (event.reason.stack || event.reason.message || event.reason) : '');
+        var lower = reasonStr.toLowerCase();
+        if (lower.indexOf('script error') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        showGlobalError(event.reason ? (event.reason.stack || event.reason) : 'Unhandled Promise Rejection');
+      });
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
